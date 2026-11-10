@@ -178,7 +178,108 @@ const R = (function () {
     { top: 0x1c1f2e, pants: 0x2848d0, skin: 0xd9a27c, hair: 0xf3dc4a, glove: 0xffd21e, belt: 0xffd21e, band: 0, shoe: 0xf4f4f4, trim: 0xffd21e }
   ];
   const ALT = [{ top: 0x27357a, pants: 0x1f2a63, band: 0xf2c230, glove: 0xf2c230, trim: 0xf2c230 }, { top: 0xb3202c, pants: 0x25252c, hair: 0xdfe6ee, glove: 0xffffff, belt: 0xffffff, trim: 0xffffff }];
+  // ----------------------------------------------------------- skinned humanoid body, driven by the same pose targets
+  const MS = 51;   // world units per metre of the model
+  const MDL = (function () {
+    if (typeof GK_MODEL === 'undefined' || typeof atob === 'undefined') return null;
+    try {
+      const M = GK_MODEL, bin = atob(M.b64), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+      const nv = M.nv, dv = new DataView(u8.buffer); let o = 0;
+      const pos = new Float32Array(nv * 3); for (let i = 0; i < nv * 3; i++) pos[i] = dv.getInt16(o + i * 2, true) / 16000; o += nv * 6;
+      const nor = new Float32Array(nv * 3); for (let i = 0; i < nv * 3; i++) nor[i] = dv.getInt8(o + i) / 127; o += nv * 3;
+      const si = new Uint16Array(nv * 4); for (let i = 0; i < nv * 4; i++) si[i] = u8[o + i]; o += nv * 4;
+      const sw = new Float32Array(nv * 4); for (let i = 0; i < nv * 4; i++) sw[i] = u8[o + i] / 255; o += nv * 4;
+      const cat = u8.slice(o, o + nv); o += nv;
+      const idx = new Uint16Array(M.ni); for (let i = 0; i < M.ni; i++) idx[i] = dv.getUint16(o + i * 2, true);
+      const id = {}, world = []; M.bones.forEach((b, i) => { id[b[0]] = i; });
+      const wp = i => world[i] || (world[i] = (() => { const b = M.bones[i], p = b[1] >= 0 ? wp(b[1]) : [0, 0, 0]; return [p[0] + b[2], p[1] + b[3], p[2] + b[4]]; })());
+      M.bones.forEach((b, i) => wp(i));
+      const gain = M.bones.map(b => /(Arm|ForeArm)$/.test(b[0]) ? 0.22 : /UpLeg$/.test(b[0]) ? 0.16 : /Leg$/.test(b[0]) ? 0.2 : /Shoulder$/.test(b[0]) ? 0.1 : 0), kind = M.bones.map(b => /Arm|Shoulder/.test(b[0]) ? 1 : /Leg/.test(b[0]) ? 2 : 0);
+      for (let i = 0; i < nv; i++) { let g = 0, k = 0, bi = 0, bw = 0; for (let c = 0; c < 4; c++) { const j = si[i * 4 + c], w = sw[i * 4 + c]; g += gain[j] * w; if (w > bw && kind[j]) { bw = w; bi = j; k = kind[j]; } } if (g <= 0 || !k) continue; const c0 = world[bi];
+        if (k === 1) { pos[i * 3 + 1] = c0[1] + (pos[i * 3 + 1] - c0[1]) * (1 + g); pos[i * 3 + 2] = c0[2] + (pos[i * 3 + 2] - c0[2]) * (1 + g); } else { pos[i * 3] = c0[0] + (pos[i * 3] - c0[0]) * (1 + g); pos[i * 3 + 2] = c0[2] + (pos[i * 3 + 2] - c0[2]) * (1 + g); } }
+      const off = n => { const b = M.bones[id[n]]; return new THREE.Vector3(b[2] * MS, b[3] * MS, b[4] * MS); };
+      return { nv, pos, nor, si, sw, cat, idx, bones: M.bones, id, world, off };
+    } catch (e) { return null; }
+  })();
+  const _q = new THREE.Quaternion(), _m4 = new THREE.Matrix4(), _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3();
+  // orientation whose Y axis is dir and whose Z axis is as close to ref as possible (model space)
+  function basisQ(dir, ref, out) {
+    _a.copy(dir).normalize(); _b.copy(ref).addScaledVector(_a, -ref.dot(_a)); if (_b.lengthSq() < 1e-6) { _b.set(0.3, 0.2, 1); _b.addScaledVector(_a, -_b.dot(_a)); } _b.normalize(); _c.crossVectors(_a, _b);
+    return out.setFromRotationMatrix(_m4.makeBasis(_c, _a, _b));
+  }
+  const V = (x, y, z) => new THREE.Vector3(x, y, z), toM = p => V(-p[2], p[1], p[0]);   // game space -> model space
+  const QB = MDL ? { sp: basisQ(V(0, 1, 0), V(-1, 0, 0), new THREE.Quaternion()).invert(), aL: basisQ(V(1, 0, 0), V(0, -1, 0), new THREE.Quaternion()).invert(), aR: basisQ(V(-1, 0, 0), V(0, 1, 0), new THREE.Quaternion()).invert(), lg: basisQ(V(0, -1, 0), V(1, 0, 0), new THREE.Quaternion()).invert(), ft: basisQ(V(0, -8.729, 10.711), V(1, 0, 0), new THREE.Quaternion()).invert() } : null;
+  const FTP = Math.atan2(8.729, 10.711);
+  function buildRigM(ch, alt) {
+    const lk = Object.assign({}, LOOK[ch], alt ? ALT[ch] : {}), nv = MDL.nv;
+    const keys = ['skin', 'top', 'pants', 'belt', 'glove', 'shoe', 'hair', ch === 0 ? 'band' : 'hair', ch === 0 ? 'skin' : 'trim'], cols = keys.map(k => new THREE.Color(lk[k]));
+    const col = new Float32Array(nv * 3); for (let i = 0; i < nv; i++) { const c = cols[MDL.cat[i]]; col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b; }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(MDL.pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(MDL.nor, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    geo.setAttribute('skinIndex', new THREE.BufferAttribute(MDL.si, 4)); geo.setAttribute('skinWeight', new THREE.BufferAttribute(MDL.sw, 4)); geo.setIndex(new THREE.BufferAttribute(MDL.idx, 1));
+    const mat = new THREE.MeshLambertMaterial({ vertexColors: true, skinning: true });
+    const ol = new THREE.MeshBasicMaterial({ color: 0x0a0810, side: THREE.BackSide, skinning: true });
+    ol.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', 'vec3 transformed = position + normal * 0.016;'); };
+    const bones = MDL.bones.map(b => { const o = new THREE.Bone(); o.name = b[0]; o.position.set(b[2], b[3], b[4]); return o; }), inv = [];
+    const mesh = new THREE.SkinnedMesh(geo, mat), out = new THREE.SkinnedMesh(geo, ol); mesh.frustumCulled = false; out.frustumCulled = false;
+    MDL.bones.forEach((b, i) => { if (b[1] >= 0) bones[b[1]].add(bones[i]); else mesh.add(bones[i]); const w = MDL.world[i]; inv.push(new THREE.Matrix4().makeTranslation(-w[0], -w[1], -w[2])); });
+    const sk = new THREE.Skeleton(bones, inv); mesh.bind(sk, new THREE.Matrix4()); out.bind(sk, new THREE.Matrix4());
+    const B = {}; bones.forEach(o => { B[o.name] = o; });
+    // fists: fingers folded away inside a glove
+    const gm = new THREE.MeshLambertMaterial({ color: lk.glove }), gg = new THREE.IcosahedronGeometry(0.066, 1), go = new THREE.MeshBasicMaterial({ color: 0x0a0810, side: THREE.BackSide });
+    for (const o of bones) { if (/^(Left|Right)Hand(Index|Middle|Ring|Pinky|Thumb)1$/.test(o.name)) o.scale.setScalar(0.01);
+      if (o.name === 'LeftHand' || o.name === 'RightHand') { const g = new THREE.Mesh(gg, gm); g.scale.set(1.3, 1.02, 1.12); g.position.set(o.name === 'LeftHand' ? 0.07 : -0.07, 0, 0.005); const g2 = new THREE.Mesh(gg, go); g2.scale.setScalar(1.2); g.add(g2); o.add(g); } }
+    const G = new THREE.Group(), M = new THREE.Group(), R = new THREE.Group(), W = new THREE.Group(), inner = new THREE.Group(); G.add(M); M.add(R); R.rotation.order = 'ZYX'; R.add(W); W.add(inner);
+    const hw = MDL.world[MDL.id.Hips]; W.rotation.y = Math.PI / 2; W.scale.setScalar(MS); inner.position.set(-hw[0], -hw[1], -hw[2]); inner.add(mesh); inner.add(out);
+    const O = {}; for (const n of ['Spine', 'Spine1', 'Spine2', 'Neck', 'Head', 'LeftShoulder', 'LeftArm', 'LeftForeArm', 'LeftHand', 'RightShoulder', 'RightArm', 'RightForeArm', 'RightHand', 'LeftUpLeg', 'LeftLeg', 'LeftFoot', 'RightUpLeg', 'RightLeg', 'RightFoot']) O[n] = MDL.off(n);
+    const len = { UA: O.LeftForeArm.length(), FA: O.LeftHand.length(), TH: O.LeftLeg.length(), SH: O.LeftFoot.length(), AH: (MDL.world[MDL.id.LeftFoot][1]) * MS };
+    return { G, M, R, sk: 1, B, O, len, mats: { body: mat, glove: gm }, q: { H: new THREE.Quaternion(), S: new THREE.Quaternion(), S2: new THREE.Quaternion(), N: new THREE.Quaternion(), a: new THREE.Quaternion(), f: new THREE.Quaternion(), t: new THREE.Quaternion(), i: new THREE.Quaternion() } };
+  }
+  function applyPoseM(rig, fp, face, flashK, tint) {
+    const po = fp.po, B = rig.B, O = rig.O, L = rig.len, q = rig.q, hip = [po.hip[0], po.hip[1], 0];
+    const a1 = po.ln * D, a2 = po.ln2 * D, tw = po.tw * D, pt = po.pt * D, cax = [Math.sin(tw), 0, Math.cos(tw)], pax = [Math.sin(pt), 0, Math.cos(pt)], mid = [(cax[0] + pax[0]) / 2, 0, (cax[2] + pax[2]) / 2];
+    const ha = a2 * 0.45 + po.hd * D, hz = [cax[0] * 0.3, 0, 0.7 + cax[2] * 0.3];
+    basisQ(toM([Math.sin(a1 * 0.5), Math.cos(a1 * 0.5), 0]), toM(pax), q.H).multiply(QB.sp);
+    basisQ(toM([Math.sin(a1), Math.cos(a1), 0]), toM(mid), q.S).multiply(QB.sp);
+    basisQ(toM([Math.sin(a2), Math.cos(a2), 0]), toM(cax), q.S2).multiply(QB.sp);
+    basisQ(toM([Math.sin(ha), Math.cos(ha), 0]), toM(hz), q.N).multiply(QB.sp);
+    B.Hips.quaternion.copy(q.H); B.Spine.quaternion.copy(q.i.copy(q.H).invert()).multiply(q.S); B.Spine1.quaternion.set(0, 0, 0, 1);
+    B.Spine2.quaternion.copy(q.i.copy(q.S).invert()).multiply(q.S2); B.Neck.quaternion.copy(q.i.copy(q.S2).invert()).multiply(q.N); B.Head.quaternion.set(0, 0, 0, 1);
+    // where the model's own shoulder and hip joints end up (model space, relative to the hips), then back to game space
+    const pS2 = O.Spine.clone().applyQuaternion(q.H).add(O.Spine1.clone().applyQuaternion(q.S)).add(O.Spine2.clone().applyQuaternion(q.S));
+    const mine = v => [hip[0] + v.z, hip[1] + v.y, -v.x];
+    const tg = {}; for (const n of ['hL', 'hR', 'fL', 'fR']) tg[n] = po[n].slice();
+    if (po.aim && fp.hb && po.aw > 0) { const h = fp.hb, t = tg[po.aim], tx = po.up ? h[0] + h[2] * 0.6 : h[0] + h[2] - 4, ty = po.up ? h[1] + h[3] - 6 : h[1] + h[3] * po.ay; t[0] += (tx - t[0]) * po.aw; t[1] += (ty - t[1]) * po.aw; }
+    for (const n of ['L', 'R']) {
+      const sd = n === 'L' ? -1 : 1, S = n === 'L' ? 'Left' : 'Right';
+      const sh = mine(pS2.clone().add(O[S + 'Shoulder'].clone().add(O[S + 'Arm']).applyQuaternion(q.S2))), ht = tg['h' + n], e = po['e' + n];
+      const ap = [-0.35, e, sd * 0.7 * (e > 0 ? 1.4 : 1)], A = ik(sh, [ht[0], ht[1], sh[2] * 0.45 + ht[2]], L.UA, L.FA, ap, 1.12);
+      const hs = mine(O[S + 'UpLeg'].clone().applyQuaternion(q.H)), ft = tg['f' + n], kk = po['k' + n];
+      const fty = fp.air ? ft[1] + L.AH - 4 : Math.max(L.AH, ft[1] + L.AH - 4), kp = [0.8, 0.45, sd * (0.4 + kk * 1.6)];
+      const Lg = ik(hs, [ft[0], fty, sd * 5 + ft[2]], L.TH, L.SH, kp, 1.12);
+      // arm: upper, fore, hand
+      const u = V(A[0][0] - sh[0], A[0][1] - sh[1], A[0][2] - sh[2]), f = V(A[1][0] - A[0][0], A[1][1] - A[0][1], A[1][2] - A[0][2]);
+      const ax = toM([-(u.y * ap[2] - u.z * ap[1]), -(u.z * ap[0] - u.x * ap[2]), -(u.x * ap[1] - u.y * ap[0])]), qb = n === 'L' ? QB.aL : QB.aR;
+      basisQ(toM([u.x, u.y, u.z]), ax, q.a).multiply(qb); B[S + 'Arm'].quaternion.copy(q.i.copy(q.S2).invert()).multiply(q.a);
+      basisQ(toM([f.x, f.y, f.z]), ax, q.f).multiply(qb); B[S + 'ForeArm'].quaternion.copy(q.i.copy(q.a).invert()).multiply(q.f);
+      B[S + 'ForeArm'].position.x = O[S + 'ForeArm'].x / MS * (u.length() / L.UA); B[S + 'Hand'].position.x = O[S + 'Hand'].x / MS * (f.length() / L.FA);
+      // leg: thigh, shin, foot
+      const th = V(Lg[0][0] - hs[0], Lg[0][1] - hs[1], Lg[0][2] - hs[2]), sn = V(Lg[1][0] - Lg[0][0], Lg[1][1] - Lg[0][1], Lg[1][2] - Lg[0][2]);
+      const kx = toM([-(th.y * kp[2] - th.z * kp[1]), -(th.z * kp[0] - th.x * kp[2]), -(th.x * kp[1] - th.y * kp[0])]);
+      basisQ(toM([th.x, th.y, th.z]), kx, q.a).multiply(QB.lg); B[S + 'UpLeg'].quaternion.copy(q.i.copy(q.H).invert()).multiply(q.a);
+      basisQ(toM([sn.x, sn.y, sn.z]), kx, q.f).multiply(QB.lg); B[S + 'Leg'].quaternion.copy(q.i.copy(q.a).invert()).multiply(q.f);
+      B[S + 'Leg'].position.y = O[S + 'Leg'].y / MS * (th.length() / L.TH); B[S + 'Foot'].position.y = O[S + 'Foot'].y / MS * (sn.length() / L.SH);
+      const sl = Math.hypot(sn.x, sn.y) || 1, k = fp.air ? 1 : Math.max(0, Math.min(1, (Lg[1][1] - L.AH - 1) / 8));
+      const fx0 = sd > 0 && !fp.air ? 0.8 : 1, t = toM([fx0 * (1 - k) + (-sn.y / sl * 0.8 + sn.x / sl * 0.45) * k, (sn.x / sl * 0.8 + sn.y / sl * 0.45) * k, (sd > 0 ? 0.6 : -0.15) * (1 - k)]).normalize();
+      const nn = new THREE.Vector3().crossVectors(t, kx.addScaledVector(t, -kx.dot(t)).normalize()), dir = t.clone().multiplyScalar(Math.cos(FTP)).addScaledVector(nn, -Math.sin(FTP));
+      basisQ(dir, kx, q.t).multiply(QB.ft); B[S + 'Foot'].quaternion.copy(q.i.copy(q.f).invert()).multiply(q.t);
+    }
+    rig.R.position.set(hip[0], hip[1], 0); rig.R.rotation.set(0, (po.yaw + fp.yaw) * D, -po.rot * D); rig.M.scale.x = face;
+    for (const k in rig.mats) rig.mats[k].emissive.setRGB(flashK + tint[0], flashK + tint[1], flashK + tint[2]);
+  }
+
   function buildRig(ch, alt) {
+    if (MDL) return buildRigM(ch, alt);
     const lk = Object.assign({}, LOOK[ch], alt ? ALT[ch] : {}), mats = {};
     const mat = k => mats[k] || (mats[k] = new THREE.MeshLambertMaterial({ color: lk[k], flatShading: true }));
     const ol = new THREE.MeshBasicMaterial({ color: 0x0a0810, side: THREE.BackSide });
@@ -216,6 +317,7 @@ const R = (function () {
     return [[r[0] + ux * pr + px / pl * h, r[1] + uy * pr + py / pl * h, r[2] + uz * pr + pz / pl * h], [r[0] + dx, r[1] + dy, r[2] + dz]];
   }
   function applyPose(rig, fp, face, flashK, tint) {
+    if (rig.sk) return applyPoseM(rig, fp, face, flashK, tint);
     const po = fp.po, b = rig.b, hip = [po.hip[0], po.hip[1], 0];
     const a1 = po.ln * D, a2 = po.ln2 * D, cb = [hip[0] + Math.sin(a1) * SP1, hip[1] + Math.cos(a1) * SP1, 0], nk = [cb[0] + Math.sin(a2) * SP2, cb[1] + Math.cos(a2) * SP2, 0];
     const tw = po.tw * D, pt = po.pt * D, cax = [Math.sin(tw), 0, Math.cos(tw)], pax = [Math.sin(pt), 0, Math.cos(pt)], mid = [(cax[0] + pax[0]) / 2, 0, (cax[2] + pax[2]) / 2];
