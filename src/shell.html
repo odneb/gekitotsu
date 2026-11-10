@@ -1,0 +1,43 @@
+<title>GEKITOTSU</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Press+Start+2P&display=swap">
+<style>
+/* Layout: one arcade screen centred on a dark cabinet, a thin control legend under it. Single dark look by design. */
+:root{--bg:#07050c;--panel:#140e1f;--ink:#f4f0e0;--mute:#8d7fa0;--red:#ff3355;--gold:#ffd21e;--line:#2a1f3a;
+  --pix:'Press Start 2P','DotGothic16',monospace;--jp:'DotGothic16','Press Start 2P',monospace;color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--jp);font-size:14px;display:flex;flex-direction:column;gap:8px;box-sizing:border-box;
+  padding-block:8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));overflow:hidden}
+#stagebox{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
+#cab{display:flex;align-items:center;justify-content:center;background:var(--bg)}
+#cab:fullscreen{width:100vw;height:100vh}
+#view{position:relative;width:320px;height:180px;max-width:100%;background:#000;outline:2px solid var(--line);outline-offset:2px}
+#view canvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;display:block}
+#view canvas#hud{image-rendering:pixelated;touch-action:manipulation;cursor:pointer}
+#view::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(to bottom,rgba(0,0,0,0) 0,rgba(0,0,0,0) 2px,rgba(0,0,0,.16) 3px);mix-blend-mode:multiply}
+.bar{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;justify-content:center;color:var(--mute);font-size:13px;line-height:1.3;min-width:0}
+.bar b{color:var(--ink);font-weight:400}
+.bar kbd{font-family:var(--jp);color:var(--gold);border:1px solid var(--line);padding:0 5px;background:var(--panel)}
+button{font-family:var(--pix);font-size:9px;letter-spacing:.06em;color:var(--ink);background:var(--panel);border:1px solid var(--red);padding:7px 9px;cursor:pointer}
+button:hover{background:var(--red)}button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+#linkbar input{font-family:var(--jp);font-size:13px;color:var(--gold);background:var(--panel);border:1px solid var(--line);padding:6px 8px;width:min(420px,60vw);min-width:0}
+#touch{display:none;justify-content:space-between;gap:12px;user-select:none;-webkit-user-select:none;touch-action:none}
+#touch .g{display:grid;grid-template-columns:repeat(3,44px);grid-auto-rows:44px;gap:4px}
+#touch button{padding:0;font-size:10px;touch-action:none}
+@media (pointer:coarse){#touch{display:flex}#keys{display:none}}
+</style>
+<div id="stagebox"><div id="cab"><div id="view"><canvas id="gl" width="480" height="270"></canvas><canvas id="hud" width="960" height="540" aria-label="GEKITOTSU game screen"></canvas></div></div></div>
+<div class="bar" id="linkbar" hidden><span>Invite link</span><input id="link" readonly aria-label="Invite link"><button id="copy" type="button">COPY</button></div>
+<div class="bar" id="voicebar" hidden><button id="voice" type="button">TURN ON VOICE CHAT</button><span id="voicest"></span></div>
+<div id="touch"><div class="g"><span></span><button data-b="1">▲</button><span></span><button data-b="4">◀</button><button data-b="2">▼</button><button data-b="8">▶</button></div>
+<div class="g"><button data-b="16">L</button><button data-b="32">M</button><button data-b="64">H</button><button data-b="128">SP</button><button data-b="256">AS</button><button data-b="4096">ST</button><button data-b="1024">PA</button><button data-b="512">DI</button><span></span></div></div>
+<div class="bar" id="keys"><span><b>Move</b> <kbd>W A S D</kbd></span><span><b>Light Medium Heavy</b> <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd></span><span><b>Special</b> <kbd>I</kbd></span><span><b>Assist</b> <kbd>Space</kbd></span><span><b>Parry</b> <kbd>U</kbd></span><span><b>Impact</b> <kbd>O</kbd></span><span><b>Throw</b> <kbd>H</kbd></span><span><b>Start</b> <kbd>Enter</kbd></span><span>Pad or fight stick: press any button</span><button id="fs" type="button">FULLSCREEN</button></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){const v=document.getElementById('view'),b=document.getElementById('stagebox'),c=document.getElementById('cab');
+function fit(){const fs=document.fullscreenElement===c,W=fs?innerWidth:b.clientWidth,H=fs?innerHeight:b.clientHeight;let w=Math.min(W,H*16/9);if(w>=480)w=Math.floor(w/160)*160>=480&&!fs?Math.max(480,Math.floor(w/16)*16):w;v.style.width=Math.floor(w)+'px';v.style.height=Math.floor(w*9/16)+'px';}
+addEventListener('resize',fit);document.addEventListener('fullscreenchange',fit);fit();setTimeout(fit,50);})();
+</script>
+<script>
+/*__JS__*/
+</script>
