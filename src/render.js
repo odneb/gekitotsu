@@ -8,171 +8,165 @@ const R = (function () {
   let snapCam = true, ren, scene, cam, g2, stage, rigs = [], shadows = [], projMeshes = [], fx = [], shake = 0, flash = 0, camX = 0, camW = 440, camY = 70, tick = 0;
   const combo = [null, null]; let msg = null, superFx = null; const FJ = "'DotGothic16','Press Start 2P',monospace", FP = "'Press Start 2P','DotGothic16',monospace";
 
-  // ----------------------------------------------------------- poses (world angles, deg)
-  const base = { l: 6, t: 10, h: 0, af: [55, 80], ab: [20, 115], lf: [30, -35], lb: [-22, -20], yaw: 0, rot: 0 };
-  const cr = { l: 14, t: 24, h: -4, af: [60, 85], ab: [30, 110], lf: [85, -120], lb: [25, -115] };
-  const jp = { l: 5, t: 8, af: [40, 70], ab: [-20, 60], lf: [75, -95], lb: [25, -70] };
-  const PO = {
-    idle: {}, idle2: { t: 13, af: [51, 86], ab: [17, 119], lf: [33, -42], lb: [-25, -26] },
-    walkA: { lf: [42, -28], lb: [-32, -12] }, walkB: { lf: [-6, -22], lb: [18, -48] },
-    crouch: cr, prejump: { l: 10, t: 15, lf: [55, -80], lb: [10, -70], af: [20, 40], ab: [-10, 40] },
-    jump: jp, fall: { l: 2, t: 4, af: [110, 40], ab: [80, 50], lf: [35, -40], lb: [-8, -30] },
-    dashf: { l: 28, t: 14, h: 6, af: [-40, 70], ab: [70, 80], lf: [70, -50], lb: [-50, -30] },
-    dashb: { l: -14, t: -6, af: [60, 60], ab: [40, 80], lf: [40, -10], lb: [-30, -50] },
-    blockS: { l: -5, t: -4, h: 8, af: [75, 100], ab: [65, 110], lf: [25, -30], lb: [-25, -22] },
-    blockC: Object.assign({}, cr, { t: 14, af: [80, 100], ab: [70, 110] }),
-    hitHi: { l: -16, t: -22, h: -30, af: [10, 40], ab: [-30, 50], lf: [35, -25], lb: [-8, -30] },
-    hitLo: { l: 18, t: 34, h: 25, af: [40, 60], ab: [30, 70], lf: [25, -40], lb: [-20, -35] },
-    hitCr: Object.assign({}, cr, { l: 0, t: -5, h: -25, af: [20, 40], ab: [-10, 50] }),
-    ahit: { l: -20, t: -15, h: -25, af: [60, 30], ab: [90, 30], lf: [50, -30], lb: [20, -55] },
-    kd: { rot: -90, l: 0, t: 0, h: -5, af: [30, 10], ab: [10, 10], lf: [8, -5], lb: [-6, -12] },
-    win: { l: -4, t: -6, h: -12, af: [175, 8], ab: [25, 40], lf: [8, -8], lb: [-8, -6], yaw: 20 },
-    thrown: { l: -10, t: -10, h: -20, af: [40, 10], ab: [30, 10], lf: [10, -10], lb: [-10, -10] },
-    grabW: { l: 10, t: 10, af: [70, 30], ab: [60, 35] }, grabS: { l: 16, t: 16, af: [88, 10], ab: [82, 12], lf: [45, -45], lb: [-35, -10] },
-    lift: { l: -10, t: -15, af: [130, 20], ab: [125, 20] }, slam: { l: 25, t: 30, af: [40, 10], ab: [35, 10], lf: [45, -50], lb: [-30, -10] },
-    mpW: { t: 2, af: [30, 110], yaw: 14 }, mpS: { l: 12, t: 22, af: [78, 6], ab: [28, 112], lf: [38, -42], lb: [-30, -10], yaw: -26 },
-    cmkS: Object.assign({}, cr, { l: -14, t: 16, lf: [56, -1], lb: [34, -120], ab: [-36, 26], af: [40, 80] }),
-    axW: { l: -8, t: -6, lf: [150, -14], lb: [-6, -10], af: [30, 60], ab: [-30, 60] }, axS: { l: 14, t: 18, lf: [64, -3], lb: [-22, -14], af: [10, 60], ab: [-50, 40] },
-    diW: { l: -14, t: -22, h: -6, af: [70, 60], ab: [-60, 120], lf: [34, -40], lb: [-30, -26], yaw: 50 }, diS: { l: 28, t: 36, h: 8, af: [-20, 100], ab: [94, 2], lf: [52, -56], lb: [-48, -4], yaw: -55 },
-    parry: { l: 0, t: -2, h: 0, af: [64, 62], ab: [58, 70], lf: [28, -34], lb: [-24, -22], yaw: 30 },
-    crumA: { l: 26, t: 44, h: 34, af: [30, 30], ab: [20, 30], lf: [40, -70], lb: [-10, -60] }, crumB: { l: 44, t: 60, h: 40, af: [50, 20], ab: [40, 20], lf: [70, -120], lb: [20, -110] },
-    splat: { l: -10, t: -14, h: -30, af: [-70, 20], ab: [-100, 20], lf: [14, -10], lb: [-10, -14] },
-    mkS: { l: -20, t: -6, h: 4, lf: [90, -2], lb: [-10, -16], af: [46, 84], ab: [-24, 92], yaw: -34 },
-    jabW: { t: 6, af: [40, 125] }, jabS: { l: 8, t: 16, af: [90, 2], ab: [20, 120], lf: [35, -38], lb: [-26, -14], yaw: -12 },
-    strW: { l: 2, t: 0, af: [60, 70], ab: [-25, 125], yaw: 24 }, strS: { l: 14, t: 26, h: 6, af: [20, 120], ab: [92, 2], lf: [42, -48], lb: [-36, -6], yaw: -40 },
-    lkW: { l: -4, t: 4, lf: [70, -95], lb: [-12, -18] }, lkS: { l: -12, t: 2, lf: [70, -4], lb: [-10, -16], af: [40, 90], ab: [-10, 100] },
-    hkW: { l: -6, t: 0, lb: [55, -115], lf: [10, -20], yaw: 35, af: [70, 70] }, hkS: { l: -28, t: -8, h: 10, lb: [112, -4], lf: [4, -10], af: [30, 60], ab: [-40, 40], yaw: -75 },
-    cjabW: Object.assign({}, cr, { af: [50, 120] }), cjabS: Object.assign({}, cr, { t: 28, af: [88, 4] }),
-    clkW: Object.assign({}, cr, { lf: [95, -100] }), clkS: Object.assign({}, cr, { l: -6, t: 20, lf: [58, -2], lb: [30, -118], ab: [-30, 30] }),
-    cupW: Object.assign({}, cr, { t: 30, ab: [-30, 95], yaw: 20 }), cupS: { l: -4, t: -10, h: -12, ab: [168, 12], af: [10, 80], lf: [25, -25], lb: [-15, -12], yaw: -30 },
-    swW: Object.assign({}, cr, { yaw: 30 }), swS: { l: -30, t: -5, lb: [58, -2], lf: [70, -125], af: [-40, 20], ab: [20, 90], yaw: -70 },
-    ohW: { l: -4, t: -10, ab: [185, 25], af: [60, 80], yaw: 15 }, ohS: { l: 20, t: 30, h: 10, ab: [62, 6], af: [10, 100], lf: [45, -50], lb: [-35, -8], yaw: -25 },
-    jlpS: Object.assign({}, jp, { t: 16, af: [62, 5] }),
-    jhpW: Object.assign({}, jp, { ab: [190, 30], af: [150, 30] }), jhpS: Object.assign({}, jp, { l: 15, t: 25, ab: [55, 5], af: [50, 10] }),
-    jlkS: { l: 5, t: 8, lf: [85, -100], lb: [-10, -30], af: [40, 70], ab: [-20, 60] },
-    jhkW: { l: -10, lb: [70, -110], lf: [20, -60], af: [80, 40], ab: [0, 40] }, jhkS: { l: -25, t: -5, lb: [62, -2], lf: [40, -100], af: [120, 20], ab: [-60, 10], yaw: -40 },
-    fbW: { l: -6, t: -8, af: [-25, 75], ab: [-35, 65], lf: [20, -30], lb: [-28, -25], yaw: 25 }, fbS: { l: 16, t: 22, h: 4, af: [86, 6], ab: [80, 10], lf: [48, -50], lb: [-40, -6], yaw: -10 },
-    srS: { l: -6, t: -12, h: -18, ab: [172, 10], af: [-10, 90], lf: [80, -105], lb: [-5, -8], yaw: -20 }, srS2: { l: -4, t: -10, h: -20, ab: [178, 4], af: [-20, 60], lf: [60, -80], lb: [-8, -10], yaw: -20 },
-    spW: { l: -5, lb: [40, -100], yaw: 40, af: [80, 60], ab: [60, 60] }, spS: { l: -18, t: -4, lb: [98, -2], lf: [-4, -8], af: [100, 20], ab: [-70, 20] },
-    elW: { l: 22, t: 10, af: [30, 130], ab: [-30, 90], lf: [60, -55], lb: [-40, -25] }, elS: { l: 32, t: 20, h: 4, af: [84, 140], ab: [-50, 40], lf: [55, -55], lb: [-52, -4], yaw: -30 },
-    knS: { l: -8, t: -6, lf: [112, -125], lb: [-6, -6], af: [150, 60], ab: [-30, 70] },
-    hmW: { l: -10, t: -18, h: -10, af: [195, 20], ab: [190, 25], lf: [20, -25], lb: [-20, -20] }, hmS: { l: 30, t: 38, h: 20, af: [48, 6], ab: [42, 8], lf: [50, -60], lb: [-38, -10] },
-    dkS: { l: -30, t: -5, lf: [48, -2], lb: [85, -125], af: [150, 30], ab: [-50, 30] }
-  };
-  Object.assign(PO, {
-    lkS: { l: -12, t: -2, lf: [55, -2], lb: [-8, -14], af: [40, 90], ab: [-10, 100], yaw: -20 },
-    mkS: { l: -30, t: -12, h: 6, lf: [112, -2], lb: [-6, -10], af: [40, 90], ab: [-30, 80], yaw: -30 },
-    hkS: { l: -40, t: -14, h: 10, lb: [96, -2], lf: [2, -8], af: [30, 60], ab: [-40, 40], yaw: -75 },
-    strS: { l: 22, t: 30, h: 8, af: [20, 120], ab: [90, 2], lf: [55, -50], lb: [-48, -4], yaw: -40 },
-    mpS: { l: 8, t: 14, h: 4, af: [70, 20], ab: [28, 112], lf: [38, -42], lb: [-30, -10], yaw: -50 },
-    cupS: { l: -2, t: -6, h: -14, ab: [176, 4], af: [10, 80], lf: [22, -22], lb: [-14, -12], yaw: -30 },
-    clkS: { l: -8, t: 12, h: 0, lf: [66, -2], lb: [50, -130], af: [50, 80], ab: [10, 100], yaw: -6 },
-    cmkS: { l: -40, t: -26, h: 16, lf: [84, -2], lb: [74, -142], af: [-20, 50], ab: [-86, 14], yaw: -10 },
-    swS: { l: -40, t: -16, h: 10, lb: [74, -2], lf: [82, -142], af: [-40, 20], ab: [20, 90], yaw: -70 },
-    cjabS: { l: 10, t: 22, lf: [85, -120], lb: [25, -115], af: [88, 4], ab: [30, 110], yaw: -10 },
-    jlkS: { l: 8, t: 12, lf: [96, -110], lb: [-10, -40], af: [40, 70], ab: [-20, 60] },
-    jhkS: { l: -30, t: -6, lb: [96, -2], lf: [40, -100], af: [120, 20], ab: [-60, 10], yaw: -40 },
-    dlW: { l: 38, t: 34, h: 12, lf: [82, -112], lb: [34, -112], af: [30, 60], ab: [64, 40] },
-    dlF: { l: 26, t: 30, h: 6, lf: [96, -120], lb: [60, -110], af: [140, 40], ab: [-50, 50], yaw: 20 },
-    dlS: { l: -22, t: -12, h: 4, lf: [58, -4], lb: [104, -124], af: [150, 30], ab: [-40, 30], yaw: -30 },
-    runA: { l: 40, t: 22, h: 12, af: [-50, 90], ab: [70, 90], lf: [84, -70], lb: [-44, -40] },
-    runB: { l: 40, t: 22, h: 12, af: [70, 90], ab: [-50, 90], lf: [-44, -40], lb: [84, -70] }
-  });
-  const STR = { dlS: 'lf', jabS: 'af', mpS: 'af', strS: 'ab', cjabS: 'af', cupS: 'ab', lkS: 'lf', mkS: 'lf', hkS: 'lb', clkS: 'lf', cmkS: 'lf', swS: 'lb', axS: 'lf', jlkS: 'lf', jhkS: 'lb', jhpS: 'ab', srS: 'ab', diS: 'ab', grabS: 'af' };
-  function P(n) { const o = PO[n] || PO.idle, b = base; return { l: o.l ?? b.l, t: o.t ?? b.t, h: o.h ?? b.h, af: o.af || b.af, ab: o.ab || b.ab, lf: o.lf || b.lf, lb: o.lb || b.lb, yaw: o.yaw ?? 0, rot: o.rot ?? 0 }; }
-  function mix(a, b, k) { const m = (x, y) => x + (y - x) * k, m2 = (x, y) => [m(x[0], y[0]), m(x[1], y[1])]; return { l: m(a.l, b.l), t: m(a.t, b.t), h: m(a.h, b.h), af: m2(a.af, b.af), ab: m2(a.ab, b.ab), lf: m2(a.lf, b.lf), lb: m2(a.lb, b.lb), yaw: m(a.yaw, b.yaw), rot: m(a.rot, b.rot) }; }
+  // ----------------------------------------------------------- skeleton + hand-keyed animation
+  // A pose is a set of targets in the fighter's side plane (x forward, y up, optional z toward camera):
+  // hip position, spine lean, chest/pelvis twist, and where each hand and foot is. Limbs are solved by IK.
+  const TH = 22, SHN = 22, SP1 = 13, SP2 = 16, UA = 14.5, FA = 14, SW = 10.5, HW = 5.5;
+  const NUM = ['ln', 'ln2', 'tw', 'pt', 'hd', 'eL', 'eR', 'kL', 'kR', 'yaw', 'rot', 'ay'], VEC = ['hip', 'hL', 'hR', 'fL', 'fR'];
+  const ST = { hip: [0, 42, 0], ln: 5, ln2: 9, tw: -50, pt: -35, hd: 0, hL: [21, 67, 0], hR: [8, 60, 0], fL: [14, 4, 0], fR: [-14, 4, 0], eL: -1, eR: -1, kL: 0, kR: 0, yaw: 0, rot: 0, ay: 0.5, aim: null, aw: 0 };
+  function norm(o, b) { const r = {}; for (const k of NUM) r[k] = o[k] != null ? o[k] : b[k]; for (const k of VEC) { const v = o[k] || b[k]; r[k] = [v[0], v[1], v[2] || 0]; } if (o.ln != null && o.ln2 == null) r.ln2 = o.ln + 4; r.aim = o.aim || null; r.aw = o.aim ? 1 : 0; r.up = o.up || 0; return r; }
+  function mix(a, b, k) {
+    if (k <= 0) return a; if (k >= 1) return b; const r = {}; for (const n of NUM) r[n] = a[n] + (b[n] - a[n]) * k;
+    for (const n of VEC) r[n] = [a[n][0] + (b[n][0] - a[n][0]) * k, a[n][1] + (b[n][1] - a[n][1]) * k, a[n][2] + (b[n][2] - a[n][2]) * k];
+    if (b.aim && (!a.aim || a.aim === b.aim)) { r.aim = b.aim; r.aw = (a.aim ? a.aw : 0) + (b.aw - (a.aim ? a.aw : 0)) * k; r.up = b.up; } else if (a.aim) { r.aim = a.aim; r.aw = a.aw * (1 - k); r.up = a.up; } else { r.aim = null; r.aw = 0; r.up = 0; }
+    return r;
+  }
   const sm = k => k <= 0 ? 0 : k >= 1 ? 1 : k * k * (3 - 2 * k);
-  function keyed(k, f) { if (f <= k[0][0]) return P(k[0][1]); for (let i = 1; i < k.length; i++) if (f <= k[i][0]) { const a = k[i - 1], b = k[i]; let u = (f - a[0]) / (b[0] - a[0]); return mix(P(a[1]), P(b[1]), u * u * (3 - 2 * u)); } return P(k[k.length - 1][1]); }
-
-  // ---- footage-driven animation: joint angles sampled from SF6 Ken, time-warped so the peak of the motion lands on the first active frame
-  const MC = {}, MCA = { SRK_L: 'SRK_M', SRK_H: 'SRK_M', JIN_L: 'JIN_M', JIN_H: 'JIN_M', JIN_OD: 'JIN_M', HAD_OD: 'HAD_H', KAZE_OD: 'KAZE', GORAI_OD: 'GORAI', SENKA_OD: 'SENKA' };
-  const wrapA = a => { a = (a + 180) % 360; if (a < 0) a += 360; return a - 180; };
-  (function () {
-    const ALL = {}; for (const k in MOCAP_RAW) ALL[k] = MOCAP_RAW[k].split(';').map(x => x.split(',').map(Number));
-    for (const k in MOCAP2) { const s = MOCAP2[k], rows = []; for (let i = 0; i + 9 <= s.length; i += 9) { const row = []; for (let c = 0; c < 9; c++) row.push((s.charCodeAt(i + c) - 78) * 6); rows.push(row); } ALL[k] = rows; }
-    for (const k in ALL) {
-      const rows = ALL[k];
-      for (let pass = 0; pass < 2; pass++) for (let c = 0; c < 9; c++) for (let i = 1; i < rows.length - 1; i++) { const a = rows[i - 1][c], b = rows[i][c], d = rows[i + 1][c]; if (Math.abs(wrapA(a - d)) < 55 && Math.abs(wrapA(b - a)) > 70 && Math.abs(wrapA(b - d)) > 70) rows[i][c] = a + wrapA(d - a) / 2; }
-      for (const row of rows) for (const c of [5, 7]) if (row[c + 1] > 8) { row[c] += (row[c + 1] - 8) / 2; row[c + 1] = 8; }
-      { const src = rows.map(x => x.slice()); for (let i = 1; i < rows.length - 1; i++) for (let c = 0; c < 9; c++) rows[i][c] = src[i][c] + (wrapA(src[i - 1][c] - src[i][c]) + wrapA(src[i + 1][c] - src[i][c])) / 4; }
-      const dev = rows.map(x => { let s = 0; for (const c of [0, 5, 6, 7, 8]) s += Math.abs(wrapA(x[c] - rows[0][c])); for (const c of [1, 3]) s += Math.abs(wrapA(x[c] - rows[0][c])) * 0.4; return s; });
-      const mx = Math.max.apply(null, dev); let on = 0, pk = 0, end = rows.length - 1;
-      for (let i = 0; i < rows.length; i++) if (dev[i] >= mx * 0.8) { pk = i; break; }
-      for (let i = pk; i >= 0; i--) if (dev[i] < mx * 0.15) { on = i; break; }
-      for (let i = rows.length - 1; i > pk; i--) if (dev[i] >= mx * 0.15) { end = Math.min(rows.length - 1, i + 1); break; }
-      MC[k] = { rows: rows, on: on, pk: pk, end: end };
-    }
-  })();
-  // how the opponent reels: captured from the defender in the same SF6 clips (light, medium, heavy punch, heavy kick, low, crouching)
-  const REACT_RAW = { L: 'OQ1IRQOJRM^<OIRPIUOSdI`RRIVNVhGeQOHUOQCJPQOJSNQEKPRMITNP>JQQNJSNR@IQQOITNT<HQPPITOS=HRQOITNQ6J_POIU', M: 'NR<IRQOKQNVNK`QPHUOSVJaQRHVOX0LLQQKSOR\\I^QSGYNR9L^RQGYOQ4K_ROGWOQ;MHRKHSORAHQPOISOQDHUQNITOQGGURMIT', H: 'OQ?IQRMJSNWcJASLHVLZ`MRUGITNZeIRQOHVM^cCYQOHVLRcLcTPGXNZZMaSQFYMWfMdROFZNS3KbRMGWOQAHfPPIUOQ@H_RNJS', K: 'NW3EhROJQNW4JGW@RENRgFRX@GXPVd8`Y>^CMOj:_VCNIOSKGRROJSOTZQYUINLMXgQYVFNJNXlP\\VFQINUhQYTJMLNUROZSLMK', LOW: 'OQ;N9NVHVPR:HaP?DZQN0GcS?EWPQCIaPMDXPRVF^XFLONRYJ[F_D`LS_@f@dBbNQeGbSQD]NQCJ]PTC]OSDIcRRDZOSGHeNSFX', CR: 'NS>HRQOISOXRHeQQOIOPRIcQQHXNQ2K^RMGUOQCGQQNITOQAHTPOJTOR@FiQOITOS<HSQOITOS=FjQOITOQ;GcQOIUOQ=HRRMHU' };
-  const RC = {}, react = ['', ''];
-  for (const k in REACT_RAW) { const s = REACT_RAW[k], rows = []; for (let i = 0; i + 9 <= s.length; i += 9) { const row = []; for (let c = 0; c < 9; c++) row.push((s.charCodeAt(i + c) - 78) * 6); rows.push(row); }
-    for (let c = 0; c < 9; c++) for (let i = 1; i < rows.length - 1; i++) { const a = rows[i - 1][c], b = rows[i][c], d = rows[i + 1][c]; if (Math.abs(wrapA(a - d)) < 55 && Math.abs(wrapA(b - a)) > 70 && Math.abs(wrapA(b - d)) > 70) rows[i][c] = a + wrapA(d - a) / 2; }
-    for (const row of rows) for (const c of [5, 7]) if (row[c + 1] > 8) { row[c] += (row[c + 1] - 8) / 2; row[c + 1] = 8; }
-    RC[k] = { rows: rows }; }
-  function mcRow(mc, x) {
-    x = Math.max(0, Math.min(mc.rows.length - 1, x)); const i = Math.floor(x), u = x - i, a = mc.rows[i], b = mc.rows[Math.min(mc.rows.length - 1, i + 1)], v = c => a[c] + wrapA(b[c] - a[c]) * u;
-    const T = v(0); return { l: T * 0.4, t: T * 0.6, h: 0, af: [v(1), v(2)], ab: [v(3), v(4)], lf: [v(5), v(6)], lb: [v(7), v(8)], yaw: 0, rot: 0 };
+  const s = o => norm(o, ST);
+  const CRO = s({ hip: [-1, 22], ln: 14, ln2: 20, hL: [19, 47], hR: [9, 41], fL: [15, 4], fR: [-14, 4], kL: 0.9, kR: 0.9, tw: -45 }), c = o => norm(o, CRO);
+  const JMP = s({ hip: [0, 44], ln: 10, ln2: 14, hL: [15, 60], hR: [3, 54], fL: [9, 25], fR: [-5, 19] }), j = o => norm(o, JMP);
+  const PZ = {
+    idle: ST, idle2: s({ hip: [0, 40.5], ln: 6, hL: [21, 65.5], hR: [8, 58.5] }), crouch: CRO, jump: JMP,
+    walkA: s({ hip: [1, 42.5], fL: [18, 4], fR: [-7, 8], hL: [20, 66], hR: [9, 61] }), walkB: s({ hip: [1, 41], fL: [7, 8], fR: [-16, 4], hL: [22, 68], hR: [7, 59] }),
+    prejump: s({ hip: [0, 30], ln: 16, hL: [16, 50], hR: [4, 44], kL: 0.4, kR: 0.4 }),
+    fall: s({ hip: [0, 44], ln: 4, hL: [17, 70], hR: [-7, 66], fL: [9, 9], fR: [-8, 7], eL: 0, eR: 0 }),
+    dashf: s({ hip: [5, 33], ln: 34, ln2: 38, hd: -20, tw: -30, hL: [22, 44], hR: [-12, 46], fL: [22, 5], fR: [-20, 9] }),
+    dashb: s({ hip: [-5, 44], ln: -8, hL: [14, 64], hR: [2, 58], fL: [10, 8], fR: [-12, 6] }),
+    runA: s({ hip: [4, 37], ln: 38, ln2: 42, hd: -28, tw: -75, pt: -55, hL: [-10, 44], hR: [24, 56], fL: [22, 9], fR: [-22, 20], eL: -0.2, eR: -1 }),
+    runB: s({ hip: [4, 39], ln: 38, ln2: 42, hd: -28, tw: 10, pt: -5, hL: [24, 58], hR: [-12, 44], fL: [-18, 22], fR: [18, 5], eL: -1, eR: -0.2 }),
+    runStop: s({ hip: [-2, 36], ln: -6, hL: [18, 58], hR: [4, 52], fL: [20, 4], fR: [-12, 4] }),
+    parry: s({ hip: [0, 40], ln: 2, tw: -25, hL: [15, 73], hR: [12, 63], eL: -0.2, eR: -0.2, fL: [15, 4], fR: [-15, 4] }),
+    blockS: s({ hip: [-3, 42], ln: -5, ln2: -2, hd: -8, tw: -35, hL: [12, 74], hR: [8, 67], fL: [12, 4], fR: [-15, 4] }),
+    blockC: c({ hip: [-3, 21], ln: 10, hd: -8, hL: [13, 50], hR: [9, 43] }),
+    hitHi: s({ hip: [-5, 42], ln: -22, ln2: -32, hd: -28, tw: -75, hL: [4, 62], hR: [-10, 52], fL: [10, 4], fR: [-17, 4], eL: -1, eR: -1 }),
+    hitMid: s({ hip: [-7, 39], ln: 28, ln2: 42, hd: 22, tw: -30, hL: [12, 44], hR: [5, 40], fL: [11, 4], fR: [-16, 4] }),
+    hitBig: s({ hip: [-9, 41], ln: -30, ln2: -44, hd: -35, tw: -95, hL: [-6, 70], hR: [-18, 50], fL: [12, 8], fR: [-18, 4], eL: 0.2 }),
+    hitLow: s({ hip: [-4, 37], ln: 20, ln2: 26, hd: 10, hL: [16, 50], hR: [4, 46], fL: [3, 10], fR: [-15, 4] }),
+    hitCr: c({ hip: [-5, 21], ln: -4, ln2: -10, hd: -18, hL: [10, 44], hR: [-2, 36] }),
+    ahit: s({ hip: [0, 30], ln: -28, ln2: -40, hd: -25, hL: [-8, 54], hR: [-16, 44], fL: [20, 22], fR: [12, 12], eL: 0, eR: 0 }),
+    kd: s({ hip: [0, 6], ln: -84, ln2: -92, hd: -40, tw: -20, pt: -10, hL: [-14, 3], hR: [-30, 4, 6], fL: [38, 4], fR: [30, 9], eL: 0.3, eR: 0.3 }),
+    situp: s({ hip: [-2, 9], ln: -20, ln2: 5, hd: 10, hL: [10, 14], hR: [-12, 3], fL: [26, 4], fR: [14, 4] }),
+    crumA: s({ hip: [-2, 36], ln: 34, ln2: 48, hd: 32, tw: -20, hL: [14, 30], hR: [4, 28], fL: [10, 4], fR: [-14, 4], kL: 0.5, kR: 0.5 }),
+    crumB: s({ hip: [3, 15], ln: 62, ln2: 74, hd: 30, tw: -15, hL: [26, 3], hR: [18, 3], fL: [8, 4], fR: [-18, 4], kL: 0.3, kR: 0.3 }),
+    splat: s({ hip: [-4, 44], ln: -8, ln2: -14, hd: -22, tw: -88, hL: [-10, 76, -8], hR: [-12, 70, 8], eL: 1, eR: 1, fL: [6, 8], fR: [-8, 6] }),
+    win: s({ hip: [0, 44], ln: 0, ln2: -4, tw: -85, hd: -8, hL: [10, 52], hR: [2, 100], eR: 0.2, fL: [9, 4], fR: [-10, 4] }),
+    thrown: s({ hip: [0, 36], ln: -16, hd: -20, hL: [-8, 50], hR: [-14, 44], fL: [12, 10], fR: [-6, 6], eL: 0, eR: 0 }),
+    grabW: s({ hip: [1, 41], ln: 10, tw: -30, hL: [22, 60], hR: [16, 54] }), grabS: s({ hip: [6, 40], ln: 20, tw: -10, hL: [35, 62], hR: [33, 55], fL: [18, 4] }),
+    thPull: s({ hip: [2, 40], ln: -6, tw: -70, hL: [20, 58], hR: [16, 50] }), thKnee: s({ hip: [6, 44], ln: 12, tw: 20, hL: [24, 60], hR: [22, 54], fR: [20, 34], fL: [4, 4] }),
+    thSlam: s({ hip: [8, 34], ln: 44, ln2: 52, hd: -20, tw: 40, hL: [30, 24], hR: [34, 18], fL: [20, 4], fR: [-16, 6] }),
+    bthRoll: s({ hip: [-10, 16], ln: -62, ln2: -70, hd: 20, hL: [10, 44], hR: [8, 38], fL: [14, 4], fR: [16, 40] }), bthToss: s({ hip: [-14, 12], ln: -84, ln2: -90, hd: 10, hL: [-24, 30], hR: [-26, 24], fL: [8, 4], fR: [-10, 52] }),
+    // ---- normals
+    jabW: s({ tw: -42, hL: [14, 66] }), jabS: s({ hip: [2, 42], ln: 7, tw: -74, hL: [40, 70], aim: 'hL', hR: [6, 62], hd: -4 }),
+    mpW: s({ hip: [1, 40], ln: 10, tw: -68, hR: [-5, 50], hL: [17, 64] }), mpS: s({ hip: [7, 36], ln: 22, ln2: 28, hd: -18, tw: 38, pt: 5, hR: [33, 56], aim: 'hR', hL: [0, 57], fL: [18, 4], fR: [-15, 6] }),
+    hpW: s({ hip: [-3, 41], ln: 0, tw: -80, pt: -55, hR: [-12, 57], hL: [20, 63] }), hpS: s({ hip: [10, 35], ln: 26, ln2: 30, hd: -22, tw: 62, pt: 22, hR: [45, 65], aim: 'hR', hL: [-5, 52], fL: [21, 4], fR: [-17, 7] }),
+    lkW: s({ hip: [-2, 44], ln: -6, tw: -70, pt: -60, fL: [9, 24], fR: [-8, 4], hL: [12, 62], hR: [0, 58] }), lkS: s({ hip: [-3, 44], ln: -15, ln2: -12, tw: -86, pt: -75, fL: [51, 33], aim: 'fL', fR: [-7, 4], hL: [10, 60], hR: [-4, 56] }),
+    mkW: s({ hip: [-2, 44], ln: -12, tw: -75, pt: -65, fL: [7, 32], fR: [-7, 4], hL: [8, 60], hR: [-4, 60] }), mkS: s({ hip: [-4, 45], ln: -34, ln2: -38, hd: 18, tw: -92, pt: -85, fL: [51, 64], aim: 'fL', fR: [-5, 4], hL: [-2, 56], hR: [-16, 60] }),
+    hkW: s({ hip: [2, 43], ln: 4, tw: 55, pt: 45, fR: [0, 22], fL: [4, 4], hL: [12, 64], hR: [-8, 60] }), hkS: s({ hip: [2, 45], ln: -26, ln2: -30, hd: 22, tw: 150, pt: 130, fR: [61, 57], aim: 'fR', fL: [2, 4], hL: [-10, 54], hR: [-18, 64] }),
+    cjabS: c({ hip: [0, 22], tw: -72, hL: [45, 46], aim: 'hL' }),
+    clkS: c({ hip: [-3, 21], ln: 8, tw: -70, fL: [53, 8], aim: 'fL', ay: 0.35, fR: [-11, 4], kL: 0 }),
+    cmkW: c({ hip: [-3, 22], ln: 6, fL: [10, 12], kL: 0.3 }), cmkS: c({ hip: [-7, 18], ln: -14, ln2: -6, hd: 14, tw: -82, pt: -70, fL: [57, 7], aim: 'fL', ay: 0.35, fR: [-13, 4], hL: [8, 40], hR: [-10, 30], kL: 0 }),
+    cupW: c({ hip: [1, 19], ln: 22, tw: -70, hR: [0, 24], hL: [16, 44] }), cupS: s({ hip: [5, 44], ln: -5, ln2: -10, hd: -22, tw: 58, pt: 20, hR: [20, 100], aim: 'hR', up: 1, hL: [-2, 54], fL: [14, 4], fR: [-9, 7] }),
+    swS: c({ hip: [-4, 15], ln: -42, ln2: -34, hd: 28, tw: -84, pt: -75, hR: [-25, 3], hL: [-4, 32], fL: [64, 16], aim: 'fL', ay: 0.25, fR: [5, 4], kL: 0, kR: 0.1, eR: -0.3 }),
+    axW: s({ hip: [0, 46], ln: -14, tw: -70, pt: -60, fL: [18, 84], fR: [-6, 4], hL: [0, 58], hR: [-10, 62] }), axS: s({ hip: [4, 42], ln: 12, tw: -60, fL: [50, 42], aim: 'fL', ay: 0.3, fR: [-8, 4], hL: [10, 56], hR: [-6, 50] }),
+    fskW: s({ hip: [4, 44], ln: -4, tw: 30, pt: 20, fR: [12, 30], fL: [4, 4] }), fskS: s({ hip: [12, 43], ln: -20, ln2: -18, tw: 60, pt: 55, fR: [79, 39], aim: 'fR', fL: [6, 4], hL: [8, 58], hR: [-6, 50] }),
+    cbW: s({ hip: [3, 36], ln: 20, tw: -72, hR: [2, 34], hL: [16, 60] }), cbS: s({ hip: [7, 44], ln: -4, hd: -18, tw: 52, pt: 15, hR: [30, 84], aim: 'hR', up: 1, hL: [0, 54], fL: [16, 4], fR: [-10, 6] }),
+    tf2W: s({ hip: [3, 43], tw: 40, pt: 30, fR: [2, 24], fL: [5, 4] }), tf2S: s({ hip: [3, 44], ln: -20, hd: 14, tw: 100, pt: 85, fR: [49, 63], aim: 'fR', fL: [4, 4], hL: [-4, 56], hR: [-12, 60] }),
+    tf3S: s({ hip: [2, 46], ln: -34, ln2: -38, hd: 20, tw: -95, pt: -85, fL: [53, 84], aim: 'fL', fR: [-3, 4], hL: [-4, 54], hR: [-16, 58] }),
+    // ---- air normals (targets are relative to the feet point the sim tracks)
+    jlpS: j({ ln: 14, tw: -74, hL: [26, 62], aim: 'hL', ay: 0.4 }), jmpS: j({ ln: 26, tw: 45, hR: [40, 42], aim: 'hR', hL: [4, 56], fL: [4, 24], fR: [-10, 26] }),
+    jhpW: j({ ln: -6, tw: -70, hR: [-4, 84], hL: [8, 80], eR: 0.6, eL: 0.6 }), jhpS: j({ hip: [0, 46], ln: 36, ln2: 44, hd: -20, tw: 50, hR: [23, 12], aim: 'hR', ay: 0.6, hL: [10, 30], fL: [-2, 30], fR: [-14, 34] }),
+    jlkS: j({ ln: 6, fL: [20, 14], aim: 'fL', fR: [-14, 26], hL: [10, 60] }), jmkS: j({ hip: [0, 46], ln: -16, tw: -88, pt: -75, fL: [42, 27], aim: 'fL', fR: [-26, 30], hL: [4, 58], hR: [-10, 60] }),
+    jhkS: j({ hip: [0, 46], ln: -22, tw: 95, pt: 80, fR: [40, 22], aim: 'fR', fL: [-12, 34], hL: [-4, 60], hR: [-12, 56] }), njhkS: j({ hip: [0, 46], ln: -10, tw: -85, pt: -75, fL: [39, 45], aim: 'fL', fR: [-30, 40], hL: [6, 66], hR: [-10, 66] }),
+    // ---- specials
+    hadW: s({ hip: [-4, 36], ln: 4, tw: -86, pt: -60, hL: [-8, 46], hR: [-13, 40], fL: [17, 4], fR: [-17, 4], eL: -0.4 }), hadS: s({ hip: [7, 33], ln: 20, ln2: 24, hd: -16, tw: -8, pt: -10, hL: [37, 55], hR: [35, 49], fL: [23, 4], fR: [-20, 6], eL: 0, eR: 0 }),
+    srW: c({ hip: [3, 21], ln: 24, tw: -72, hR: [3, 22], hL: [17, 44] }), srS: s({ hip: [4, 46], ln: -8, ln2: -14, hd: -24, tw: 68, pt: 30, hR: [14, 99], hL: [-2, 52], fL: [16, 30], fR: [-1, 6], eR: 0 }),
+    srF: s({ hip: [2, 46], ln: 0, tw: 30, hR: [10, 92], hL: [2, 54], fL: [10, 14], fR: [-6, 8] }),
+    tatS: s({ hip: [0, 46], ln: -4, ln2: -2, tw: -90, pt: -85, fR: [44, 46], fL: [3, 26], hL: [6, 64, -8], hR: [-6, 62, 8], kL: 0.3 }),
+    dlW: s({ hip: [4, 28], ln: 34, hd: -20, tw: -60, hL: [18, 40], hR: [-8, 40], kL: 0.3, kR: 0.3 }), dlF: j({ hip: [0, 46], ln: 30, ln2: 40, tw: 60, fL: [-4, 30], fR: [-14, 36], hL: [16, 50], hR: [4, 44] }),
+    dlS: j({ hip: [-2, 48], ln: -30, ln2: -34, hd: 24, tw: 140, pt: 120, fR: [46, 14], aim: 'fR', ay: 0.75, fL: [-6, 30], hL: [-10, 58], hR: [-18, 66] }),
+    jinW: s({ hip: [4, 43], ln: 2, tw: 45, pt: 35, fR: [2, 26], fL: [6, 4], hL: [14, 62], hR: [-6, 58] }), jinS: s({ hip: [6, 45], ln: -24, ln2: -28, hd: 20, tw: 135, pt: 115, fR: [67, 51], aim: 'fR', fL: [5, 4], hL: [-6, 54], hR: [-16, 62] }),
+    kazeS: s({ hip: [0, 30], ln: -16, ln2: -8, hd: 14, tw: -84, pt: -74, fL: [65, 7], aim: 'fL', ay: 0.45, fR: [-10, 4], hL: [6, 50], hR: [-10, 42], kR: 0.5 }),
+    goW: s({ hip: [2, 47], ln: -16, tw: 60, pt: 50, fR: [20, 88], fL: [4, 4], hL: [2, 58], hR: [-10, 62] }), goS: s({ hip: [6, 41], ln: 16, tw: 40, pt: 30, fR: [56, 40], aim: 'fR', ay: 0.25, fL: [4, 4], hL: [10, 54], hR: [-4, 48] }),
+    senS: s({ hip: [8, 46], ln: -30, ln2: -34, hd: 22, tw: -94, pt: -84, fL: [71, 69], aim: 'fL', fR: [3, 4], hL: [-2, 54], hR: [-14, 60] }),
+    kasW: s({ hip: [2, 44], ln: -10, tw: -80, pt: -70, fL: [10, 38], fR: [-4, 4], hL: [6, 58], hR: [-6, 56] }), kasS: s({ hip: [6, 44], ln: -38, ln2: -40, hd: 26, tw: -96, pt: -88, fL: [75, 50], aim: 'fL', fR: [-4, 4], hL: [-8, 52], hR: [-20, 56] }),
+    diW: s({ hip: [-5, 39], ln: -4, tw: -100, pt: -70, hR: [-18, 62], hL: [16, 60], fL: [14, 4], fR: [-16, 4], eR: 0.2 }),
+    diS: s({ hip: [10, 36], ln: 26, ln2: 32, hd: -30, tw: 95, pt: 45, hR: [50, 56], aim: 'hR', hL: [-8, 56], fL: [22, 4], fR: [-16, 8], eL: 0.2 }),
+    diR: s({ hip: [9, 37], ln: 22, hd: -40, tw: 150, pt: 70, hR: [22, 64], hL: [4, 70], fL: [21, 4], fR: [-14, 6], eR: 0.4, eL: 0.4 }),
+    sa1S: j({ hip: [0, 48], ln: -26, hd: 20, tw: 140, pt: 120, fR: [58, 60], aim: 'fR', fL: [-4, 26], hL: [-8, 58], hR: [-18, 66] })
+  };
+  const P = n => PZ[n] || ST;
+  function kf(keys, t) {
+    if (t <= keys[0][0]) return P(keys[0][1]);
+    for (let i = 1; i < keys.length; i++) if (t <= keys[i][0]) { const a = keys[i - 1], b = keys[i], e = b[2]; let u = (t - a[0]) / Math.max(1e-6, b[0] - a[0]); u = e === 'i' ? u * u * u : e === 'o' ? 1 - (1 - u) * (1 - u) * (1 - u) : e === 'l' ? u : sm(u); return mix(P(a[1]), P(b[1]), u); }
+    return P(keys[keys.length - 1][1]);
   }
-  function mcPose(key, f, m) {
-    const mc = MC[MCA[key] || key]; if (!mc) return null; const su = m.su - 1, tot = m.t < 900 ? m.t : m.lastAct + 30;
-    return mcRow(mc, f <= su ? mc.on + (mc.pk - mc.on) * (su ? f / su : 1) : mc.pk + (mc.end - mc.pk) * Math.min(1, (f - su) / Math.max(1, tot - su)));
-  }
+  // attack timelines in phase time: 0-1 startup, 1-2 active, 2-3 recovery
+  const NB = { idle: 1, crouch: 1, jump: 1 }, A = (base, w, st) => ({ k: [[0, base], [0.55, w, 'o'], [1, st, 'i'], [2, st], [3, NB[base] ? base : 'idle']] });
+  const Q = (base, st) => ({ k: [[0, base], [1, st, 'i'], [2, st], [3, NB[base] ? base : 'idle']] });
+  const AN = {
+    '5LP': Q('idle', 'jabS'), '5MP': A('idle', 'mpW', 'mpS'), '5HP': A('idle', 'hpW', 'hpS'), '5LK': A('idle', 'lkW', 'lkS'), '5MK': A('idle', 'mkW', 'mkS'), '5HK': A('idle', 'hkW', 'hkS'),
+    '2LP': Q('crouch', 'cjabS'), '2LK': Q('crouch', 'clkS'), '2MK': A('crouch', 'cmkW', 'cmkS'), '2HP': A('crouch', 'cupW', 'cupS'), '2HK': A('crouch', 'cmkW', 'swS'),
+    TK: A('idle', 'axW', 'axS'), FSK: A('idle', 'fskW', 'fskS'), CB2: A('mpS', 'cbW', 'cbS'), TFK2: A('mkS', 'tf2W', 'tf2S'), TFK3: A('tf2S', 'mkW', 'tf3S'),
+    jLP: Q('jump', 'jlpS'), jMP: Q('jump', 'jmpS'), jHP: A('jump', 'jhpW', 'jhpS'), jLK: Q('jump', 'jlkS'), jMK: Q('jump', 'jmkS'), jHK: Q('jump', 'jhkS'), njHK: Q('jump', 'njhkS'),
+    throw: A('idle', 'grabW', 'grabS'),
+    DI: { k: [[0, 'idle'], [0.55, 'diW', 'o'], [0.9, 'diW'], [1, 'diS', 'i'], [2, 'diS'], [2.3, 'diR', 'o'], [2.7, 'diR'], [3, 'idle']] },
+    DREV: { k: [[0, 'blockS'], [0.6, 'diW', 'o'], [1, 'diS', 'i'], [2, 'diS'], [2.4, 'diR', 'o'], [3, 'idle']] },
+    HAD: { k: [[0, 'idle'], [0.6, 'hadW', 'o'], [1, 'hadS', 'i'], [2.6, 'hadS'], [3, 'idle']] },
+    SRK: { k: [[0, 'idle'], [0.7, 'srW', 'o'], [1, 'srS', 'i'], [2, 'srS'], [2.5, 'srF'], [3, 'srF']] },
+    TAT: { k: [[0, 'idle'], [0.5, 'tf2W'], [1, 'tatS', 'i'], [2, 'tatS'], [2.5, 'jump'], [3, 'idle']], spin: 1 },
+    ATAT: { k: [[0, 'jump'], [1, 'tatS', 'i'], [2, 'tatS'], [3, 'jump']], spin: 1 },
+    DL: { f: m => [[0, 'idle'], [Math.max(2, m.rise ? m.rise[0] - 8 : 3), 'dlW', 'o'], [m.rise ? m.rise[0] : 6, 'dlW'], [m.hits[m.hits.length - 1].s - 5, 'dlF'], [m.hits[m.hits.length - 1].s, 'dlS', 'i'], [m.lastAct + 2, 'dlS'], [m.lastAct + 10, 'fall']], yaw: m => [m.rise ? m.rise[0] : 6, m.hits[m.hits.length - 1].s - 1, 360] },
+    JIN: A('idle', 'jinW', 'jinS'), KAZE: Q('jinS', 'kazeS'), GORAI: A('jinS', 'goW', 'goS'), SENKA: A('jinS', 'kasW', 'senS'), KASAI: A('kazeS', 'kasW', 'kasS'),
+    SA1: { k: [[0, 'dlW'], [0.6, 'dlF'], [1, 'sa1S', 'i'], [2, 'sa1S'], [2.6, 'fall'], [3, 'idle']], yaw: m => [1, m.su - 1, 360] },
+    SA2: { f: m => { const k = [[0, 'jinW']], st = ['jinS', 'tf3S', 'jinS', 'mkS', 'jinS', 'tf3S']; for (let i = 0; i < m.hits.length - 1; i++) { const h = m.hits[i]; if (i) k.push([h.s - 3, i & 1 ? 'mkW' : 'jinW']); k.push([h.s, st[i % 6], 'i']); k.push([Math.max(h.s + 1, Math.min(h.e, h.s + 2)), st[i % 6]]); } const l = m.hits[m.hits.length - 1]; k.push([l.s - 6, 'tf2W']); k.push([l.s, 'tatS', 'i']); k.push([l.s + 14, 'tatS']); k.push([m.t, 'idle']); return k; }, yaw: m => [m.hits[m.hits.length - 1].s - 8, m.hits[m.hits.length - 1].s + 14, 1080] },
+    SA3: { f: m => { const k = [[0, 'mpW']], st = ['mpS', 'cbS', 'hpS', 'cbS']; for (let i = 0; i < m.hits.length - 1; i++) { const h = m.hits[i]; if (i) k.push([h.s - 4, i & 1 ? 'cbW' : 'hpW', 'o']); k.push([h.s, st[i % 4], 'i']); k.push([h.s + 2, st[i % 4]]); } const l = m.hits[m.hits.length - 1]; k.push([l.s - 5, 'srW', 'o']); k.push([l.s, 'srS', 'i']); k.push([l.s + 40, 'srS']); k.push([l.s + 60, 'srF']); return k; }, yaw: m => [m.hits[m.hits.length - 1].s, m.hits[m.hits.length - 1].s + 36, 720] }
+  };
+  const anOf = n => AN[n] || AN[n.replace(/^Q/, '').replace(/_(L|M|H|OD)$/, '')] || null;
+  const fcache = {};
+  const react = ['', ''], RX = { L: 'hitHi', M: 'hitMid', H: 'hitBig', K: 'hitBig', LOW: 'hitLow', CR: 'hitCr' };
 
-  // pose for a fighter from sim state -> {pose, grounded, extraYaw}
   function fighterPose(p, o, sFrame, idx) {
-    const C = SIM.CH[p.ch]; let po, ground = p.y <= 0, spin = 0, dy = 0, dx = 0, strike = null;
+    const C = SIM.CH[p.ch]; let po, hb = null, yaw = 0;
     switch (p.st) {
       case 'idle':
-        if (p.sub === 'crouch') po = mix(P('idle'), P('crouch'), sm(Math.min(1, (p.subf + 1) / 4)));
-        else if (p.sub === 'walkf' || p.sub === 'walkb') { const k = (Math.sin(p.subf * 0.33) + 1) / 2; po = mix(P('walkA'), P('walkB'), k); if (p.sub === 'walkb') po.l = -2; }
-        else po = mix(P('idle'), P('idle2'), (Math.sin(sFrame * 0.11 + p.ch) + 1) / 2);
+        if (p.sub === 'crouch') po = mix(P('idle'), P('crouch'), sm((p.subf + 1) / 4));
+        else if (p.sub === 'walkf' || p.sub === 'walkb') { const k = (Math.sin(p.subf * (p.sub === 'walkf' ? 0.3 : -0.26)) + 1) / 2; po = mix(P('walkA'), P('walkB'), k); po = mix(P('idle'), po, Math.min(1, (p.subf + 1) / 4)); if (p.sub === 'walkb') po = mix(po, P('blockS'), 0.25); }
+        else po = mix(P('idle'), P('idle2'), (Math.sin(sFrame * 0.09 + p.ch) + 1) / 2);
         break;
-      case 'prejump': case 'land': po = P('prejump'); break;
-      case 'jump': po = mix(P('jump'), P('fall'), sm((500 - p.vy) / 1200)); break;
-      case 'dashf': po = mix(P('dashf'), P('idle'), sm((p.sf - 11) / 6)); break;
-      case 'run': po = mix(P('idle'), mcRow(MC.RUN, p.sf / 45 * (MC.RUN.rows.length - 1)), Math.min(1, p.sf / 3)); break;
-      case 'drush': po = mix(P('dashf'), P('idle'), sm((p.sf - 26) / 8)); break;
-      case 'parry': po = P('parry'); break; case 'prec': po = mix(P('parry'), P('idle'), sm(p.sf / 11)); break;
-      case 'dashb': po = mix(P('dashb'), P('idle'), sm((p.sf - 14) / 8)); dy = Math.max(0, Math.sin(Math.min(1, p.sf / 14) * Math.PI) * 10); ground = dy <= 0; break;
+      case 'prejump': po = mix(P('idle'), P('prejump'), sm((p.sf + 1) / 3)); break;
+      case 'land': po = mix(P('prejump'), P('idle'), sm(p.sf / 4)); break;
+      case 'jump': po = mix(P('jump'), P('fall'), sm((300 - p.vy) / 900)); break;
+      case 'dashf': po = p.sf < 4 ? mix(P('idle'), P('dashf'), sm(p.sf / 4)) : mix(P('dashf'), P('idle'), sm((p.sf - 11) / 7)); break;
+      case 'dashb': po = mix(P('dashb'), P('idle'), sm((p.sf - 14) / 8)); po = norm(po, po); po.hip[1] += Math.max(0, Math.sin(Math.min(1, p.sf / 14) * Math.PI) * 9); po.fL[1] += Math.max(0, Math.sin(Math.min(1, p.sf / 14) * Math.PI) * 9); po.fR[1] += Math.max(0, Math.sin(Math.min(1, p.sf / 14) * Math.PI) * 7); break;
+      case 'run': { const cyc = mix(P('runA'), P('runB'), (1 - Math.cos(p.sf * 0.52)) / 2); po = p.sf > 36 ? mix(cyc, P('runStop'), sm((p.sf - 36) / 8)) : mix(P('idle'), cyc, sm((p.sf + 1) / 5)); break; }
+      case 'drush': { const cyc = mix(P('runA'), P('runB'), (1 - Math.cos(p.sf * 0.6)) / 2); po = p.sf > 24 ? mix(cyc, P('idle'), sm((p.sf - 24) / 10)) : mix(P('dashf'), cyc, sm(p.sf / 5)); break; }
+      case 'parry': po = mix(P('idle'), P('parry'), sm((p.sf + 1) / 3)); break; case 'prec': po = mix(P('parry'), P('idle'), sm(p.sf / 11)); break;
       case 'block': po = P(p.cb ? 'blockC' : 'blockS'); break;
-      case 'hit': { if (p.crum === 1) { po = mix(P('crumA'), P('crumB'), sm(p.sf / 60)); break; } if (p.crum === 2) { po = P('splat'); break; } if (RC[react[idx]] && !p.crum) { const rr = RC[react[idx]]; po = mix(mcRow(rr, (p.sf / Math.max(1, p.sf + p.stun)) * (rr.rows.length - 1)), P(p.cb ? 'crouch' : 'idle'), sm(1 - p.stun / 3)); break; } const h = P(p.cb ? 'hitCr' : p.hitHi ? 'hitHi' : 'hitLo'); po = mix(h, P(p.cb ? 'crouch' : 'idle'), sm(1 - p.stun / 8)); break; }
-      case 'ahit': po = P('ahit'); po.rot = -40 - Math.max(0, Math.min(75, (700 - p.vy) / 18)); ground = false; break;
-      case 'kd': po = P('kd'); ground = false; dy = -44; break;
-      case 'getup': { const u = p.sf / SIM.GETUP; po = u < 0.5 ? mix(P('kd'), P('crouch'), sm(u * 2)) : mix(P('crouch'), P('idle'), sm(u * 2 - 1)); if (u < 0.5) { ground = false; dy = -44 * (1 - sm(u * 2)); } break; }
+      case 'hit': {
+        if (p.crum === 1) { po = mix(P('crumA'), P('crumB'), sm((p.sf - 14) / 46)); po = mix(P('hitMid'), po, sm(p.sf / 10)); break; }
+        if (p.crum === 2) { po = P('splat'); break; }
+        const h = P(p.cb ? 'hitCr' : RX[react[idx]] || (p.hitHi ? 'hitHi' : 'hitMid')), b = P(p.cb ? 'crouch' : 'idle'), tot = Math.max(1, p.sf + p.stun);
+        po = mix(mix(b, h, Math.min(1, (p.sf + 1) / 2)), b, sm((p.sf - tot * 0.55) / (tot * 0.45))); break; }
+      case 'ahit': po = norm(P('ahit'), ST); po.rot = -30 - Math.max(0, Math.min(80, (700 - p.vy) / 16)); break;
+      case 'kd': po = P('kd'); break;
+      case 'getup': { const u = p.sf / SIM.GETUP; po = u < 0.4 ? mix(P('kd'), P('situp'), sm(u / 0.4)) : u < 0.7 ? mix(P('situp'), P('crouch'), sm((u - 0.4) / 0.3)) : mix(P('crouch'), P('idle'), sm((u - 0.7) / 0.3)); break; }
       case 'tech': po = mix(P('hitHi'), P('idle'), sm(p.sf / 22)); break;
-      case 'win': po = mix(P('idle'), P('win'), sm(p.sf / 14)); break;
-      case 'throwing': { const tm = MC[p.back ? 'BTHROW' : 'THROW']; if (tm) { po = mcRow(tm, tm.on + (tm.end - tm.on) * Math.min(1, p.sf / 44)); break; } } po = keyed([[0, 'grabS'], [10, 'lift'], [20, 'lift'], [24, 'slam'], [34, 'slam'], [44, 'idle']], p.sf); break;
-      case 'thrown': { po = P('thrown'); const t = o.sf; po.rot = t < 10 ? 0 : -Math.min(150, (t - 10) * 14); ground = false; dy = 0; break; }
+      case 'win': po = mix(P('idle'), P('win'), sm(p.sf / 16)); break;
+      case 'throwing': po = p.back ? kf([[0, 'grabS'], [8, 'thPull'], [18, 'bthRoll', 'i'], [27, 'bthToss'], [34, 'situp'], [44, 'idle']], p.sf) : kf([[0, 'grabS'], [7, 'thPull', 'o'], [14, 'thKnee', 'i'], [19, 'thPull'], [26, 'thSlam', 'i'], [34, 'thSlam'], [44, 'idle']], p.sf); break;
+      case 'thrown': { po = norm(P('thrown'), ST); const t = o.sf; po.rot = t < 14 ? -8 : -Math.min(150, 8 + (t - 14) * 14); break; }
       case 'atk': {
-        const m = C.mv[p.mv], a = m.an || {}, f = p.mf;
-        const bn = m.isAir ? 'jump' : m.crouch ? 'crouch' : 'idle';
-        if (a.k) po = keyed(a.k, f);
-        else {
-          const su = m.su - 1, w = Math.max(1, Math.floor(su * 0.55)), end = m.lastAct + 2, rec = m.t > 900 ? end + 14 : m.t;
-          if (f <= w) po = mix(P(bn), P(a.w), sm(f / w));
-          else if (f < su) { const u = (f - w) / (su - w); po = mix(P(a.w), P(a.s), u * u * u); }
-          else if (f <= end) po = P(a.s);
-          else po = mix(P(a.s), P(bn), sm((f - end) / (rec - end)));
-        }
-        const procPo = po, mcp = m.isAir || m.thr ? null : mcPose(p.mv, f, m); let usedMc = false;
-        if (mcp) { const tot = m.t < 900 ? m.t : 999; po = mix(P(bn), mcp, Math.min(1, (f + 1) / 2) * (tot < 900 ? Math.min(1, Math.max(0, (tot - f) / 3)) : 1)); usedMc = true; }
-        if (a.spin && f >= a.spin[0]) spin = Math.min(1, (f - a.spin[0]) / (a.spin[1] - a.spin[0])) * a.spin[2];
-        // the striking limb is aimed at, and stretched to, the far end of the real hitbox
-        let hh = null; for (const h of m.hits) if (h.hb && f >= h.s - 4 && f <= h.e + 5) { hh = h; break; }
-        if (hh && !m.sup && !spin && hh.hb[2] <= 62) {
-          let nm = a.s; if (a.k) { nm = a.k[a.k.length - 1][1]; for (const kk of a.k) if (kk[0] >= hh.s) { nm = kk[1]; break; } }
-          const lim = STR[nm] || (usedMc ? 'auto' : null);
-          if (lim) { const w0 = f < hh.s ? Math.max(0, 1 - (hh.s - f) / 4) : f <= hh.e ? 1 : Math.max(0, 1 - (f - hh.e) / 5), up = nm === 'srS' || nm === 'cupS';
-            strike = { lim: lim, w: w0 * w0 * (3 - 2 * w0), tx: up ? hh.hb[0] + hh.hb[2] * 0.55 : hh.hb[0] + hh.hb[2] - 2, ty: up ? hh.hb[1] + hh.hb[3] - 6 : hh.hb[1] + hh.hb[3] / 2 }; }
-        }
-        // at the moment of impact the pose comes from Ken's hitbox stills; the footage carries the motion in and out
-        if (m.thr) po = keyed([[0, 'idle'], [3, 'grabW'], [5, 'grabS'], [8, 'grabS'], [m.t, 'idle']], f);
+        const m = C.mv[p.mv], an = anOf(p.mv), f = p.mf, base = m.isAir ? 'jump' : m.crouch ? 'crouch' : 'idle';
+        if (!an) { po = P(base); break; }
+        if (an.f) { const ck = p.ch + ':' + p.mv, keys = fcache[ck] || (fcache[ck] = an.f(m)); po = kf(keys, f); }
+        else { const su = Math.max(1, m.su - 1), la = Math.max(su, m.lastAct), T = m.t < 900 ? m.t : la + 24; po = kf(an.k, f <= su ? f / su : f <= la ? 1 + (la > su ? (f - su) / (la - su) : 1) : 2 + Math.min(1, (f - la) / Math.max(1, T - la))); }
+        if (an.spin) { const a = Math.max(0, m.su - 4), b = m.lastAct + 4, tot = Math.max(1, Math.round((b - a) * 27 / 360)) * 360; yaw = tot * Math.max(0, Math.min(1, (f - a) / (b - a))); }
+        if (an.yaw) { const y = an.yaw(m); yaw = y[2] * sm((f - y[0]) / Math.max(1, y[1] - y[0])); }
+        if (po.aim) { let hh = null; for (const h of m.hits) if (h.hb) { hh = h; if (f <= h.e + 5) break; } if (hh) hb = hh.hb; }
         break;
       }
       default: po = P('idle');
     }
-    return { po: po, ground: ground, spin: spin, dy: dy, strike: strike };
+    return { po: po, hb: hb, yaw: yaw, air: p.y > 0 };
   }
 
   // ----------------------------------------------------------- rig
@@ -181,62 +175,76 @@ const R = (function () {
     { top: 0x1c1f2e, pants: 0x2848d0, skin: 0xd9a27c, hair: 0xf3dc4a, glove: 0xffd21e, belt: 0xffd21e, band: 0, shoe: 0xf4f4f4, trim: 0xffd21e }
   ];
   const ALT = [{ top: 0x27357a, pants: 0x1f2a63, band: 0xf2c230, glove: 0xf2c230, trim: 0xf2c230 }, { top: 0xb3202c, pants: 0x25252c, hair: 0xdfe6ee, glove: 0xffffff, belt: 0xffffff, trim: 0xffffff }];
-  // More anatomy than the first rig: split spine (abdomen + chest), wide tapered chest, separate feet that plant on the ground.
   function buildRig(ch, alt) {
-    const lk = Object.assign({}, LOOK[ch], alt ? ALT[ch] : {}), mats = {}, all = [];
-    const mat = k => mats[k] || (mats[k] = new THREE.MeshLambertMaterial({ color: lk[k] }));
+    const lk = Object.assign({}, LOOK[ch], alt ? ALT[ch] : {}), mats = {};
+    const mat = k => mats[k] || (mats[k] = new THREE.MeshLambertMaterial({ color: lk[k], flatShading: true }));
     const ol = new THREE.MeshBasicMaterial({ color: 0x0a0810, side: THREE.BackSide });
-    function bx(par, w, h, d, x, y, z, k, tw) {
-      const g = new THREE.BoxGeometry(w, h, d);
-      if (tw) { const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const f = p.getY(i) > 0 ? tw : 1; p.setX(i, p.getX(i) * f); p.setZ(i, p.getZ(i) * f); } p.needsUpdate = true; g.computeVertexNormals(); }
-      const m = new THREE.Mesh(g, mat(k)); m.position.set(x, y, z); par.add(m);
-      const o = new THREE.Mesh(g, ol); o.scale.set((w + 2.4) / w, (h + 2.4) / h, (d + 2.4) / d); m.add(o); all.push(m); return m;
+    const G = new THREE.Group(), M = new THREE.Group(), R = new THREE.Group(); G.add(M); M.add(R); R.rotation.order = 'ZYX';
+    function fin(g, k, par, w, h, d) { const m = new THREE.Mesh(g, mat(k)); (par || R).add(m); const o = new THREE.Mesh(g, ol); o.scale.set((w + 2) / w, (h + 2) / h, (d + 2) / d); o.position.y = -1; m.add(o); return m; }
+    // geometry runs from y=0 (joint) to y=len (next joint)
+    function box(k, w, h, d, tw, par) { const g = new THREE.BoxGeometry(w, h, d); g.translate(0, h / 2, 0); if (tw) { const p = g.attributes.position; for (let i = 0; i < p.count; i++) if (p.getY(i) > h / 2) { p.setX(i, p.getX(i) * tw); p.setZ(i, p.getZ(i) * tw); } g.computeVertexNormals(); } return fin(g, k, par, w, h, d); }
+    function cyl(k, r0, r1, len) { const g = new THREE.CylinderGeometry(r1, r0, len, 7); g.translate(0, len / 2, 0); return fin(g, k, null, r0 * 2, len, r0 * 2); }
+    const sk = ch === 0 ? 'skin' : 'skin', b = {};
+    b.pel = box('pants', 12, 9, 16, 1.05); box('belt', 13.5, 3.2, 17.5, 1, b.pel).position.y = 6.5;
+    b.abd = box('top', 10.5, SP1, 15, 1.16);
+    b.chest = box('top', 12, SP2, 18.5, 1.3); box(ch === 0 ? 'skin' : 'trim', 1.2, 10, 5.5, 1.25, b.chest).position.set(6.4, 4.5, 0);
+    b.head = box('skin', 11, 12, 10.5, 1.06); box('skin', 5.5, 3, 5.5, 1, b.head).position.y = -2.5;
+    box('hair', 12.2, 4.8, 11.6, 1, b.head).position.set(-0.3, 9.4, 0); box('hair', 4.4, 10, 11.6, 1, b.head).position.set(-4.6, 4, 0); box('hair', 2, 1.6, 7, 1, b.head).position.set(5.6, 6.8, 0);
+    if (ch === 0) { box('band', 12.6, 2.6, 12, 1, b.head).position.set(0, 7.6, 0); const t1 = box('band', 9, 2, 1.6, 1, b.head); t1.position.set(-10, 6.5, 2); t1.rotation.z = 1.2; const t2 = box('band', 8, 2, 1.6, 1, b.head); t2.position.set(-9, 4.5, -2); t2.rotation.z = 1.0; }
+    else { box('hair', 7, 5, 8, 1, b.head).position.set(2.5, 12, 0); }
+    for (const n of ['L', 'R']) {
+      b['sh' + n] = box(ch === 0 ? 'top' : 'skin', 9, 8, 9, 0.9); b['ua' + n] = cyl('skin', 4.4, 3.7, UA); b['fa' + n] = cyl(ch === 0 ? 'skin' : 'trim', 3.6, 4.3, FA); b['fi' + n] = box('glove', 8, 8, 8, 0.95);
+      b['th' + n] = cyl('pants', 6.6, 5.1, TH); b['sn' + n] = cyl('pants', 5.1, 5.6, SHN); b['ft' + n] = box('shoe', 6.2, 13.5, 7, 0.85);
     }
-    const G = new THREE.Group(), spin = new THREE.Group(), pel = new THREE.Group(), tor = new THREE.Group(), chest = new THREE.Group(), head = new THREE.Group();
-    G.add(spin); spin.add(pel); pel.add(tor); tor.add(chest); chest.add(head);
-    bx(pel, 13, 9, 20, 0, 0, 0, 'pants'); bx(pel, 14, 4, 21, 0, 5, 0, 'belt');
-    tor.position.set(0, 6, 0); bx(tor, 12, 13, 18, 0, 6, 0, 'top', 1.15);
-    chest.position.set(0, 12, 0); bx(chest, 15, 15, 24, 0, 7, 0, 'top', 1.18); bx(chest, 3, 11, 8, 8, 6, 0, ch === 0 ? 'skin' : 'trim');
-    head.position.set(0, 15, 0); bx(head, 6, 4, 6, 0, 1, 0, 'skin'); bx(head, 12, 12, 11, 1, 8.5, 0, 'skin'); bx(head, 13, 5, 12, 0, 15, 0, 'hair'); bx(head, 5, 11, 12, -5.5, 9.5, 0, 'hair'); bx(head, 2, 2, 7, 7, 10, 0, 'hair');
-    if (ch === 0) { bx(head, 13.5, 3, 12.5, 0.8, 12, 0, 'band'); const tl = bx(head, 12, 2.5, 2, -13, 10.5, 3, 'band'); tl.rotation.z = 0.35; const t2 = bx(head, 10, 2.5, 2, -12, 8.5, -2, 'band'); t2.rotation.z = 0.6; }
-    else { bx(head, 8, 6, 9, 3, 18.5, 0, 'hair'); bx(chest, 11, 8, 18, -6, 13, 0, 'top'); }
-    const limbs = {};
-    function arm(z, n) { const s = new THREE.Group(); s.position.set(0, 11, z); chest.add(s); bx(s, 9.5, 9.5, 9.5, 0, 0, 0, ch === 0 ? 'top' : 'skin'); bx(s, 7, 14, 7, 0, -8, 0, 'skin', 1.2); const e = new THREE.Group(); e.position.set(0, -15, 0); s.add(e); bx(e, 6, 13, 6, 0, -6, 0, ch === 0 ? 'skin' : 'trim', 1.2); bx(e, 9, 9, 9, 0, -15, 0, 'glove'); limbs[n] = [s, e, null]; }
-    function leg(z, n) { const s = new THREE.Group(); s.position.set(0, -3, z); pel.add(s); bx(s, 9.5, 24, 9.5, 0, -11, 0, 'pants', 1.25); const e = new THREE.Group(); e.position.set(0, -24, 0); s.add(e); bx(e, 7.5, 22, 7.5, 0, -11, 0, 'pants', 1.25); const f = new THREE.Group(); f.position.set(0, -22.5, 0); e.add(f); bx(f, 15, 5, 8.5, 3.5, -1.5, 0, 'shoe'); limbs[n] = [s, e, f]; }
-    arm(14, 'aP'); arm(-14, 'aN'); leg(6.5, 'lP'); leg(-6.5, 'lN');
-    return { G, spin, pel, tor, chest, head, limbs, mats, all };
+    return { G, M, R, b, mats };
+  }
+  const _X = new THREE.Vector3(), _Y = new THREE.Vector3(), _Z = new THREE.Vector3(), _M = new THREE.Matrix4();
+  // put a part with its base at p0, its long axis along p0->p1 and its width axis as close to zh as possible
+  function place(m, p0, p1, rest, zh, off) {
+    _Y.set(p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]); const len = _Y.length() || 1e-3; _Y.multiplyScalar(1 / len);
+    _Z.set(zh[0], zh[1], zh[2]); _Z.addScaledVector(_Y, -_Z.dot(_Y)); if (_Z.lengthSq() < 1e-4) { _Z.set(1, 0, 0); _Z.addScaledVector(_Y, -_Z.dot(_Y)); } _Z.normalize(); _X.crossVectors(_Y, _Z);
+    m.quaternion.setFromRotationMatrix(_M.makeBasis(_X, _Y, _Z)); m.position.set(p0[0], p0[1], p0[2]); if (off) m.position.addScaledVector(_Y, off); m.scale.y = rest ? len / rest : 1;
+  }
+  function ik(r, t, a, b, pole, maxS) {
+    let dx = t[0] - r[0], dy = t[1] - r[1], dz = t[2] - r[2], d = Math.hypot(dx, dy, dz) || 1e-3; const L = (a + b) * 0.995; let sc = 1;
+    if (d > L) { sc = Math.min(maxS, d / L); if (d > L * maxS) { const q = L * maxS / d; dx *= q; dy *= q; dz *= q; d = L * maxS; } }
+    const Aa = a * sc, Bb = b * sc, ux = dx / d, uy = dy / d, uz = dz / d, pr = Math.max(-Aa, Math.min(Aa, (Aa * Aa - Bb * Bb + d * d) / (2 * d))), h = Math.sqrt(Math.max(0, Aa * Aa - pr * pr));
+    let px = pole[0], py = pole[1], pz = pole[2]; const dot = px * ux + py * uy + pz * uz; px -= dot * ux; py -= dot * uy; pz -= dot * uz; const pl = Math.hypot(px, py, pz) || 1;
+    return [[r[0] + ux * pr + px / pl * h, r[1] + uy * pr + py / pl * h, r[2] + uz * pr + pz / pl * h], [r[0] + dx, r[1] + dy, r[2] + dz]];
   }
   function applyPose(rig, fp, face, flashK, tint) {
-    let po = fp.po; const L = po.l, T = po.t, st = fp.strike && fp.strike.w > 0 ? fp.strike : null;
-    const fy = a => -24 * Math.cos(a[0] * D) - 24 * Math.cos((a[0] + a[1]) * D) - 3.5;
-    let hip = 52;
-    if (fp.ground) hip = -Math.min(fy(po.lf), fy(po.lb)) + 3;
-    const sc = { af: 1, ab: 1, lf: 1, lb: 1 };
-    if (st && st.lim === 'auto') {
-      // pick whichever limb the footage already has pointing at the target
-      let best = 'af', bd = 1e9; const hy0 = hip + fp.dy, c0 = Math.max(0.55, Math.cos((26 + po.yaw) * D));
-      for (const n of ['af', 'ab', 'lf', 'lb']) { const lg = n[0] === 'l', bx = lg ? -3 * Math.sin(L * D) : 6 * Math.sin(L * D) + 23 * Math.sin((L + T) * D), by = lg ? hy0 - 3 * Math.cos(L * D) : hy0 + 6 * Math.cos(L * D) + 23 * Math.cos((L + T) * D);
-        const an = Math.atan2(st.tx / c0 - bx, -(st.ty - by)) / D, d = Math.abs(wrapA(an - (po[n][0] + po[n][1] * 0.5))) + Math.abs(po[n][1]) * 0.25; if (d < bd) { bd = d; best = n; } }
-      fp.strike = { lim: best, w: st.w, tx: st.tx, ty: st.ty };
+    const po = fp.po, b = rig.b, hip = [po.hip[0], po.hip[1], 0];
+    const a1 = po.ln * D, a2 = po.ln2 * D, cb = [hip[0] + Math.sin(a1) * SP1, hip[1] + Math.cos(a1) * SP1, 0], nk = [cb[0] + Math.sin(a2) * SP2, cb[1] + Math.cos(a2) * SP2, 0];
+    const tw = po.tw * D, pt = po.pt * D, cax = [Math.sin(tw), 0, Math.cos(tw)], pax = [Math.sin(pt), 0, Math.cos(pt)], mid = [(cax[0] + pax[0]) / 2, 0, (cax[2] + pax[2]) / 2];
+    const sy = [nk[0] - Math.sin(a2) * 3, nk[1] - Math.cos(a2) * 3];
+    const tg = {}; for (const n of ['hL', 'hR', 'fL', 'fR']) tg[n] = po[n].slice();
+    if (po.aim && fp.hb && po.aw > 0) { const h = fp.hb, t = tg[po.aim], tx = po.up ? h[0] + h[2] * 0.6 : h[0] + h[2] - 3, ty = po.up ? h[1] + h[3] - 5 : h[1] + h[3] * po.ay; t[0] += (tx - t[0]) * po.aw; t[1] += (ty - t[1]) * po.aw; }
+    const lim = {};
+    for (const n of ['L', 'R']) {
+      const sd = n === 'L' ? -1 : 1, sh = [sy[0] + cax[0] * SW * sd, sy[1], cax[2] * SW * sd], ht = tg['h' + n], e = po['e' + n];
+      const A = ik(sh, [ht[0], ht[1], sh[2] * 0.45 + ht[2]], UA, FA, [-0.35, e, sd * 0.7 * (e > 0 ? 1.4 : 1)], 1.3);
+      const hs = [hip[0] + pax[0] * HW * sd, hip[1] - 2, pax[2] * HW * sd], ft = tg['f' + n], kk = po['k' + n];
+      const fty = fp.air ? ft[1] : Math.max(4, ft[1]);
+      const Lg = ik(hs, [ft[0], fty, sd * 5 + ft[2]], TH, SHN, [0.8, 0.45, sd * (0.4 + kk * 1.6)], 1.32);
+      lim[n] = { sh: sh, el: A[0], wr: A[1], hs: hs, kn: Lg[0], an: Lg[1] };
     }
-    const st2 = fp.strike && fp.strike.w > 0 ? fp.strike : null;
-    if (st2) { const st = st2;
-      const leg = st.lim[0] === 'l';
-      if (leg && fp.ground) { const sup = st.lim === 'lf' ? po.lb : po.lf; hip += ((-fy(sup) + 3) - hip) * st.w; }
-      const c = Math.max(0.55, Math.cos((26 + po.yaw) * D)), hy = hip + fp.dy;
-      const bx = leg ? -3 * Math.sin(L * D) : 6 * Math.sin(L * D) + 23 * Math.sin((L + T) * D), by = leg ? hy - 3 * Math.cos(L * D) : hy + 6 * Math.cos(L * D) + 23 * Math.cos((L + T) * D);
-      const vx = st.tx / c - bx, vy = st.ty - by, dist = Math.sqrt(vx * vx + vy * vy), ang = Math.atan2(vx, -vy) / D, k = Math.max(0.75, Math.min(2.1, dist / (leg ? 52 : 36)));
-      const a = po[st.lim], o = {}; o[st.lim] = [a[0] + wrapA(ang - a[0]) * st.w, a[1] * (1 - st.w)]; po = Object.assign({}, po, o); sc[st.lim] = 1 + (k - 1) * st.w;
+    const sub = (p) => [p[0] - hip[0], p[1] - hip[1], p[2]], Zc = [0, 0, 1];
+    const d0 = [Math.sin(a1 * 0.5), Math.cos(a1 * 0.5), 0];
+    place(b.pel, sub([hip[0] - d0[0] * 5, hip[1] - d0[1] * 5, 0]), sub([hip[0] + d0[0] * 4, hip[1] + d0[1] * 4, 0]), 0, pax);
+    place(b.abd, sub([hip[0] + d0[0] * 2, hip[1] + d0[1] * 2, 0]), sub(cb), SP1 - 2, mid);
+    place(b.chest, sub(cb), sub(nk), SP2, cax);
+    const ha = a2 * 0.45 + po.hd * D, hz = [cax[0] * 0.3, 0, 0.7 + cax[2] * 0.3];
+    place(b.head, sub([nk[0], nk[1] + 1.5, 0]), sub([nk[0] + Math.sin(ha) * 10, nk[1] + 1.5 + Math.cos(ha) * 10, 0]), 0, hz);
+    for (const n of ['L', 'R']) { const l = lim[n], sd = n === 'L' ? -1 : 1;
+      place(b['sh' + n], sub(l.sh), sub(l.el), 0, cax, -4); place(b['ua' + n], sub(l.sh), sub(l.el), UA, Zc); place(b['fa' + n], sub(l.el), sub(l.wr), FA, Zc);
+      const fd = [l.wr[0] - l.el[0], l.wr[1] - l.el[1], l.wr[2] - l.el[2]]; place(b['fi' + n], sub(l.wr), sub([l.wr[0] + fd[0], l.wr[1] + fd[1], l.wr[2] + fd[2]]), 0, Zc, -1.2);
+      place(b['th' + n], sub(l.hs), sub(l.kn), TH, Zc); place(b['sn' + n], sub(l.kn), sub(l.an), SHN, Zc);
+      // foot: flat on the floor, turning to follow the shin once it leaves the ground
+      const sx = l.an[0] - l.kn[0], sy2 = l.an[1] - l.kn[1], sl = Math.hypot(sx, sy2) || 1, k = fp.air ? 1 : Math.max(0, Math.min(1, (l.an[1] - 5) / 8));
+      const fx0 = sd > 0 && !fp.air ? 0.8 : 1, tx = fx0 * (1 - k) + (-sy2 / sl * 0.85 + sx / sl * 0.35) * k, ty = (sx / sl * 0.85 + sy2 / sl * 0.35) * k, tz = (sd > 0 ? 0.6 : -0.15) * (1 - k);
+      const a0 = [l.an[0], l.an[1] - 2.2, l.an[2]]; place(b['ft' + n], sub(a0), sub([a0[0] + tx, a0[1] + ty, a0[2] + tz]), 0, [0, 0, 1], -3.5);
     }
-    rig.spin.rotation.z = -po.rot * D; rig.pel.rotation.z = -L * D; rig.tor.rotation.z = -T * D / 2; rig.chest.rotation.z = -T * D / 2; rig.head.rotation.z = (L + T - po.h) * D;
-    // lead limbs sit on the far side from the camera, whichever way we face
-    const lead = face > 0 ? 'N' : 'P', rear = face > 0 ? 'P' : 'N';
-    const A = (n, a, s) => { rig.limbs[n][0].rotation.z = (a[0] + L + T) * D; rig.limbs[n][1].rotation.z = a[1] * D; rig.limbs[n][0].scale.y = s; };
-    const Lg = (n, a, s) => { rig.limbs[n][0].rotation.z = (a[0] + L) * D; rig.limbs[n][1].rotation.z = a[1] * D; rig.limbs[n][0].scale.y = s; const ank = hip + fp.dy + (-24 * Math.cos(a[0] * D) - 24 * Math.cos((a[0] + a[1]) * D)) * s, k = fp.ground ? Math.max(0, Math.min(1, (ank - 7) / 12)) : 1; rig.limbs[n][2].rotation.z = (-(a[0] + a[1]) * (1 - k) - 25 * k) * D; };
-    A('a' + lead, po.af, sc.af); A('a' + rear, po.ab, sc.ab); Lg('l' + lead, po.lf, sc.lf); Lg('l' + rear, po.lb, sc.lb);
-    rig.spin.position.y = hip + fp.dy;
-    const yaw = (26 + po.yaw + fp.spin) * D;
-    rig.G.rotation.y = face > 0 ? -yaw : Math.PI + yaw;
+    rig.R.position.set(hip[0], hip[1], 0); rig.R.rotation.set(0, (po.yaw + fp.yaw) * D, -po.rot * D); rig.M.scale.x = face;
     for (const k in rig.mats) { const m = rig.mats[k]; m.emissive.setRGB(flashK + tint[0], flashK + tint[1], flashK + tint[2]); }
   }
 
