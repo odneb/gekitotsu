@@ -40,7 +40,7 @@ function fit(){const fs=document.fullscreenElement===c,W=fs?innerWidth:b.clientW
 addEventListener('resize',fit);document.addEventListener('fullscreenchange',fit);fit();setTimeout(fit,50);})();
 </script>
 <script>
-window.GK_BUILD='1110-1853 UTC';
+window.GK_BUILD='1110-1909 UTC';
 // ===================================================================
 // GEKITOTSU deterministic simulation core. Integer math only, no RNG,
 // no wall-clock, no floats. state = step(state, inputP1, inputP2).
@@ -783,6 +783,8 @@ const MOCAP_RAW = {
 'DL_H': '6,38,-42,-41,162,23,-5,-18,24,-79;13,13,145,2,96,46,-35,-14,-19,-62;14,55,58,61,52,75,-60,12,-103,-41;17,-63,-42,96,-7,73,-84,-18,-52,-54;4,153,-38,-56,38,113,-125,-27,-5,-102;-31,125,-25,-36,14,54,-92,-18,-20,-152;-38,30,124,6,-115,16,115,44,-154,-156;-38,130,-127,-32,104,16,115,44,-154,-156;-43,100,137,-48,141,-22,136,-113,111,-156;-22,-61,162,-56,-137,-59,24,-168,137,-130;-8,-21,-178,30,-163,-66,60,-85,139,-39;-1,-64,158,9,46,37,-41,-6,-34,-66;1,11,84,18,52,53,-56,31,-35,-70;-1,68,75,-50,101,30,-15,-34,52,-60;0,57,-37,-56,92,21,9,-36,52,-60;4,37,124,-49,162,23,3,-29,39,-65;6,27,-50,-38,156,17,-3,-21,20,-83',
 'JIN_M': '5,42,-87,-46,161,15,5,-19,12,-84;10,59,-61,76,-3,34,-66,4,0,-73;7,36,-23,28,-123,-29,9,19,19,-66;-35,19,-114,-7,14,4,-6,11,-17,-79;-34,19,-112,-7,14,2,-3,7,-18,-79;-41,63,-153,114,-160,-2,-3,7,-11,-81;-38,103,-131,21,-79,-8,9,5,-5,-82;-24,44,133,3,113,-8,6,9,0,-77;-5,42,48,5,87,102,-111,2,-3,-102;2,38,142,6,84,25,-9,-12,-4,-95;8,32,103,-14,107,28,-28,-16,-16,-79;9,34,-15,-36,149,24,-9,-17,14,-90;4,34,-50,-27,149,25,-4,-17,20,-81'
 };
+// Second set, from Capcom's official Ken move clips. Packed: 9 characters per row, (code - 78) * 6 degrees.
+const MOCAP2 = {"KAZE": "NTCLdQOJRNTELcQOISNTELcQOISNSCLdRNITNTDKdQOJSNTCLdQOJRNTFLcQOISQHl@1GPOTNAjF>IPJJFAjZfIPJLDEe]cHQJHc@k_aOXNPMCiB0PYLMLWSIfX=KSLZOJaZGKTMQ;J`TILS", "GORAI": "NTFKdQNISNTEJdQOITNSDKdROJTNSDKeQOITNTAKdPPJRNSFLcQOITQGXZKUDTANS?FLORMKNS?FLOWMZHS?FLOWJ^KGb[QPOOEIA1_AMOTFJI1S[NR]AJVWVlPKWEMK6WYQKO<NSFSTOIMK", "SENKA": "NSEKfPPISNSDIgPPJRNSEKcRNJTNTCKdQOJRNTCLdQOJSNTDLcQOITNTBKdQOJSPW@YTU>T=FHcH[B`KEORHD_B_JJWRHD_=^V;KE6aMNVVF>[VS_KRLOX[VIiT?QLKPXTBPOLRNP@HGOTGR", "KASAI": "JQYHdOIQGNPPLbOLJQMT6MLPNLONTIJgPOKPOSEIfQOJRNTCKdQOJTNSDKdPPHUNSDLcQOIUNSCLdQOITQHbYMUEU?OLKJ<JIOCIcLT_MTKJJSfPdX<KJOP;aeMRPN?WBaf^?JPK\\CIjONPO", "THROW": "^NKNJ>ePNNTAJfPPJRORFJeQOIROREJcQOJS]LLLKHVOFOPMN]QPKNPP^@jIKREOVO:2SLHWQRWFfZ=PLNWDJPTHIUOU>FgTJIQMVEMcQOIRNSDKeQNJQNSFKfPPISNSEKdQOJSNTCLcQOJS", "BTHROW": "NTAJfPQISORCJfPQGVNTCIfPPJSOZiSSTLIPOVZLkYGDZOVVL4YGD\\OVSLkYGC\\OWRK1YGC\\OVSK0YGD[OWSLkXHD[NYQKkWJD[NYTJ0VJDZNXUM>VJEZNWSJMTMEWPWRJ_SKIPOUfWURLJQ", "DI": "NSDKeQOKQLLNJOQLXLLLcIOQLWNMEEKFIPPSEGhMLKYMMA_S_2UCKQF`:U:LOMNG`7V2LONOKWcPa`?NNKJBFhWOLPKW7HFWNJSLXSJcZJLSMZDN]]ALSNKAFbRLKTNS9IgPPITORFGiPPIR"};
 
 
 // ===================================================================
@@ -872,11 +874,13 @@ const R = (function () {
   function keyed(k, f) { if (f <= k[0][0]) return P(k[0][1]); for (let i = 1; i < k.length; i++) if (f <= k[i][0]) { const a = k[i - 1], b = k[i]; let u = (f - a[0]) / (b[0] - a[0]); return mix(P(a[1]), P(b[1]), u * u * (3 - 2 * u)); } return P(k[k.length - 1][1]); }
 
   // ---- footage-driven animation: joint angles sampled from SF6 Ken, time-warped so the peak of the motion lands on the first active frame
-  const MC = {}, MCA = { SRK_L: 'SRK_M', SRK_H: 'SRK_M', JIN_L: 'JIN_M', JIN_H: 'JIN_M', JIN_OD: 'JIN_M', HAD_OD: 'HAD_H' };
+  const MC = {}, MCA = { SRK_L: 'SRK_M', SRK_H: 'SRK_M', JIN_L: 'JIN_M', JIN_H: 'JIN_M', JIN_OD: 'JIN_M', HAD_OD: 'HAD_H', KAZE_OD: 'KAZE', GORAI_OD: 'GORAI', SENKA_OD: 'SENKA' };
   const wrapA = a => { a = (a + 180) % 360; if (a < 0) a += 360; return a - 180; };
   (function () {
-    for (const k in MOCAP_RAW) {
-      const rows = MOCAP_RAW[k].split(';').map(x => x.split(',').map(Number));
+    const ALL = {}; for (const k in MOCAP_RAW) ALL[k] = MOCAP_RAW[k].split(';').map(x => x.split(',').map(Number));
+    for (const k in MOCAP2) { const s = MOCAP2[k], rows = []; for (let i = 0; i + 9 <= s.length; i += 9) { const row = []; for (let c = 0; c < 9; c++) row.push((s.charCodeAt(i + c) - 78) * 6); rows.push(row); } ALL[k] = rows; }
+    for (const k in ALL) {
+      const rows = ALL[k];
       for (let pass = 0; pass < 2; pass++) for (let c = 0; c < 9; c++) for (let i = 1; i < rows.length - 1; i++) { const a = rows[i - 1][c], b = rows[i][c], d = rows[i + 1][c]; if (Math.abs(wrapA(a - d)) < 55 && Math.abs(wrapA(b - a)) > 70 && Math.abs(wrapA(b - d)) > 70) rows[i][c] = a + wrapA(d - a) / 2; }
       for (const row of rows) for (const c of [5, 7]) if (row[c + 1] > 8) { row[c] += (row[c + 1] - 8) / 2; row[c + 1] = 8; }
       { const src = rows.map(x => x.slice()); for (let i = 1; i < rows.length - 1; i++) for (let c = 0; c < 9; c++) rows[i][c] = src[i][c] + (wrapA(src[i - 1][c] - src[i][c]) + wrapA(src[i + 1][c] - src[i][c])) / 4; }
@@ -927,7 +931,7 @@ const R = (function () {
       case 'getup': { const u = p.sf / SIM.GETUP; po = u < 0.5 ? mix(P('kd'), P('crouch'), sm(u * 2)) : mix(P('crouch'), P('idle'), sm(u * 2 - 1)); if (u < 0.5) { ground = false; dy = -44 * (1 - sm(u * 2)); } break; }
       case 'tech': po = mix(P('hitHi'), P('idle'), sm(p.sf / 22)); break;
       case 'win': po = mix(P('idle'), P('win'), sm(p.sf / 14)); break;
-      case 'throwing': po = keyed([[0, 'grabS'], [10, 'lift'], [20, 'lift'], [24, 'slam'], [34, 'slam'], [44, 'idle']], p.sf); break;
+      case 'throwing': { const tm = MC[p.back ? 'BTHROW' : 'THROW']; if (tm) { po = mcRow(tm, tm.on + (tm.end - tm.on) * Math.min(1, p.sf / 44)); break; } } po = keyed([[0, 'grabS'], [10, 'lift'], [20, 'lift'], [24, 'slam'], [34, 'slam'], [44, 'idle']], p.sf); break;
       case 'thrown': { po = P('thrown'); const t = o.sf; po.rot = t < 10 ? 0 : -Math.min(150, (t - 10) * 14); ground = false; dy = 0; break; }
       case 'atk': {
         const m = C.mv[p.mv], a = m.an || {}, f = p.mf;

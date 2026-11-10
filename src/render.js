@@ -85,11 +85,13 @@ const R = (function () {
   function keyed(k, f) { if (f <= k[0][0]) return P(k[0][1]); for (let i = 1; i < k.length; i++) if (f <= k[i][0]) { const a = k[i - 1], b = k[i]; let u = (f - a[0]) / (b[0] - a[0]); return mix(P(a[1]), P(b[1]), u * u * (3 - 2 * u)); } return P(k[k.length - 1][1]); }
 
   // ---- footage-driven animation: joint angles sampled from SF6 Ken, time-warped so the peak of the motion lands on the first active frame
-  const MC = {}, MCA = { SRK_L: 'SRK_M', SRK_H: 'SRK_M', JIN_L: 'JIN_M', JIN_H: 'JIN_M', JIN_OD: 'JIN_M', HAD_OD: 'HAD_H' };
+  const MC = {}, MCA = { SRK_L: 'SRK_M', SRK_H: 'SRK_M', JIN_L: 'JIN_M', JIN_H: 'JIN_M', JIN_OD: 'JIN_M', HAD_OD: 'HAD_H', KAZE_OD: 'KAZE', GORAI_OD: 'GORAI', SENKA_OD: 'SENKA' };
   const wrapA = a => { a = (a + 180) % 360; if (a < 0) a += 360; return a - 180; };
   (function () {
-    for (const k in MOCAP_RAW) {
-      const rows = MOCAP_RAW[k].split(';').map(x => x.split(',').map(Number));
+    const ALL = {}; for (const k in MOCAP_RAW) ALL[k] = MOCAP_RAW[k].split(';').map(x => x.split(',').map(Number));
+    for (const k in MOCAP2) { const s = MOCAP2[k], rows = []; for (let i = 0; i + 9 <= s.length; i += 9) { const row = []; for (let c = 0; c < 9; c++) row.push((s.charCodeAt(i + c) - 78) * 6); rows.push(row); } ALL[k] = rows; }
+    for (const k in ALL) {
+      const rows = ALL[k];
       for (let pass = 0; pass < 2; pass++) for (let c = 0; c < 9; c++) for (let i = 1; i < rows.length - 1; i++) { const a = rows[i - 1][c], b = rows[i][c], d = rows[i + 1][c]; if (Math.abs(wrapA(a - d)) < 55 && Math.abs(wrapA(b - a)) > 70 && Math.abs(wrapA(b - d)) > 70) rows[i][c] = a + wrapA(d - a) / 2; }
       for (const row of rows) for (const c of [5, 7]) if (row[c + 1] > 8) { row[c] += (row[c + 1] - 8) / 2; row[c + 1] = 8; }
       { const src = rows.map(x => x.slice()); for (let i = 1; i < rows.length - 1; i++) for (let c = 0; c < 9; c++) rows[i][c] = src[i][c] + (wrapA(src[i - 1][c] - src[i][c]) + wrapA(src[i + 1][c] - src[i][c])) / 4; }
@@ -140,7 +142,7 @@ const R = (function () {
       case 'getup': { const u = p.sf / SIM.GETUP; po = u < 0.5 ? mix(P('kd'), P('crouch'), sm(u * 2)) : mix(P('crouch'), P('idle'), sm(u * 2 - 1)); if (u < 0.5) { ground = false; dy = -44 * (1 - sm(u * 2)); } break; }
       case 'tech': po = mix(P('hitHi'), P('idle'), sm(p.sf / 22)); break;
       case 'win': po = mix(P('idle'), P('win'), sm(p.sf / 14)); break;
-      case 'throwing': po = keyed([[0, 'grabS'], [10, 'lift'], [20, 'lift'], [24, 'slam'], [34, 'slam'], [44, 'idle']], p.sf); break;
+      case 'throwing': { const tm = MC[p.back ? 'BTHROW' : 'THROW']; if (tm) { po = mcRow(tm, tm.on + (tm.end - tm.on) * Math.min(1, p.sf / 44)); break; } } po = keyed([[0, 'grabS'], [10, 'lift'], [20, 'lift'], [24, 'slam'], [34, 'slam'], [44, 'idle']], p.sf); break;
       case 'thrown': { po = P('thrown'); const t = o.sf; po.rot = t < 10 ? 0 : -Math.min(150, (t - 10) * 14); ground = false; dy = 0; break; }
       case 'atk': {
         const m = C.mv[p.mv], a = m.an || {}, f = p.mf;
