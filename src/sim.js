@@ -127,7 +127,7 @@ const SIM = (function () {
       hits: [{ s: 6, e: 9, hb: [0, 6, 70, 110], d: 60, stun: 34, kb: 0, air: [0, 260], lvl: 1, hsp: 7, bstun: 20 }, fl(14), fl(22), fl(30), { s: 40, e: 44, hb: big, d: 160, launch: [150, 1450], air: [150, 1450], lvl: 2, hsp: 22, bstun: 20 }],
       an: { k: [[0, 'cupW'], [6, 'srS'], [11, 'cupW'], [14, 'srS'], [19, 'cupW'], [22, 'srS'], [27, 'cupW'], [30, 'srS'], [36, 'cupW'], [40, 'srS'], [56, 'srS2'], [80, 'jump']], spin: [40, 70, 1080] } });
     return {
-      name: 'KAITO', jp: '海斗', title: 'THE BLAZING FIST', hp: 1000, walkF: 230, walkB: 157, jx: 245, jxB: 196, runV: 450, mv: mv,
+      name: 'KAITO', jp: '海斗', title: 'THE BLAZING FIST', hp: 1000, walkF: 230, walkB: 157, jx: 245, jxB: 196, runV: 430, mv: mv,
       sp: [{ dir: 6, k: 'SRK_M', od: 'SRK_OD' }, { dir: 4, k: 'DL_H', od: 'DL_OD' }, { dir: 2, k: 'JIN_M', od: 'JIN_OD' }, { dir: 5, k: 'HAD_H', od: 'HAD_OD' }, { air: 1, fwd: 1, k: 'ATAT', od: 'ATAT_OD' }],
       mo: [{ m: '623', L: 'SRK_L', M: 'SRK_M', H: 'SRK_H', OD: 'SRK_OD' }, { m: '214', L: 'TAT_L', M: 'TAT_M', H: 'TAT_H', OD: 'TAT_OD' }, { m: '236', L: 'JIN_L', M: 'JIN_M', H: 'JIN_H', OD: 'JIN_OD' }, { m: '214', air: 1, fwd: 1, L: 'ATAT', M: 'ATAT', H: 'ATAT', OD: 'ATAT_OD' }],
       run: { L: 'STOP', M: 'TK', H: 'FSK', S6: 'QSRK', S5: 'QSRK', S2: 'QTAT', S4: 'QDL', m623: 'QSRK', m214: 'QTAT' },
@@ -377,7 +377,7 @@ const SIM = (function () {
         break;
       }
       case 'run': {
-        p.vx = p.face * C.runV; const R = C.run, f = p.sf;
+        const R = C.run, f = p.sf; p.vx = p.face * tr(C.runV * (f <= 8 ? 30 + f * 9 : f > 35 ? Math.max(20, 100 - (f - 35) * 8) : 100) / 100);
         autoPress(p, inp); if (p.acq && autoStep(s, p, o, i)) { atkFrame(s, p, o, C.mv[p.mv], i); break; }
         let k = '';
         if (f >= 9 && p.age[2] <= BUF) k = R.H;

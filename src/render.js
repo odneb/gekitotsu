@@ -84,6 +84,32 @@ const R = (function () {
   const sm = k => k <= 0 ? 0 : k >= 1 ? 1 : k * k * (3 - 2 * k);
   function keyed(k, f) { if (f <= k[0][0]) return P(k[0][1]); for (let i = 1; i < k.length; i++) if (f <= k[i][0]) { const a = k[i - 1], b = k[i]; let u = (f - a[0]) / (b[0] - a[0]); return mix(P(a[1]), P(b[1]), u * u * (3 - 2 * u)); } return P(k[k.length - 1][1]); }
 
+  // ---- footage-driven animation: joint angles sampled from SF6 Ken, time-warped so the peak of the motion lands on the first active frame
+  const MC = {}, MCA = { SRK_L: 'SRK_M', SRK_H: 'SRK_M', JIN_L: 'JIN_M', JIN_H: 'JIN_M', JIN_OD: 'JIN_M', HAD_OD: 'HAD_H' };
+  const wrapA = a => { a = (a + 180) % 360; if (a < 0) a += 360; return a - 180; };
+  (function () {
+    for (const k in MOCAP_RAW) {
+      const rows = MOCAP_RAW[k].split(';').map(x => x.split(',').map(Number));
+      for (let pass = 0; pass < 2; pass++) for (let c = 0; c < 9; c++) for (let i = 1; i < rows.length - 1; i++) { const a = rows[i - 1][c], b = rows[i][c], d = rows[i + 1][c]; if (Math.abs(wrapA(a - d)) < 55 && Math.abs(wrapA(b - a)) > 70 && Math.abs(wrapA(b - d)) > 70) rows[i][c] = a + wrapA(d - a) / 2; }
+      for (const row of rows) for (const c of [5, 7]) if (row[c + 1] > 8) { row[c] += (row[c + 1] - 8) / 2; row[c + 1] = 8; }
+      { const src = rows.map(x => x.slice()); for (let i = 1; i < rows.length - 1; i++) for (let c = 0; c < 9; c++) rows[i][c] = src[i][c] + (wrapA(src[i - 1][c] - src[i][c]) + wrapA(src[i + 1][c] - src[i][c])) / 4; }
+      const dev = rows.map(x => { let s = 0; for (const c of [0, 5, 6, 7, 8]) s += Math.abs(wrapA(x[c] - rows[0][c])); for (const c of [1, 3]) s += Math.abs(wrapA(x[c] - rows[0][c])) * 0.4; return s; });
+      const mx = Math.max.apply(null, dev); let on = 0, pk = 0, end = rows.length - 1;
+      for (let i = 0; i < rows.length; i++) if (dev[i] >= mx * 0.8) { pk = i; break; }
+      for (let i = pk; i >= 0; i--) if (dev[i] < mx * 0.15) { on = i; break; }
+      for (let i = rows.length - 1; i > pk; i--) if (dev[i] >= mx * 0.15) { end = Math.min(rows.length - 1, i + 1); break; }
+      MC[k] = { rows: rows, on: on, pk: pk, end: end };
+    }
+  })();
+  function mcRow(mc, x) {
+    x = Math.max(0, Math.min(mc.rows.length - 1, x)); const i = Math.floor(x), u = x - i, a = mc.rows[i], b = mc.rows[Math.min(mc.rows.length - 1, i + 1)], v = c => a[c] + wrapA(b[c] - a[c]) * u;
+    const T = v(0); return { l: T * 0.4, t: T * 0.6, h: 0, af: [v(1), v(2)], ab: [v(3), v(4)], lf: [v(5), v(6)], lb: [v(7), v(8)], yaw: 0, rot: 0 };
+  }
+  function mcPose(key, f, m) {
+    const mc = MC[MCA[key] || key]; if (!mc) return null; const su = m.su - 1, tot = m.t < 900 ? m.t : m.lastAct + 30;
+    return mcRow(mc, f <= su ? mc.on + (mc.pk - mc.on) * (su ? f / su : 1) : mc.pk + (mc.end - mc.pk) * Math.min(1, (f - su) / Math.max(1, tot - su)));
+  }
+
   // pose for a fighter from sim state -> {pose, grounded, extraYaw}
   function fighterPose(p, o, sFrame) {
     const C = SIM.CH[p.ch]; let po, ground = p.y <= 0, spin = 0, dy = 0, dx = 0, strike = null;
@@ -96,7 +122,7 @@ const R = (function () {
       case 'prejump': case 'land': po = P('prejump'); break;
       case 'jump': po = mix(P('jump'), P('fall'), sm((500 - p.vy) / 1200)); break;
       case 'dashf': po = mix(P('dashf'), P('idle'), sm((p.sf - 11) / 6)); break;
-      case 'run': po = mix(P('runA'), P('runB'), (Math.sin(p.sf * 0.75) + 1) / 2); break;
+      case 'run': po = mix(P('idle'), mcRow(MC.RUN, p.sf / 45 * (MC.RUN.rows.length - 1)), Math.min(1, p.sf / 3)); break;
       case 'drush': po = mix(P('dashf'), P('idle'), sm((p.sf - 26) / 8)); break;
       case 'parry': po = P('parry'); break; case 'prec': po = mix(P('parry'), P('idle'), sm(p.sf / 11)); break;
       case 'dashb': po = mix(P('dashb'), P('idle'), sm((p.sf - 14) / 8)); dy = Math.max(0, Math.sin(Math.min(1, p.sf / 14) * Math.PI) * 10); ground = dy <= 0; break;
@@ -120,15 +146,19 @@ const R = (function () {
           else if (f <= end) po = P(a.s);
           else po = mix(P(a.s), P(bn), sm((f - end) / (rec - end)));
         }
+        const procPo = po, mcp = m.isAir || m.sup || m.thr ? null : mcPose(p.mv, f, m); let usedMc = false;
+        if (mcp) { const tot = m.t < 900 ? m.t : 999; po = mix(P(bn), mcp, Math.min(1, (f + 1) / 3) * (tot < 900 ? Math.min(1, Math.max(0, (tot - f) / 4)) : 1)); usedMc = true; }
         if (a.spin && f >= a.spin[0]) spin = Math.min(1, (f - a.spin[0]) / (a.spin[1] - a.spin[0])) * a.spin[2];
         // the striking limb is aimed at, and stretched to, the far end of the real hitbox
         let hh = null; for (const h of m.hits) if (h.hb && f >= h.s - 4 && f <= h.e + 5) { hh = h; break; }
         if (hh && !m.sup && !spin && hh.hb[2] <= 62) {
           let nm = a.s; if (a.k) { nm = a.k[a.k.length - 1][1]; for (const kk of a.k) if (kk[0] >= hh.s) { nm = kk[1]; break; } }
-          const lim = STR[nm];
+          const lim = STR[nm] || (usedMc ? 'auto' : null);
           if (lim) { const w0 = f < hh.s ? Math.max(0, 1 - (hh.s - f) / 4) : f <= hh.e ? 1 : Math.max(0, 1 - (f - hh.e) / 5), up = nm === 'srS' || nm === 'cupS';
             strike = { lim: lim, w: w0 * w0 * (3 - 2 * w0), tx: up ? hh.hb[0] + hh.hb[2] * 0.55 : hh.hb[0] + hh.hb[2] - 2, ty: up ? hh.hb[1] + hh.hb[3] - 6 : hh.hb[1] + hh.hb[3] / 2 }; }
         }
+        // at the moment of impact the pose comes from Ken's hitbox stills; the footage carries the motion in and out
+        if (usedMc && strike) po = mix(po, procPo, strike.w);
         if (m.thr) po = keyed([[0, 'idle'], [3, 'grabW'], [5, 'grabS'], [8, 'grabS'], [m.t, 'idle']], f);
         break;
       }
@@ -171,13 +201,21 @@ const R = (function () {
     let hip = 52;
     if (fp.ground) hip = -Math.min(fy(po.lf), fy(po.lb)) + 3;
     const sc = { af: 1, ab: 1, lf: 1, lb: 1 };
-    if (st) {
+    if (st && st.lim === 'auto') {
+      // pick whichever limb the footage already has pointing at the target
+      let best = 'af', bd = 1e9; const hy0 = hip + fp.dy, c0 = Math.max(0.55, Math.cos((26 + po.yaw) * D));
+      for (const n of ['af', 'ab', 'lf', 'lb']) { const lg = n[0] === 'l', bx = lg ? -3 * Math.sin(L * D) : 6 * Math.sin(L * D) + 23 * Math.sin((L + T) * D), by = lg ? hy0 - 3 * Math.cos(L * D) : hy0 + 6 * Math.cos(L * D) + 23 * Math.cos((L + T) * D);
+        const an = Math.atan2(st.tx / c0 - bx, -(st.ty - by)) / D, d = Math.abs(wrapA(an - (po[n][0] + po[n][1] * 0.5))) + Math.abs(po[n][1]) * 0.25; if (d < bd) { bd = d; best = n; } }
+      fp.strike = { lim: best, w: st.w, tx: st.tx, ty: st.ty };
+    }
+    const st2 = fp.strike && fp.strike.w > 0 ? fp.strike : null;
+    if (st2) { const st = st2;
       const leg = st.lim[0] === 'l';
       if (leg && fp.ground) { const sup = st.lim === 'lf' ? po.lb : po.lf; hip += ((-fy(sup) + 3) - hip) * st.w; }
       const c = Math.max(0.55, Math.cos((26 + po.yaw) * D)), hy = hip + fp.dy;
       const bx = leg ? -3 * Math.sin(L * D) : 6 * Math.sin(L * D) + 23 * Math.sin((L + T) * D), by = leg ? hy - 3 * Math.cos(L * D) : hy + 6 * Math.cos(L * D) + 23 * Math.cos((L + T) * D);
       const vx = st.tx / c - bx, vy = st.ty - by, dist = Math.sqrt(vx * vx + vy * vy), ang = Math.atan2(vx, -vy) / D, k = Math.max(0.75, Math.min(2.1, dist / (leg ? 52 : 36)));
-      const a = po[st.lim], o = {}; o[st.lim] = [a[0] + (ang - a[0]) * st.w, a[1] * (1 - st.w)]; po = Object.assign({}, po, o); sc[st.lim] = 1 + (k - 1) * st.w;
+      const a = po[st.lim], o = {}; o[st.lim] = [a[0] + wrapA(ang - a[0]) * st.w, a[1] * (1 - st.w)]; po = Object.assign({}, po, o); sc[st.lim] = 1 + (k - 1) * st.w;
     }
     rig.spin.rotation.z = -po.rot * D; rig.pel.rotation.z = -L * D; rig.tor.rotation.z = -T * D; rig.head.rotation.z = (L + T - po.h) * D;
     // lead limbs sit on the far side from the camera, whichever way we face
