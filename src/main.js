@@ -246,8 +246,44 @@
   document.getElementById('fs').addEventListener('click', () => { const p = wrap.requestFullscreen ? wrap.requestFullscreen() : null; if (p && p.catch) p.catch(() => { }); });
   document.getElementById('voice').addEventListener('click', () => { NET.voiceToggle(); c2.focus(); });
   document.getElementById('copy').addEventListener('click', () => { const i = document.getElementById('link'); const done = () => { document.getElementById('copy').textContent = 'Copied'; }; if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(i.value).then(done).catch(() => { i.select(); }); else i.select(); });
-  // touch pad
-  document.querySelectorAll('[data-b]').forEach(el => { const bit = +el.dataset.b; const on = e => { e.preventDefault(); INP.touch.on = 1; INP.touch.m |= bit; AUD.init(); }, off = e => { e.preventDefault(); INP.touch.m &= ~bit; }; el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off); el.addEventListener('pointercancel', off); el.addEventListener('pointerleave', off); });
+  // touch: a floating stick for the left thumb, a cluster of round buttons for the right. A touch that lands between two buttons presses both.
+  (function () {
+    const el = document.getElementById('touch'), T = INP.touch, B = SIM.BT; if (!el) return;
+    const DEF = [['L', B.LT, 6.3, 1.7, 1], ['M', B.MD, 3.9, 1.7, 1], ['H', B.HV, 1.5, 1.7, 1], ['AS', B.AS, 5.1, 3.85, 0.92], ['SP', B.SP, 2.7, 3.85, 0.92], ['PA', B.PA, 8.5, 2.9, 0.82], ['DI', B.DI, 7.4, 5, 0.78],
+      ['GRAB', B.LT | B.MD, 5.1, 6, 0.7, 1], ['RUN', B.MD | B.HV, 2.7, 6, 0.7, 1], ['II', 4096, 1.3, -1, 0.6, 1]];
+    let btn = [], R = 34, stick = null, base = null, knob = null, live = false; const ptr = new Map();
+    function layout() {
+      const W = innerWidth, H = innerHeight, port = H > W; R = Math.max(24, Math.min(44, Math.min(W, H) * 0.086)); if (port) R = Math.max(24, Math.min(40, W * 0.062));
+      const sr = Math.max(8, R * 0.3); el.innerHTML = ''; btn = [];
+      for (const d of DEF) { const b = document.createElement('div'), r = R * d[4]; b.className = 'tb' + (d[5] ? ' sm' : ''); b.textContent = d[0]; b.style.width = b.style.height = r * 2 + 'px'; b.style.fontSize = Math.max(7, r * (d[0].length > 2 ? 0.34 : 0.5)) + 'px';
+        const x = W - sr - d[2] * R, y = d[3] < 0 ? sr + R * 0.9 : H - sr - d[3] * R; b.style.left = x + 'px'; b.style.top = y + 'px'; el.appendChild(b); btn.push({ el: b, bits: d[1], x, y, r }); }
+      base = document.createElement('div'); base.className = 'stk'; base.style.width = base.style.height = R * 3.6 + 'px'; knob = document.createElement('div'); knob.className = 'knob'; knob.style.width = knob.style.height = R * 1.5 + 'px'; el.appendChild(base); el.appendChild(knob); rest();
+    }
+    function rest() { const sr = Math.max(8, R * 0.3), x = sr + R * 2.6, y = innerHeight - sr - R * 2.8; base.style.left = knob.style.left = x + 'px'; base.style.top = knob.style.top = y + 'px'; base.style.opacity = knob.style.opacity = 0.55; }
+    function hits(x, y) { let out = [], best = null, bd = 1e9; for (const b of btn) { const d = Math.hypot(x - b.x, y - b.y); if (d < b.r * 1.42) out.push(b); if (d < bd) { bd = d; best = b; } } if (!out.length && best && bd < best.r * 2) out.push(best); return out; }
+    function calc() {
+      let m = 0; for (const b of btn) b.on = 0;
+      for (const p of ptr.values()) {
+        if (p.stick) { const dx = p.x - p.ox, dy = p.y - p.oy, d = Math.hypot(dx, dy), mx = R * 1.5;
+          if (d > mx) { p.ox += dx * (1 - mx / d); p.oy += dy * (1 - mx / d); }                       // the base follows a thumb that wanders, so it never has to lift
+          if (d > R * 0.42) { const a = Math.atan2(dy, dx), c = Math.cos(a), s2 = Math.sin(a); if (c > 0.38) m |= B.R; if (c < -0.38) m |= B.L; if (s2 < -0.42) m |= B.U; if (s2 > 0.42) m |= B.D; }
+          base.style.left = p.ox + 'px'; base.style.top = p.oy + 'px'; const k = Math.min(1, mx / (d || 1)); knob.style.left = p.ox + dx * k + 'px'; knob.style.top = p.oy + dy * k + 'px'; base.style.opacity = knob.style.opacity = 1;
+        } else for (const b of hits(p.x, p.y)) { m |= b.bits; b.on = 1; }
+      }
+      for (const b of btn) b.el.classList.toggle('on', !!b.on);
+      if ((m & ~T.m & 0x1ff0) && navigator.vibrate) { try { navigator.vibrate(6); } catch (e) { } }
+      T.m = m; T.on = 1;
+    }
+    function down(e) { e.preventDefault(); AUD.init(); const onBtn = hits(e.clientX, e.clientY).length && Math.min.apply(null, btn.map(b => Math.hypot(e.clientX - b.x, e.clientY - b.y) / b.r)) < 1.3, hasStick = [...ptr.values()].some(p => p.stick);
+      const st = !onBtn && !hasStick && e.clientX < innerWidth * 0.5; ptr.set(e.pointerId, { stick: st, x: e.clientX, y: e.clientY, ox: e.clientX, oy: e.clientY }); try { el.setPointerCapture(e.pointerId); } catch (x) { } calc(); }
+    function move(e) { const p = ptr.get(e.pointerId); if (!p) return; e.preventDefault(); p.x = e.clientX; p.y = e.clientY; calc(); }
+    function up(e) { const p = ptr.get(e.pointerId); if (!p) return; e.preventDefault(); ptr.delete(e.pointerId); if (p.stick) rest(); calc(); }
+    function enable() { if (live) return; live = true; document.body.classList.add('mob'); layout(); dispatchEvent(new Event('resize')); }
+    el.addEventListener('pointerdown', down); el.addEventListener('pointermove', move); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('contextmenu', e => e.preventDefault());
+    addEventListener('resize', () => { if (live) layout(); }); addEventListener('blur', () => { ptr.clear(); if (live) { T.m = 0; calc(); } });
+    if ((window.matchMedia && matchMedia('(pointer:coarse)').matches) || /[?&]touch=1/.test(location.search)) enable();
+    addEventListener('pointerdown', e => { if (e.pointerType === 'touch') enable(); }, { passive: true });
+  })();
   const boot = () => { R.init(c3, c2); R.setFighters([0, 1]); go('title'); AUD.music(null); requestAnimationFrame(frame); };
   if (document.fonts && document.fonts.load) Promise.all([document.fonts.load("16px 'Press Start 2P'"), document.fonts.load("16px 'DotGothic16'", '激突')]).then(boot, boot); else boot();
   window.GK = { get scene() { return scene; }, get match() { return match; }, startMatch, selInit, opt };

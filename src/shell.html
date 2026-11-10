@@ -21,16 +21,23 @@ body{background:var(--bg);color:var(--ink);font-family:var(--jp);font-size:14px;
 button{font-family:var(--pix);font-size:9px;letter-spacing:.06em;color:var(--ink);background:var(--panel);border:1px solid var(--red);padding:7px 9px;cursor:pointer}
 button:hover{background:var(--red)}button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 #linkbar input{font-family:var(--jp);font-size:13px;color:var(--gold);background:var(--panel);border:1px solid var(--line);padding:6px 8px;width:min(420px,60vw);min-width:0}
-#touch{display:none;justify-content:space-between;gap:12px;user-select:none;-webkit-user-select:none;touch-action:none}
-#touch .g{display:grid;grid-template-columns:repeat(3,44px);grid-auto-rows:44px;gap:4px}
-#touch button{padding:0;font-size:10px;touch-action:none}
-@media (pointer:coarse){#touch{display:flex}#keys{display:none}}
+#touch{display:none}
+/* Phones and tablets: the screen takes the whole viewport and the controls float over it. Left thumb is a stick that appears wherever it lands; right thumb gets the buttons. */
+body.mob{padding:0;gap:0;touch-action:none;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+body.mob #keys{display:none}
+body.mob #view{outline:none}
+body.mob #touch{display:block;position:fixed;inset:0;z-index:5;touch-action:none}
+body.mob #touch .tb{position:absolute;border-radius:50%;border:2px solid rgba(244,240,224,.55);background:rgba(18,11,16,.34);color:rgba(244,240,224,.9);font-family:var(--pix);display:flex;align-items:center;justify-content:center;pointer-events:none;transform:translate(-50%,-50%);box-sizing:border-box}
+body.mob #touch .tb.on{background:rgba(244,240,224,.85);color:#120b10;border-color:#fff}
+body.mob #touch .tb.sm{border-style:dashed;font-size:7px}
+body.mob #touch .stk{position:absolute;border-radius:50%;border:2px solid rgba(244,240,224,.4);background:rgba(18,11,16,.22);pointer-events:none;transform:translate(-50%,-50%);box-sizing:border-box}
+body.mob #touch .knob{position:absolute;border-radius:50%;background:rgba(244,240,224,.75);pointer-events:none;transform:translate(-50%,-50%)}
+@media (orientation:portrait){body.mob #stagebox{align-items:flex-start;flex:0 0 auto}}
 </style>
 <div id="stagebox"><div id="cab"><div id="view"><canvas id="gl" width="480" height="270"></canvas><canvas id="hud" width="960" height="540" aria-label="GEKITOTSU game screen"></canvas></div></div></div>
 <div class="bar" id="linkbar" hidden><span>Invite link</span><input id="link" readonly aria-label="Invite link"><button id="copy" type="button">COPY</button></div>
 <div class="bar" id="voicebar" hidden><button id="voice" type="button">TURN ON VOICE CHAT</button><span id="voicest"></span></div>
-<div id="touch"><div class="g"><span></span><button data-b="1">▲</button><span></span><button data-b="4">◀</button><button data-b="2">▼</button><button data-b="8">▶</button></div>
-<div class="g"><button data-b="16">L</button><button data-b="32">M</button><button data-b="64">H</button><button data-b="128">SP</button><button data-b="256">AS</button><button data-b="4096">ST</button><button data-b="1024">PA</button><button data-b="512">DI</button><span></span></div></div>
+<div id="touch" aria-hidden="true"></div>
 <div class="bar" id="keys"><span><b>Move</b> <kbd>W A S D</kbd></span><span><b>Light Medium Heavy</b> <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd></span><span><b>Special</b> <kbd>I</kbd></span><span><b>Assist</b> <kbd>Space</kbd></span><span><b>Parry</b> <kbd>U</kbd></span><span><b>Impact</b> <kbd>O</kbd></span><span><b>Throw</b> <kbd>H</kbd></span><span><b>Start</b> <kbd>Enter</kbd></span><span>Pad or fight stick: press any button</span><button id="fs" type="button">FULLSCREEN</button></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>

@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta http-equiv="Cache-Control" content="no-cache"><style>body{margin:0}[hidden]{display:none!important}</style></head><body>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta http-equiv="Cache-Control" content="no-cache"><style>body{margin:0}[hidden]{display:none!important}</style></head><body>
 <title>GEKITOTSU</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Press+Start+2P&display=swap">
@@ -22,16 +22,23 @@ body{background:var(--bg);color:var(--ink);font-family:var(--jp);font-size:14px;
 button{font-family:var(--pix);font-size:9px;letter-spacing:.06em;color:var(--ink);background:var(--panel);border:1px solid var(--red);padding:7px 9px;cursor:pointer}
 button:hover{background:var(--red)}button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 #linkbar input{font-family:var(--jp);font-size:13px;color:var(--gold);background:var(--panel);border:1px solid var(--line);padding:6px 8px;width:min(420px,60vw);min-width:0}
-#touch{display:none;justify-content:space-between;gap:12px;user-select:none;-webkit-user-select:none;touch-action:none}
-#touch .g{display:grid;grid-template-columns:repeat(3,44px);grid-auto-rows:44px;gap:4px}
-#touch button{padding:0;font-size:10px;touch-action:none}
-@media (pointer:coarse){#touch{display:flex}#keys{display:none}}
+#touch{display:none}
+/* Phones and tablets: the screen takes the whole viewport and the controls float over it. Left thumb is a stick that appears wherever it lands; right thumb gets the buttons. */
+body.mob{padding:0;gap:0;touch-action:none;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+body.mob #keys{display:none}
+body.mob #view{outline:none}
+body.mob #touch{display:block;position:fixed;inset:0;z-index:5;touch-action:none}
+body.mob #touch .tb{position:absolute;border-radius:50%;border:2px solid rgba(244,240,224,.55);background:rgba(18,11,16,.34);color:rgba(244,240,224,.9);font-family:var(--pix);display:flex;align-items:center;justify-content:center;pointer-events:none;transform:translate(-50%,-50%);box-sizing:border-box}
+body.mob #touch .tb.on{background:rgba(244,240,224,.85);color:#120b10;border-color:#fff}
+body.mob #touch .tb.sm{border-style:dashed;font-size:7px}
+body.mob #touch .stk{position:absolute;border-radius:50%;border:2px solid rgba(244,240,224,.4);background:rgba(18,11,16,.22);pointer-events:none;transform:translate(-50%,-50%);box-sizing:border-box}
+body.mob #touch .knob{position:absolute;border-radius:50%;background:rgba(244,240,224,.75);pointer-events:none;transform:translate(-50%,-50%)}
+@media (orientation:portrait){body.mob #stagebox{align-items:flex-start;flex:0 0 auto}}
 </style>
 <div id="stagebox"><div id="cab"><div id="view"><canvas id="gl" width="480" height="270"></canvas><canvas id="hud" width="960" height="540" aria-label="GEKITOTSU game screen"></canvas></div></div></div>
 <div class="bar" id="linkbar" hidden><span>Invite link</span><input id="link" readonly aria-label="Invite link"><button id="copy" type="button">COPY</button></div>
 <div class="bar" id="voicebar" hidden><button id="voice" type="button">TURN ON VOICE CHAT</button><span id="voicest"></span></div>
-<div id="touch"><div class="g"><span></span><button data-b="1">▲</button><span></span><button data-b="4">◀</button><button data-b="2">▼</button><button data-b="8">▶</button></div>
-<div class="g"><button data-b="16">L</button><button data-b="32">M</button><button data-b="64">H</button><button data-b="128">SP</button><button data-b="256">AS</button><button data-b="4096">ST</button><button data-b="1024">PA</button><button data-b="512">DI</button><span></span></div></div>
+<div id="touch" aria-hidden="true"></div>
 <div class="bar" id="keys"><span><b>Move</b> <kbd>W A S D</kbd></span><span><b>Light Medium Heavy</b> <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd></span><span><b>Special</b> <kbd>I</kbd></span><span><b>Assist</b> <kbd>Space</kbd></span><span><b>Parry</b> <kbd>U</kbd></span><span><b>Impact</b> <kbd>O</kbd></span><span><b>Throw</b> <kbd>H</kbd></span><span><b>Start</b> <kbd>Enter</kbd></span><span>Pad or fight stick: press any button</span><button id="fs" type="button">FULLSCREEN</button></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -40,7 +47,7 @@ function fit(){const fs=document.fullscreenElement===c,W=fs?innerWidth:b.clientW
 addEventListener('resize',fit);document.addEventListener('fullscreenchange',fit);fit();setTimeout(fit,50);})();
 </script>
 <script>
-window.GK_BUILD='1110-2324 UTC';
+window.GK_BUILD='1110-2328 UTC';
 // ===================================================================
 // GEKITOTSU deterministic simulation core. Integer math only, no RNG,
 // no wall-clock, no floats. state = step(state, inputP1, inputP2).
@@ -2135,8 +2142,44 @@ const NET = (function () {
   document.getElementById('fs').addEventListener('click', () => { const p = wrap.requestFullscreen ? wrap.requestFullscreen() : null; if (p && p.catch) p.catch(() => { }); });
   document.getElementById('voice').addEventListener('click', () => { NET.voiceToggle(); c2.focus(); });
   document.getElementById('copy').addEventListener('click', () => { const i = document.getElementById('link'); const done = () => { document.getElementById('copy').textContent = 'Copied'; }; if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(i.value).then(done).catch(() => { i.select(); }); else i.select(); });
-  // touch pad
-  document.querySelectorAll('[data-b]').forEach(el => { const bit = +el.dataset.b; const on = e => { e.preventDefault(); INP.touch.on = 1; INP.touch.m |= bit; AUD.init(); }, off = e => { e.preventDefault(); INP.touch.m &= ~bit; }; el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off); el.addEventListener('pointercancel', off); el.addEventListener('pointerleave', off); });
+  // touch: a floating stick for the left thumb, a cluster of round buttons for the right. A touch that lands between two buttons presses both.
+  (function () {
+    const el = document.getElementById('touch'), T = INP.touch, B = SIM.BT; if (!el) return;
+    const DEF = [['L', B.LT, 6.3, 1.7, 1], ['M', B.MD, 3.9, 1.7, 1], ['H', B.HV, 1.5, 1.7, 1], ['AS', B.AS, 5.1, 3.85, 0.92], ['SP', B.SP, 2.7, 3.85, 0.92], ['PA', B.PA, 8.5, 2.9, 0.82], ['DI', B.DI, 7.4, 5, 0.78],
+      ['GRAB', B.LT | B.MD, 5.1, 6, 0.7, 1], ['RUN', B.MD | B.HV, 2.7, 6, 0.7, 1], ['II', 4096, 1.3, -1, 0.6, 1]];
+    let btn = [], R = 34, stick = null, base = null, knob = null, live = false; const ptr = new Map();
+    function layout() {
+      const W = innerWidth, H = innerHeight, port = H > W; R = Math.max(24, Math.min(44, Math.min(W, H) * 0.086)); if (port) R = Math.max(24, Math.min(40, W * 0.062));
+      const sr = Math.max(8, R * 0.3); el.innerHTML = ''; btn = [];
+      for (const d of DEF) { const b = document.createElement('div'), r = R * d[4]; b.className = 'tb' + (d[5] ? ' sm' : ''); b.textContent = d[0]; b.style.width = b.style.height = r * 2 + 'px'; b.style.fontSize = Math.max(7, r * (d[0].length > 2 ? 0.34 : 0.5)) + 'px';
+        const x = W - sr - d[2] * R, y = d[3] < 0 ? sr + R * 0.9 : H - sr - d[3] * R; b.style.left = x + 'px'; b.style.top = y + 'px'; el.appendChild(b); btn.push({ el: b, bits: d[1], x, y, r }); }
+      base = document.createElement('div'); base.className = 'stk'; base.style.width = base.style.height = R * 3.6 + 'px'; knob = document.createElement('div'); knob.className = 'knob'; knob.style.width = knob.style.height = R * 1.5 + 'px'; el.appendChild(base); el.appendChild(knob); rest();
+    }
+    function rest() { const sr = Math.max(8, R * 0.3), x = sr + R * 2.6, y = innerHeight - sr - R * 2.8; base.style.left = knob.style.left = x + 'px'; base.style.top = knob.style.top = y + 'px'; base.style.opacity = knob.style.opacity = 0.55; }
+    function hits(x, y) { let out = [], best = null, bd = 1e9; for (const b of btn) { const d = Math.hypot(x - b.x, y - b.y); if (d < b.r * 1.42) out.push(b); if (d < bd) { bd = d; best = b; } } if (!out.length && best && bd < best.r * 2) out.push(best); return out; }
+    function calc() {
+      let m = 0; for (const b of btn) b.on = 0;
+      for (const p of ptr.values()) {
+        if (p.stick) { const dx = p.x - p.ox, dy = p.y - p.oy, d = Math.hypot(dx, dy), mx = R * 1.5;
+          if (d > mx) { p.ox += dx * (1 - mx / d); p.oy += dy * (1 - mx / d); }                       // the base follows a thumb that wanders, so it never has to lift
+          if (d > R * 0.42) { const a = Math.atan2(dy, dx), c = Math.cos(a), s2 = Math.sin(a); if (c > 0.38) m |= B.R; if (c < -0.38) m |= B.L; if (s2 < -0.42) m |= B.U; if (s2 > 0.42) m |= B.D; }
+          base.style.left = p.ox + 'px'; base.style.top = p.oy + 'px'; const k = Math.min(1, mx / (d || 1)); knob.style.left = p.ox + dx * k + 'px'; knob.style.top = p.oy + dy * k + 'px'; base.style.opacity = knob.style.opacity = 1;
+        } else for (const b of hits(p.x, p.y)) { m |= b.bits; b.on = 1; }
+      }
+      for (const b of btn) b.el.classList.toggle('on', !!b.on);
+      if ((m & ~T.m & 0x1ff0) && navigator.vibrate) { try { navigator.vibrate(6); } catch (e) { } }
+      T.m = m; T.on = 1;
+    }
+    function down(e) { e.preventDefault(); AUD.init(); const onBtn = hits(e.clientX, e.clientY).length && Math.min.apply(null, btn.map(b => Math.hypot(e.clientX - b.x, e.clientY - b.y) / b.r)) < 1.3, hasStick = [...ptr.values()].some(p => p.stick);
+      const st = !onBtn && !hasStick && e.clientX < innerWidth * 0.5; ptr.set(e.pointerId, { stick: st, x: e.clientX, y: e.clientY, ox: e.clientX, oy: e.clientY }); try { el.setPointerCapture(e.pointerId); } catch (x) { } calc(); }
+    function move(e) { const p = ptr.get(e.pointerId); if (!p) return; e.preventDefault(); p.x = e.clientX; p.y = e.clientY; calc(); }
+    function up(e) { const p = ptr.get(e.pointerId); if (!p) return; e.preventDefault(); ptr.delete(e.pointerId); if (p.stick) rest(); calc(); }
+    function enable() { if (live) return; live = true; document.body.classList.add('mob'); layout(); dispatchEvent(new Event('resize')); }
+    el.addEventListener('pointerdown', down); el.addEventListener('pointermove', move); el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('contextmenu', e => e.preventDefault());
+    addEventListener('resize', () => { if (live) layout(); }); addEventListener('blur', () => { ptr.clear(); if (live) { T.m = 0; calc(); } });
+    if ((window.matchMedia && matchMedia('(pointer:coarse)').matches) || /[?&]touch=1/.test(location.search)) enable();
+    addEventListener('pointerdown', e => { if (e.pointerType === 'touch') enable(); }, { passive: true });
+  })();
   const boot = () => { R.init(c3, c2); R.setFighters([0, 1]); go('title'); AUD.music(null); requestAnimationFrame(frame); };
   if (document.fonts && document.fonts.load) Promise.all([document.fonts.load("16px 'Press Start 2P'"), document.fonts.load("16px 'DotGothic16'", '激突')]).then(boot, boot); else boot();
   window.GK = { get scene() { return scene; }, get match() { return match; }, startMatch, selInit, opt };
