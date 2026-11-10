@@ -153,7 +153,7 @@ const SIM = (function () {
       ca: 0, rq: 99, part: 0, jg: 0, cxSeq: -1, fuq: '', fum: 0, pd: [0, 0, 0, 0, 0, 0, 0], mseq: 0, cs: 0, lastSeq: -1, acq: 0, rcn: 0, sshift: 0, drs: 0, pok: 0, roll: 0, hard: 0, arm: 0, armHit: 0, drb: 0, mod: 0, ac: '', aci: 0, crum: 0, pp: 0, plock: 0, half: 0 };
   }
   function newMatch(cfg) {
-    const s = { frame: 0, slow: 0, phase: 'intro', pt: 0, round: 1, time: 99 * 60, freeze: 0, frzWho: 0, proj: [], ev: [], winner: -1, rw: -1, koType: '', cfg: { training: !!cfg.training, chars: cfg.chars.slice(), rounds: cfg.rounds || 2 }, p: [] };
+    const s = { frame: 0, slow: 0, phase: 'intro', pt: 0, kx: 0, round: 1, time: 99 * 60, freeze: 0, frzWho: 0, proj: [], ev: [], winner: -1, rw: -1, koType: '', cfg: { training: !!cfg.training, chars: cfg.chars.slice(), rounds: cfg.rounds || 2 }, p: [] };
     s.p = [newFighter(cfg.chars[0], 0), newFighter(cfg.chars[1], 1)];
     if (s.cfg.training) { s.phase = 'fight'; s.p[0].sa = 3000; s.p[1].sa = 3000; }
     return s;
@@ -491,6 +491,7 @@ const SIM = (function () {
     return false;
   }
   function invul(p) {
+    if (p.st === 'kd' && p.hp <= 0) return false;   // a knocked-out body can still be hit
     if (p.st === 'kd' || p.st === 'getup' || p.st === 'thrown' || p.st === 'throwing' || p.st === 'win') return true;
     if (p.st === 'atk') { const m = CH[p.ch].mv[p.mv]; if (m.inv && p.mf >= m.inv[0] && p.mf <= m.inv[1]) return true; }
     return false;
@@ -498,7 +499,8 @@ const SIM = (function () {
   function hurt(p) {
     if (invul(p)) return [];
     const r = [];
-    if (p.y > 0) r.push([p.x - 16 * F, p.y + 4 * F, p.x + 16 * F, p.y + 72 * F]);
+    if (p.st === 'kd') r.push([p.x - 38 * F, 0, p.x + 38 * F, 40 * F]);
+    else if (p.y > 0) r.push([p.x - 16 * F, p.y + 4 * F, p.x + 16 * F, p.y + 72 * F]);
     else if (crouching(p)) r.push([p.x - 20 * F, 0, p.x + 20 * F, 64 * F]);
     else r.push([p.x - 19 * F, 0, p.x + 19 * F, 89 * F]);
     if (p.st === 'atk') { const m = CH[p.ch].mv[p.mv]; if (!m.sp && !m.sup) for (const h of m.hits) if (p.mf >= h.s && p.mf <= h.e + 3) r.push(box(p, h.hb)); }
@@ -585,6 +587,7 @@ const SIM = (function () {
       const vec = wasAir ? (((isProj && last && h.launchLast) ? h.launchLast : h.air) || [300, 620]) : (launch || [520, 820]);
       d.st = 'ahit'; d.sf = 0; d.mv = '';
       d.vx = side * vec[0] + (isProj ? 0 : tr(a.vx / 4)); d.vy = vec[1]; if (d.y <= 0) { d.y = 1; if (d.vy < 0) d.vy = 300; }
+      if (ko && d.jug > 2) d.jug = 2;
       if (h.lk) { const pp = h.pop || [24, 430]; d.vx = 0; d.vy = pp[1]; if (d.y < pp[0] * F) d.y = pp[0] * F; } else d.jug++;
       if (h.xup && wasAir) a.vx = a.face * h.xup;
       if (h.carry) { d.x = a.x + a.face * h.carry[0] * F; d.y = a.y + h.carry[1] * F; d.vx = a.vx; d.vy = a.vy; }
@@ -661,7 +664,8 @@ const SIM = (function () {
     const raw = [i0 & MASK, i1 & MASK];
     const live = s.phase === 'fight';
     for (let i = 0; i < 2; i++) {
-      const p = s.p[i]; let inp = live ? raw[i] : 0;
+      const p = s.p[i]; let inp = live || (s.phase === 'ko' && s.rw === i && s.koType !== 'time') ? raw[i] : 0;
+      if (s.phase === 'ko' && p.st === 'win' && (inp & 0x7F0)) { p.st = 'idle'; p.sub = 'stand'; p.sf = 0; }
       if ((inp & 12) === 12) inp &= ~12; if ((inp & 3) === 3) inp &= ~3;
       raw[i] = inp;
       const frozen = s.freeze > 0 || p.hs > 0;
@@ -675,7 +679,7 @@ const SIM = (function () {
     }
     if (s.phase === 'intro') { s.pt++; if (s.pt === 1) s.ev.push({ t: 'round', n: s.round }); if (s.pt >= INTRO) { s.phase = 'fight'; s.pt = 0; s.ev.push({ t: 'fight' }); } }
     if (s.freeze > 0) { s.freeze--; return s; }
-    if (s.phase === 'ko') { s.pt++; if (s.pt < 140 && s.pt % 4 !== 0) return s; }
+    if (s.phase === 'ko') { s.pt++; if (s.pt < 56 && s.pt % 4 !== 0) return s; }
     else if (s.slow > 0) { s.slow--; if (s.slow % 3 !== 0) return s; }
     const fr = [s.p[0].hs > 0, s.p[1].hs > 0];
     for (let i = 0; i < 2; i++) { const p = s.p[i]; if (fr[i]) p.hs--; else update(s, p, s.p[1 - i], raw[i], i); }
@@ -699,7 +703,7 @@ const SIM = (function () {
         s.time--;
         const d0 = s.p[0].hp <= 0, d1 = s.p[1].hp <= 0;
         if (d0 || d1 || s.time <= 0) {
-          s.phase = 'ko'; s.pt = 0; let w = -1;
+          s.phase = 'ko'; s.pt = 0; s.kx = 0; let w = -1;
           if (d0 || d1) { s.koType = 'ko'; w = d0 && d1 ? -1 : d0 ? 1 : 0; }
           else { s.koType = 'time'; const r0 = s.p[0].hp * CH[s.p[1].ch].hp, r1 = s.p[1].hp * CH[s.p[0].ch].hp; w = r0 > r1 ? 0 : r1 > r0 ? 1 : -1; }
           s.rw = w; if (w >= 0) { s.p[w].wins++; if (s.koType === 'ko' && s.p[w].hp >= CH[s.p[w].ch].hp) s.koType = 'perfect'; } else s.koType = d0 ? 'dko' : 'draw';
@@ -707,7 +711,9 @@ const SIM = (function () {
         }
       }
     } else if (s.phase === 'ko') {
-      if (s.pt === 150 && s.rw >= 0) { const w = s.p[s.rw]; if (w.st === 'idle' && w.y <= 0) { w.st = 'win'; w.sf = 0; w.vx = 0; } s.ev.push({ t: 'winpose', w: s.rw }); }
+      // every hit on the body buys a little more time, up to ten extra seconds
+      if (s.rw >= 0 && s.ev.some(e => e.t === 'hit') && s.kx < 600 && s.pt > KOTIME - 100) { const add = Math.min(600 - s.kx, s.pt - (KOTIME - 100)); s.kx += add; s.pt -= add; }
+      if (s.pt === 150 && s.rw >= 0 && s.kx === 0) { const w = s.p[s.rw]; if (w.st === 'idle' && w.y <= 0) { w.st = 'win'; w.sf = 0; w.vx = 0; } s.ev.push({ t: 'winpose', w: s.rw }); }
       if (s.pt >= KOTIME) {
         const need = s.cfg.rounds;
         if (s.p[0].wins >= need || s.p[1].wins >= need || s.round >= need * 2 + 1) {
