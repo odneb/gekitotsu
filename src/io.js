@@ -117,7 +117,7 @@ const AUD = (function () {
   function events(ev, s) {
     for (const e of ev) {
       if (e.t === 'hit') play(e.ko ? 'ko' : 'hit' + e.lvl); else if (e.t === 'block') play('block'); else if (e.t === 'whiff') play('whiff' + e.lvl);
-      else if (e.t === 'fire') play(e.big ? 'superFire' : 'fire'); else if (e.t === 'super') play('super'); else if (e.t === 'ex' || e.t === 'di' || e.t === 'rush') play('ex'); else if (e.t === 'parry' || e.t === 'armor') play('block'); else if (e.t === 'pparry' || e.t === 'splat' || e.t === 'burnout') play('tech');
+      else if (e.t === 'fire') play(e.big ? 'superFire' : 'fire'); else if (e.t === 'super') play('super'); else if (e.t === 'ex' || e.t === 'di' || e.t === 'rush') play('ex'); else if (e.t === 'parry' || e.t === 'armor') play('block'); else if (e.t === 'pparry' || e.t === 'splat' || e.t === 'burnout') play('tech'); else if (e.t === 'diclash') play('ko');
       else if (e.t === 'wbounce' || e.t === 'gbounce') play('wb'); else if (e.t === 'kd') play('kd'); else if (e.t === 'jump' || e.t === 'rise') play('jump'); else if (e.t === 'land') play('land'); else if (e.t === 'dash') play('dash');
       else if (e.t === 'grab') play('grab'); else if (e.t === 'tech' || e.t === 'clash') play('tech'); else if (e.t === 'round') play('round'); else if (e.t === 'fight') play('fight'); else if (e.t === 'winpose') play('win');
     }

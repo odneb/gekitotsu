@@ -54,7 +54,7 @@ const SIM = (function () {
   const MASK = 2047, NB = 7;
   const STAGE = 560 * F, SEP = 400 * F, PW = 23 * F;
   const GRAV = 62, BUF = 5, NBUF = 40, DMAX = 6000, BAR = 1000;
-  const INTRO = 120, KOTIME = 230, KD = 26, GETUP = 22;
+  const INTRO = 120, KOTIME = 290, KD = 26, GETUP = 22;
   const SCALE = [100, 100, 80, 70, 60, 50, 40, 30, 20, 10];
   const C_CH = 1, C_SP = 2, C_SU = 4;
   const tr = Math.trunc;
@@ -183,7 +183,7 @@ const SIM = (function () {
       roll: 0, hard: 0, arm: 0, armHit: 0, drb: 0, mod: 0, ac: '', aci: 0, crum: 0, pp: 0, plock: 0, half: 0 };
   }
   function newMatch(cfg) {
-    const s = { frame: 0, phase: 'intro', pt: 0, round: 1, time: 99 * 60, freeze: 0, frzWho: 0, proj: [], ev: [], winner: -1, rw: -1, koType: '', cfg: { training: !!cfg.training, chars: cfg.chars.slice(), rounds: cfg.rounds || 2 }, p: [] };
+    const s = { frame: 0, slow: 0, phase: 'intro', pt: 0, round: 1, time: 99 * 60, freeze: 0, frzWho: 0, proj: [], ev: [], winner: -1, rw: -1, koType: '', cfg: { training: !!cfg.training, chars: cfg.chars.slice(), rounds: cfg.rounds || 2 }, p: [] };
     s.p = [newFighter(cfg.chars[0], 0), newFighter(cfg.chars[1], 1)];
     if (s.cfg.training) { s.phase = 'fight'; s.p[0].sa = 3000; s.p[1].sa = 3000; }
     return s;
@@ -192,7 +192,7 @@ const SIM = (function () {
     const keep = s.p.map(p => [p.wins, p.sa]);
     s.p = [newFighter(s.cfg.chars[0], 0), newFighter(s.cfg.chars[1], 1)];
     s.p.forEach((p, i) => { p.wins = keep[i][0]; p.sa = keep[i][1]; });
-    s.proj = []; s.time = 99 * 60; s.phase = 'intro'; s.pt = 0; s.freeze = 0; s.koType = '';
+    s.proj = []; s.time = 99 * 60; s.phase = 'intro'; s.pt = 0; s.freeze = 0; s.slow = 0; s.koType = '';
   }
   function clone(o) {
     if (o === null || typeof o !== 'object') return o;
@@ -201,7 +201,7 @@ const SIM = (function () {
   }
   function hash(s) {
     let h = 2166136261 >>> 0; const mix = v => { h ^= (v | 0); h = Math.imul(h, 16777619) >>> 0; };
-    mix(s.frame); mix(s.time); mix(s.proj.length);
+    mix(s.frame); mix(s.slow); mix(s.time); mix(s.proj.length);
     for (const p of s.p) { mix(p.x); mix(p.y); mix(p.vx); mix(p.vy); mix(p.hp); mix(p.sa); mix(p.dr); mix(p.sf); mix(p.mf); mix(p.hs); mix(p.stun); mix(p.st.length); }
     for (const q of s.proj) { mix(q.x); mix(q.left); }
     return h;
@@ -393,7 +393,7 @@ const SIM = (function () {
         if (m.t < 900 && p.mf >= m.t) { toIdle(p); neutral(s, p, o, inp, i); break; }
         const live = p.contact && p.mf <= m.lastAct + 10, karaP = !m.sp && !m.sup && !m.thr && !m.di && p.mf <= 2 && !p.contact;
         if (live && (m.can & C_SP) && !m.sp && p.y <= 0 && !p.bo && p.dr > 0 && (p.d66 <= BUF || p.age[6] <= BUF || (p.age[1] <= BUF && p.age[2] <= BUF && parryHeld(inp)))) { spend(s, p, i, 3 * BAR); p.age = [99, 99, 99, 99, 99, 99, 99]; enterRush(s, p, i, true); break; }
-        if (karaP && parryHeld(inp) && enterParry(s, p, i)) break;
+        if (karaP && p.y <= 0 && parryHeld(inp) && enterParry(s, p, i)) break;
         if (!tryAttack(s, p, o, inp, i)) atkFrame(s, p, o, m, i); else atkFrame(s, p, o, C.mv[p.mv], i);
         break;
       }
@@ -533,7 +533,7 @@ const SIM = (function () {
     }
     if (how === 'armor') {
       const dm = Math.max(1, tr(h.d / 2)); d.hp = Math.max(1, d.hp - dm); d.arm--; d.armHit = 1; d.redT = 50; d.hs = 9; if (!isProj) { a.hs = 9; a.contact = 1; a.hitOK = 1; }
-      s.ev.push({ t: 'armor', x: cx, y: cy, who: di }); return;
+      s.ev.push({ t: 'armor', x: cx, y: cy, who: di }); if (m.di && CH[d.ch].mv[d.mv].di) { s.slow = 54; s.ev.push({ t: 'diclash', x: cx, y: cy }); } return;
     }
     if (how === 'block') {
       const chip = (special && d.bo) ? Math.max(1, tr(h.d / 4)) : 0;
@@ -555,7 +555,7 @@ const SIM = (function () {
     const ko = d.hp <= 0, wasAir = d.y > 0 || d.st === 'ahit';
     let launch = (isProj && last && h.launchLast) ? h.launchLast : h.launch;
     const crumple = m.di && (kind || a.armHit) && !wasAir && !ko;
-    if (crumple) launch = null;
+    if (crumple) { launch = null; s.slow = Math.max(s.slow, 36); }
     if (m.di && !d.bo) { d.dr -= BAR; burn(s, d, di); }
     if (kind) hsp += 2; if (ko) hsp = 22;
     const wasCr = crouching(d), wrong = !wasAir && !isProj && (h.g === 'l' || (h.g === 'h' && !m.isAir)) && (d.st === 'idle' || d.st === 'block') ? h.g : '';
@@ -650,7 +650,8 @@ const SIM = (function () {
     }
     if (s.phase === 'intro') { s.pt++; if (s.pt === 1) s.ev.push({ t: 'round', n: s.round }); if (s.pt >= INTRO) { s.phase = 'fight'; s.pt = 0; s.ev.push({ t: 'fight' }); } }
     if (s.freeze > 0) { s.freeze--; return s; }
-    if (s.phase === 'ko') { s.pt++; if (s.pt < 75 && s.pt % 3 !== 0) return s; }
+    if (s.phase === 'ko') { s.pt++; if (s.pt < 140 && s.pt % 4 !== 0) return s; }
+    else if (s.slow > 0) { s.slow--; if (s.slow % 3 !== 0) return s; }
     const fr = [s.p[0].hs > 0, s.p[1].hs > 0];
     for (let i = 0; i < 2; i++) { const p = s.p[i]; if (fr[i]) p.hs--; else update(s, p, s.p[1 - i], raw[i], i); }
     for (let i = 0; i < 2; i++) if (!fr[i]) physics(s, s.p[i], s.p[1 - i], i);
@@ -681,7 +682,7 @@ const SIM = (function () {
         }
       }
     } else if (s.phase === 'ko') {
-      if (s.pt === 90 && s.rw >= 0) { const w = s.p[s.rw]; if (w.st === 'idle' && w.y <= 0) { w.st = 'win'; w.sf = 0; w.vx = 0; } s.ev.push({ t: 'winpose', w: s.rw }); }
+      if (s.pt === 150 && s.rw >= 0) { const w = s.p[s.rw]; if (w.st === 'idle' && w.y <= 0) { w.st = 'win'; w.sf = 0; w.vx = 0; } s.ev.push({ t: 'winpose', w: s.rw }); }
       if (s.pt >= KOTIME) {
         const need = s.cfg.rounds;
         if (s.p[0].wins >= need || s.p[1].wins >= need || s.round >= need * 2 + 1) {
@@ -702,7 +703,7 @@ const SIM = (function () {
 const R = (function () {
   'use strict';
   const D = Math.PI / 180, F = SIM.F, VW = 480, VH = 270;
-  let ren, scene, cam, g2, stage, rigs = [], shadows = [], projMeshes = [], fx = [], shake = 0, flash = 0, camX = 0, camW = 440, camY = 70, tick = 0;
+  let snapCam = true, ren, scene, cam, g2, stage, rigs = [], shadows = [], projMeshes = [], fx = [], shake = 0, flash = 0, camX = 0, camW = 440, camY = 70, tick = 0;
   const combo = [null, null]; let msg = null, superFx = null; const FJ = "'DotGothic16','Press Start 2P',monospace", FP = "'Press Start 2P','DotGothic16',monospace";
 
   // ----------------------------------------------------------- poses (world angles, deg)
@@ -897,7 +898,7 @@ const R = (function () {
   function events(ev, s) {
     for (const e of ev) {
       const x = (e.x || 0) / F, y = (e.y || 0) / F;
-      if (e.t === 'hit') { fx.push({ k: 'spark', x, y, lvl: e.lvl, t: 0, ko: e.ko }); if (e.di) fx.push({ k: 'paint', x, y, t: 0 }); if (e.wrong) fx.push({ k: 'word', x, y: y + 30, t: 0, s: e.wrong === 'h' ? 'OVERHEAD!' : 'LOW!', c: e.wrong === 'h' ? '#ff8a1e' : '#33a0ff' }); if (e.crum) fx.push({ k: 'word', x, y: y + 44, t: 0, s: 'CRUMPLE', c: '#ffd21e' }); shake = Math.max(shake, e.ko ? 22 : [3, 7, 11][e.lvl]); if (e.lvl >= 2 || e.ko) flash = e.ko ? 6 : 2; combo[e.who] = { n: e.combo, d: e.total || e.dmg, t: 0, ch: e.ch }; }
+      if (e.t === 'hit') { fx.push({ k: 'spark', x, y, lvl: e.lvl, t: 0, ko: e.ko }); if (e.di) { fx.push({ k: 'paint', x, y, t: 0, big: 1 }); fx.push({ k: 'paint', x: x + 7, y: y + 12, t: -3, big: 1 }); fx.push({ k: 'word', x, y: y + 58, t: 0, s: e.crum ? 'CRUMPLE!!' : 'DRIVE IMPACT!', c: '#ff5ad2', z: 16, life: 70 }); shake = 20; flash = 4; } const am = s.p[e.who].st === 'atk' ? SIM.CH[s.p[e.who].ch].mv[s.p[e.who].mv] : null; if (am && am.sup && e.lvl === 2) { fx.push({ k: 'kanji', t: 0, s: ['', '\u65ac', '\u7834', '\u6ec5'][am.sa], c: ['', '#33e0ff', '#ffd21e', '#ff3355'][am.sa] }); shake = 20; flash = 5; } if (e.wrong) fx.push({ k: 'word', x, y: y + 30, t: 0, s: e.wrong === 'h' ? 'OVERHEAD!' : 'LOW!', c: e.wrong === 'h' ? '#ff8a1e' : '#33a0ff' });  shake = Math.max(shake, e.ko ? 22 : [3, 7, 11][e.lvl]); if (e.lvl >= 2 || e.ko) flash = e.ko ? 6 : 2; combo[e.who] = { n: e.combo, d: e.total || e.dmg, t: 0, ch: e.ch }; }
       else if (e.t === 'block') { fx.push({ k: 'guard', x, y, t: 0 }); shake = Math.max(shake, 2); }
       else if (e.t === 'parry') fx.push({ k: 'guard', x, y, t: 0, big: 1 });
       else if (e.t === 'pparry') { fx.push({ k: 'guard', x, y, t: 0, big: 1 }); fx.push({ k: 'ring', x, y, t: 0 }); fx.push({ k: 'word', x, y: y + 40, t: 0, s: 'PERFECT PARRY', c: '#7fdcff' }); flash = 2; }
@@ -905,7 +906,8 @@ const R = (function () {
       else if (e.t === 'splat') { fx.push({ k: 'paint', x, y, t: 0 }); fx.push({ k: 'word', x: x - 30, y: y + 50, t: 0, s: e.stun ? 'STUN!' : 'WALL SPLAT', c: '#ff3355' }); shake = 14; flash = 2; }
       else if (e.t === 'burnout') { const p = s.p[e.who]; fx.push({ k: 'word', x: p.x / F, y: 110, t: 0, s: 'BURNOUT', c: '#b8b0c0' }); }
       else if (e.t === 'rush') { const p = s.p[e.who]; fx.push({ k: 'dust', x: p.x / F, y: 0, t: 0, big: 1 }); fx.push({ k: 'word', x: p.x / F, y: 104, t: 0, s: 'DRIVE RUSH', c: '#5dffa0' }); }
-      else if (e.t === 'di') { const p = s.p[e.who]; fx.push({ k: 'word', x: p.x / F, y: 110, t: 0, s: 'DRIVE IMPACT', c: '#ff5ad2' }); }
+      else if (e.t === 'di') { fx.push({ k: 'distart', who: e.who, t: 0 }); shake = Math.max(shake, 4); }
+      else if (e.t === 'diclash') { fx.push({ k: 'paint', x, y, t: 0, big: 1 }); fx.push({ k: 'word', x, y: y + 60, t: 0, s: 'IMPACT CLASH!', c: '#fff', z: 16, life: 70 }); flash = 4; shake = 14; }
       else if (e.t === 'wbounce') { fx.push({ k: 'spark', x, y, lvl: 2, t: 0, wall: 1 }); shake = 14; flash = 2; }
       else if (e.t === 'gbounce' || e.t === 'kd') { fx.push({ k: 'dust', x, y: 0, t: 0, big: 1 }); shake = Math.max(shake, e.t === 'kd' ? 5 : 9); }
       else if (e.t === 'jump' || e.t === 'land' || e.t === 'dash') { const p = s.p[e.who]; fx.push({ k: 'dust', x: p.x / F, y: 0, t: 0 }); }
@@ -915,7 +917,7 @@ const R = (function () {
       else if (e.t === 'ex') fx.push({ k: 'exflash', who: e.who, t: 0 });
       else if (e.t === 'round') msg = { big: s.round >= s.cfg.rounds * 2 - 1 && s.p[0].wins === s.p[1].wins && s.round > 1 ? 'FINAL ROUND' : 'ROUND ' + s.round, jp: '第' + '一二三四五'[s.round - 1] + '回戦', t: 0, dur: 80, col: '#ffd21e' };
       else if (e.t === 'fight') msg = { big: 'FIGHT!', jp: '始め！', t: 0, dur: 50, col: '#ff3355', slam: 1 };
-      else if (e.t === 'ko') msg = e.type === 'time' ? { big: 'TIME OVER', jp: '時間切れ', t: 0, dur: 150, col: '#ffd21e' } : e.type === 'draw' || e.type === 'dko' ? { big: e.type === 'dko' ? 'DOUBLE K.O.' : 'DRAW', jp: '引き分け', t: 0, dur: 150, col: '#ffd21e' } : { big: 'K.O.', jp: e.type === 'perfect' ? '完全勝利 PERFECT' : '一本！', t: 0, dur: 170, col: '#ff3355', slam: 1 };
+      else if (e.t === 'ko') msg = e.type === 'time' ? { big: 'TIME OVER', jp: '時間切れ', t: 0, dur: 150, col: '#ffd21e' } : e.type === 'draw' || e.type === 'dko' ? { big: e.type === 'dko' ? 'DOUBLE K.O.' : 'DRAW', jp: '引き分け', t: 0, dur: 150, col: '#ffd21e' } : { big: 'K.O.', jp: e.type === 'perfect' ? '完全勝利 PERFECT' : '一本！', t: -34, dur: 190, col: '#ff3355', slam: 1 };
     }
   }
 
@@ -928,7 +930,10 @@ const R = (function () {
     if (s) {
       const a = s.p[0], b = s.p[1], ax = a.x / F, bx = b.x / F;
       tx = (ax + bx) / 2; tw = Math.max(330, Math.min(520, Math.abs(ax - bx) + 190)); ty = 68 + Math.max(a.y, b.y) / F * 0.42;
-      if (superFx && superFx.t < 40) { const p = s.p[superFx.who]; tx = p.x / F; tw = 300; ty = 62; }
+      if (superFx && superFx.t < 40) { const p = s.p[superFx.who]; tx = p.x / F; tw = 300 - (superFx.lv || 1) * 14; ty = 62; }
+      if (s.phase === 'ko' && s.pt < 150 && s.rw >= 0) { const l = s.p[1 - s.rw]; tx = l.x / F; tw = 250; ty = 44 + l.y / F * 0.6; }
+      if (s.slow > 0 && s.phase === 'fight') { tw = Math.min(tw, 300); }
+      if (snapCam) { camX = Math.max(-(SIM.STAGE / F + 30 - tw / 2), Math.min(SIM.STAGE / F + 30 - tw / 2, tx)); camW = tw; camY = ty; snapCam = false; }
       const lim = SIM.STAGE / F + 30 - tw / 2; tx = Math.max(-lim, Math.min(lim, tx));
       camX += (tx - camX) * 0.22; camW += (tw - camW) * 0.14; camY += (ty - camY) * 0.2;
       const dim = s.freeze > 0; stage.visible = !dim; scene.background.setHex(dim ? 0x05030c : 0x0b0a24);
@@ -955,7 +960,7 @@ const R = (function () {
     } else {
       camX = Math.sin(tick * 0.004) * 240; camW = 470; camY = 96;
       for (const r of rigs) r.G.visible = !!menuPan; for (const sh of shadows) sh.visible = !!menuPan; projMeshes.forEach(g => g.visible = false); stage.visible = true; scene.background.setHex(0x0b0a24);
-      if (menuPan) { camX = 0; camW = menuPan.w || 340; camY = menuPan.y || 34; for (let i = 0; i < 2; i++) { const fake = { ch: menuPan.chars[i], st: menuPan.pose && menuPan.pose[i] ? 'win' : 'idle', sub: 'stand', sf: 30, subf: 0, y: 0, vy: 0 }; const fp = fighterPose(fake, fake, tick); applyPose(rigs[i], fp, i ? -1 : 1, 0, [0, 0, 0]); rigs[i].G.position.set(i ? 75 : -75, 0, 0); shadows[i].position.x = i ? 75 : -75; shadows[i].scale.set(1, 1, 1); } }
+      if (menuPan) { camX = 0; camW = menuPan.w || 340; camY = menuPan.y || 34; const px = menuPan.x || 75; for (let i = 0; i < 2; i++) { const fake = { ch: menuPan.chars[i], st: menuPan.pose && menuPan.pose[i] ? 'win' : 'idle', sub: 'stand', sf: 30, subf: 0, y: 0, vy: 0 }; const fp = fighterPose(fake, fake, tick); applyPose(rigs[i], fp, i ? -1 : 1, 0, [0, 0, 0]); rigs[i].G.position.set(i ? px : -px, 0, i ? -2 : 2); shadows[i].position.x = i ? px : -px; shadows[i].scale.set(1, 1, 1); } }
     }
     let sx = 0, sy = 0; if (shake > 0) { sx = ((shake * 7919) % 5 - 2) * Math.min(3, shake * 0.35); sy = ((shake * 104729) % 5 - 2) * Math.min(3, shake * 0.35); shake--; }
     const dist = camW / 0.8866; cam.position.set(camX + sx, camY + 14 + sy, dist); cam.lookAt(camX + sx, camY + sy, 0);
@@ -976,6 +981,9 @@ const R = (function () {
     for (let i = fx.length - 1; i >= 0; i--) {
       const f = fx[i], t = f.t++; let dead = false;
       if (f.k === 'exflash') { if (s) { const p = s.p[f.who], q = toScreen(p.x / F, p.y / F + 50); g2.globalAlpha = Math.max(0, 1 - t / 14); burst(q[0], q[1], 10 + t * 3, 30 + t * 5, 14, '#ffd21e', t * 0.2, 2); g2.globalAlpha = 1; } dead = t > 14; fx[i] = f; if (dead) fx.splice(i, 1); continue; }
+      if (f.k === 'distart') { if (s) { const p = s.p[f.who], q = toScreen(p.x / F, p.y / F + 50), a = Math.max(0, 1 - t / 34), cols = ['#ff5ad2', '#33e0ff', '#ffd21e', '#5dffa0', '#ff3355']; g2.fillStyle = 'rgba(10,6,18,' + (0.5 * a) + ')'; g2.fillRect(0, 0, VW, VH); g2.globalAlpha = a; for (let k = 0; k < 16; k++) { const w = 26 + hsh(k * 5) * 70, yy = q[1] - 56 + k * 7; g2.fillStyle = cols[k % 5]; g2.fillRect(Math.round(q[0] - p.face * (14 + ((t * 9 + k * 23) % 90)) - (p.face > 0 ? w : 0)), Math.round(yy), Math.round(w), 3); } burst(q[0], q[1], 16 + t, 60 + t * 3, 16, cols[(t >> 1) % 5], t * 0.3, 3); g2.globalAlpha = 1; } if (t > 34) fx.splice(i, 1); continue; }
+      if (f.k === 'kanji') { const u = t / 40, sc = 1 + Math.max(0, 1 - t / 6) * 2; g2.globalAlpha = u > 0.6 ? Math.max(0, 1 - (u - 0.6) * 2.5) : 1; g2.save(); g2.translate(240, 120); g2.scale(sc, sc); txt(f.s, 0, -48, 96, f.c, 'center', 1, '#0a0612'); g2.restore(); g2.globalAlpha = 1; if (t > 40) fx.splice(i, 1); continue; }
+      if (t < 0) continue;
       const q = toScreen(f.x, f.y), x = q[0], y = q[1];
       if (f.k === 'spark') {
         const big = [1, 1.6, 2.3][f.lvl] * (f.ko ? 1.8 : 1), life = f.ko ? 26 : 12 + f.lvl * 3;
@@ -990,8 +998,8 @@ const R = (function () {
         const n = f.big ? 7 : 4, life = f.big ? 18 : 12, u = t / life; g2.fillStyle = 'rgba(230,210,220,' + (0.7 * (1 - u)) + ')';
         for (let k = 0; k < n; k++) { const dir = (k % 2 ? 1 : -1) * (1 + (k >> 1)); const s2 = Math.round((f.big ? 6 : 4) * (1 - u * 0.6)); g2.fillRect(Math.round(x + dir * (6 + 22 * u) * (f.big ? 1.4 : 1)) - s2 / 2, Math.round(y - 2 - u * 8 * (1 + (k % 3))) - s2, s2, s2); }
         dead = t >= life;
-      } else if (f.k === 'word') { const u = t / 44; g2.globalAlpha = u > 0.75 ? Math.max(0, 1 - (u - 0.75) * 4) : 1; txt(f.s, x, y - 14 - t * 0.35, 8, f.c, 'center'); g2.globalAlpha = 1; dead = t >= 44;
-      } else if (f.k === 'paint') { const u = t / 22; g2.globalAlpha = 1 - u * u; const cols = ['#ff5ad2', '#33e0ff', '#ffd21e', '#5dffa0', '#ff3355']; for (let k = 0; k < 14; k++) { const a = k * 0.449 + f.x, rr = (10 + 60 * Math.sqrt(u)) * (0.5 + hsh(k * 7 + 3)); g2.fillStyle = cols[k % 5]; const s2 = Math.round(10 * (1 - u * 0.5) * (0.6 + hsh(k))); g2.fillRect(Math.round(x + Math.cos(a) * rr) - s2 / 2, Math.round(y + Math.sin(a) * rr * 0.8) - s2 / 2, s2, s2); } g2.globalAlpha = 1; dead = t >= 22;
+      } else if (f.k === 'word') { const u = t / (f.life || 44); g2.globalAlpha = u > 0.75 ? Math.max(0, 1 - (u - 0.75) * 4) : 1; txt(f.s, x, y - 14 - t * 0.35, f.z || 8, f.c, 'center'); g2.globalAlpha = 1; dead = t >= (f.life || 44);
+      } else if (f.k === 'paint') { const u = t / 22; g2.globalAlpha = 1 - u * u; const cols = ['#ff5ad2', '#33e0ff', '#ffd21e', '#5dffa0', '#ff3355']; for (let k = 0; k < 14; k++) { const a = k * 0.449 + f.x, rr = (10 + 60 * Math.sqrt(u)) * (0.5 + hsh(k * 7 + 3)) * (f.big ? 1.8 : 1); g2.fillStyle = cols[k % 5]; const s2 = Math.round((f.big ? 18 : 10) * (1 - u * 0.5) * (0.6 + hsh(k))); g2.fillRect(Math.round(x + Math.cos(a) * rr) - s2 / 2, Math.round(y + Math.sin(a) * rr * 0.8) - s2 / 2, s2, s2); } g2.globalAlpha = 1; dead = t >= 22;
       } else if (f.k === 'ring') { const u = t / 9; g2.globalAlpha = 1 - u; g2.strokeStyle = '#9fe8ff'; g2.lineWidth = 2; g2.beginPath(); g2.arc(x, y, 6 + 22 * u, 0, 7); g2.stroke(); g2.globalAlpha = 1; dead = t >= 9; }
       if (dead) fx.splice(i, 1);
     }
@@ -1028,16 +1036,24 @@ const R = (function () {
     rect(226, 8, 28, 26, '#0a0612'); rect(227, 9, 26, 24, '#f4f0e0'); rect(228, 10, 24, 22, '#1a1030');
     const tm = s.cfg.training ? '∞' : ('' + Math.max(0, Math.ceil(s.time / 60))).padStart(2, '0'); txt(tm, 240.5, 14, s.cfg.training ? 16 : 12, s.time < 600 && !s.cfg.training ? '#ff3355' : '#ffd21e', 'center', s.cfg.training);
     if (superFx) {
-      const t = superFx.t++, i = superFx.who;
-      if (t < 46) { const p = s.p[i], q = toScreen(p.x / F, p.y / F + 55); g2.globalAlpha = 0.8; burst(q[0], q[1], 40 + (t % 6) * 6, 420, 36, i ? '#33e0ff' : '#ffd21e', t * 0.05, 2); burst(q[0], q[1], 30, 90 - t, 12, '#fff', -t * 0.15, 3); g2.globalAlpha = 1;
-        const sl = Math.min(1, t / 8), bx = i ? 480 - 300 * sl : -300 + 300 * sl; rect(bx, 186, 300, 34, 'rgba(10,6,18,0.85)'); rect(bx, 186, 300, 2, '#ff3355'); rect(bx, 218, 300, 2, '#ff3355');
-        txt(superFx.name.toUpperCase(), bx + 150, 192, 8, '#fff', 'center'); txt('超必殺  SUPER ART LV' + superFx.lv, bx + 150, 202, 16, '#ffd21e', 'center', 1); }
-      if (t > 60) superFx = null;
+      const t = superFx.t++, i = superFx.who, lv = superFx.lv || 1, dur = [0, 40, 44, 60][lv], col = ['', '#33e0ff', '#ffd21e', '#ff3355'][lv];
+      if (t < dur + 6) {
+        const p = s.p[i], q = toScreen(p.x / F, p.y / F + 55), dir = i ? -1 : 1;
+        if (lv >= 2) { g2.fillStyle = lv === 3 ? 'rgba(120,0,24,' + (0.3 + 0.14 * Math.sin(t * 0.8)) + ')' : 'rgba(40,24,0,0.28)'; g2.fillRect(0, 0, VW, VH); }
+        g2.globalAlpha = 0.85; burst(q[0], q[1], 40 + (t % 6) * 6, 420, 24 + lv * 10, col, t * 0.05 * dir, 2); burst(q[0], q[1], 26, Math.max(30, 100 - t * 2), 12, '#fff', -t * 0.15, 3);
+        for (let k = 0; k < lv; k++) { g2.strokeStyle = k % 2 ? '#fff' : col; g2.lineWidth = 3; g2.beginPath(); g2.arc(q[0], q[1], ((t * 7 + k * 60) % 190) + 10, 0, 7); g2.stroke(); }
+        g2.globalAlpha = 1;
+        const bh = lv === 3 ? 36 : lv === 2 ? 22 : 10, sl = Math.min(1, t / 6); rect(0, 0, VW, bh * sl, '#0a0612'); rect(0, VH - bh * sl, VW, bh * sl, '#0a0612'); rect(0, bh * sl, VW, 2, col); rect(0, VH - bh * sl - 2, VW, 2, col);
+        if (lv === 3) { g2.globalAlpha = 0.4; for (let k = 0; k < 4; k++) txt('\u6fc0\u7a81', ((k * 190 + t * 9 * dir) % 760 + 760) % 760 - 150, 76, 96, k % 2 ? '#ff3355' : '#ffd21e', 'left', 1, 0); g2.globalAlpha = 1; }
+        const sx = Math.min(1, t / 8), bx = i ? 480 - 300 * sx : -300 + 300 * sx; rect(bx, 186, 300, 36, 'rgba(10,6,18,0.9)'); rect(bx, 186, 300, 2, col); rect(bx, 220, 300, 2, col);
+        txt(superFx.name.toUpperCase(), bx + 150, 192, 8, '#fff', 'center'); txt('\u8d85\u5fc5\u6bba  SUPER ART', bx + 132, 202, 16, col, 'center', 1); for (let k = 0; k < 3; k++) rect(bx + 232 + k * 14, 206, 10, 10, k < lv ? col : '#3a2440');
+      }
+      if (t > dur + 16) superFx = null;
     }
     if (msg) {
-      const t = msg.t++, u = Math.min(1, t / 7), out = t > msg.dur - 8 ? (t - (msg.dur - 8)) / 8 : 0; let sc = msg.slam ? 1 + (1 - u) * 2.5 : 1; g2.globalAlpha = Math.max(0, (msg.slam ? u : 1) * (1 - out));
+      const t = msg.t++; if (t >= 0) { const u = Math.min(1, t / 7), out = t > msg.dur - 8 ? (t - (msg.dur - 8)) / 8 : 0; let sc = msg.slam ? 1 + (1 - u) * 2.5 : 1; g2.globalAlpha = Math.max(0, (msg.slam ? u : 1) * (1 - out));
       const w = msg.slam ? 480 : 480 * sm(t / 10); rect(240 - w / 2, 106, w, 46, 'rgba(10,6,18,0.72)'); rect(240 - w / 2, 106, w, 2, msg.col); rect(240 - w / 2, 150, w, 2, msg.col);
-      g2.save(); g2.translate(240, 122); g2.scale(sc, sc); txt(msg.big, 0, -10, 24, msg.col, 'center'); g2.restore(); txt(msg.jp, 240, 136, 12, '#fff', 'center', 1); g2.globalAlpha = 1; if (t >= msg.dur) msg = null;
+      g2.save(); g2.translate(240, 122); g2.scale(sc, sc); txt(msg.big, 0, -10, 24, msg.col, 'center'); g2.restore(); txt(msg.jp, 240, 136, 12, '#fff', 'center', 1); g2.globalAlpha = 1; if (t >= msg.dur) msg = null; }
     }
   }
   function boxes(s) {
@@ -1045,7 +1061,7 @@ const R = (function () {
     for (const p of s.p) { for (const u of SIM.hurt(p)) dr(u, '#33e0ff'); for (const h of SIM.hitboxes(p)) dr(h.b, '#ff3355'); }
     for (const q of s.proj) dr(SIM.pbox(q), '#ff3355');
   }
-  return { init, setFighters, events, draw3d, clear, drawFx, hud, boxes, txt, rect, burst, toScreen, get g() { return g2; }, get tick() { return tick; }, VW, VH, hsh, say(m) { msg = m; }, FJ, FP };
+  return { snap() { snapCam = true; }, init, setFighters, events, draw3d, clear, drawFx, hud, boxes, txt, rect, burst, toScreen, get g() { return g2; }, get tick() { return tick; }, VW, VH, hsh, say(m) { msg = m; }, FJ, FP };
 })();
 
 // ===================================================================
@@ -1167,7 +1183,7 @@ const AUD = (function () {
   function events(ev, s) {
     for (const e of ev) {
       if (e.t === 'hit') play(e.ko ? 'ko' : 'hit' + e.lvl); else if (e.t === 'block') play('block'); else if (e.t === 'whiff') play('whiff' + e.lvl);
-      else if (e.t === 'fire') play(e.big ? 'superFire' : 'fire'); else if (e.t === 'super') play('super'); else if (e.t === 'ex' || e.t === 'di' || e.t === 'rush') play('ex'); else if (e.t === 'parry' || e.t === 'armor') play('block'); else if (e.t === 'pparry' || e.t === 'splat' || e.t === 'burnout') play('tech');
+      else if (e.t === 'fire') play(e.big ? 'superFire' : 'fire'); else if (e.t === 'super') play('super'); else if (e.t === 'ex' || e.t === 'di' || e.t === 'rush') play('ex'); else if (e.t === 'parry' || e.t === 'armor') play('block'); else if (e.t === 'pparry' || e.t === 'splat' || e.t === 'burnout') play('tech'); else if (e.t === 'diclash') play('ko');
       else if (e.t === 'wbounce' || e.t === 'gbounce') play('wb'); else if (e.t === 'kd') play('kd'); else if (e.t === 'jump' || e.t === 'rise') play('jump'); else if (e.t === 'land') play('land'); else if (e.t === 'dash') play('dash');
       else if (e.t === 'grab') play('grab'); else if (e.t === 'tech' || e.t === 'clash') play('tech'); else if (e.t === 'round') play('round'); else if (e.t === 'fight') play('fight'); else if (e.t === 'winpose') play('win');
     }
@@ -1385,7 +1401,7 @@ const NET = (function () {
 
   // ------------------------------------------------------------ match control
   function startMatch(mode, chars, extra) {
-    R.setFighters(chars);
+    R.setFighters(chars); R.snap();
     match = Object.assign({ mode: mode, chars: chars, s: SIM.newMatch({ chars: chars, training: mode === 'training', rounds: opt.rounds }), paused: false, ai: null, dev: null, hist: [], lastIn: -1, adv: null, act: [0, 0], was: [true, true], ex: false, overT: 0 }, extra || {});
     if (mode === 'arcade') match.ai = AI.make(Math.min(3, opt.level + (arc.stage === 2 ? 1 : 0)));
     if (mode === 'training') match.ai = AI.make(opt.level);
@@ -1590,7 +1606,7 @@ const NET = (function () {
   function tick() { st++; INP.poll(); if (st % 10 === 0) voiceUi(); if (scene !== 'title' && (mn.ok || mn.start)) AUD.init(); SC[scene].tick(); click = null; }
   function draw() {
     const inFight = scene === 'fight' || (scene === 'cmd' && cmd && cmd.from === 'fight');
-    R.draw3d(inFight && match ? match.s : null, scene === 'select' ? { chars: sel.c, pose: sel.lock } : scene === 'vs' ? { chars: pan.chars, w: 300, y: 50 } : scene === 'ending' ? { chars: [arc.ch, arc.ch ^ 1], pose: [true, false], w: 300, y: 40 } : null);
+    R.draw3d(inFight && match ? match.s : null, scene === 'select' ? { chars: sel.c, pose: sel.lock } : scene === 'vs' ? { chars: pan.chars, w: 430, y: 68, x: 120 } : scene === 'ending' ? { chars: [arc.ch, arc.ch ^ 1], pose: [true, false], w: 300, y: 40 } : null);
     R.clear(); hot = []; if (scene === 'cmd' && cmd.from === 'fight') fightDraw(); SC[scene].draw();
     if (scene !== 'fight' && scene !== 'title' && scene !== 'vs' && scene !== 'select' && scene !== 'ending') { /* scanline tint for menu screens */ }
   }

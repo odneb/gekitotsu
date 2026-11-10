@@ -12,7 +12,7 @@ const SIM = (function () {
   const MASK = 2047, NB = 7;
   const STAGE = 560 * F, SEP = 400 * F, PW = 23 * F;
   const GRAV = 62, BUF = 5, NBUF = 40, DMAX = 6000, BAR = 1000;
-  const INTRO = 120, KOTIME = 230, KD = 26, GETUP = 22;
+  const INTRO = 120, KOTIME = 290, KD = 26, GETUP = 22;
   const SCALE = [100, 100, 80, 70, 60, 50, 40, 30, 20, 10];
   const C_CH = 1, C_SP = 2, C_SU = 4;
   const tr = Math.trunc;
@@ -141,7 +141,7 @@ const SIM = (function () {
       roll: 0, hard: 0, arm: 0, armHit: 0, drb: 0, mod: 0, ac: '', aci: 0, crum: 0, pp: 0, plock: 0, half: 0 };
   }
   function newMatch(cfg) {
-    const s = { frame: 0, phase: 'intro', pt: 0, round: 1, time: 99 * 60, freeze: 0, frzWho: 0, proj: [], ev: [], winner: -1, rw: -1, koType: '', cfg: { training: !!cfg.training, chars: cfg.chars.slice(), rounds: cfg.rounds || 2 }, p: [] };
+    const s = { frame: 0, slow: 0, phase: 'intro', pt: 0, round: 1, time: 99 * 60, freeze: 0, frzWho: 0, proj: [], ev: [], winner: -1, rw: -1, koType: '', cfg: { training: !!cfg.training, chars: cfg.chars.slice(), rounds: cfg.rounds || 2 }, p: [] };
     s.p = [newFighter(cfg.chars[0], 0), newFighter(cfg.chars[1], 1)];
     if (s.cfg.training) { s.phase = 'fight'; s.p[0].sa = 3000; s.p[1].sa = 3000; }
     return s;
@@ -150,7 +150,7 @@ const SIM = (function () {
     const keep = s.p.map(p => [p.wins, p.sa]);
     s.p = [newFighter(s.cfg.chars[0], 0), newFighter(s.cfg.chars[1], 1)];
     s.p.forEach((p, i) => { p.wins = keep[i][0]; p.sa = keep[i][1]; });
-    s.proj = []; s.time = 99 * 60; s.phase = 'intro'; s.pt = 0; s.freeze = 0; s.koType = '';
+    s.proj = []; s.time = 99 * 60; s.phase = 'intro'; s.pt = 0; s.freeze = 0; s.slow = 0; s.koType = '';
   }
   function clone(o) {
     if (o === null || typeof o !== 'object') return o;
@@ -159,7 +159,7 @@ const SIM = (function () {
   }
   function hash(s) {
     let h = 2166136261 >>> 0; const mix = v => { h ^= (v | 0); h = Math.imul(h, 16777619) >>> 0; };
-    mix(s.frame); mix(s.time); mix(s.proj.length);
+    mix(s.frame); mix(s.slow); mix(s.time); mix(s.proj.length);
     for (const p of s.p) { mix(p.x); mix(p.y); mix(p.vx); mix(p.vy); mix(p.hp); mix(p.sa); mix(p.dr); mix(p.sf); mix(p.mf); mix(p.hs); mix(p.stun); mix(p.st.length); }
     for (const q of s.proj) { mix(q.x); mix(q.left); }
     return h;
@@ -351,7 +351,7 @@ const SIM = (function () {
         if (m.t < 900 && p.mf >= m.t) { toIdle(p); neutral(s, p, o, inp, i); break; }
         const live = p.contact && p.mf <= m.lastAct + 10, karaP = !m.sp && !m.sup && !m.thr && !m.di && p.mf <= 2 && !p.contact;
         if (live && (m.can & C_SP) && !m.sp && p.y <= 0 && !p.bo && p.dr > 0 && (p.d66 <= BUF || p.age[6] <= BUF || (p.age[1] <= BUF && p.age[2] <= BUF && parryHeld(inp)))) { spend(s, p, i, 3 * BAR); p.age = [99, 99, 99, 99, 99, 99, 99]; enterRush(s, p, i, true); break; }
-        if (karaP && parryHeld(inp) && enterParry(s, p, i)) break;
+        if (karaP && p.y <= 0 && parryHeld(inp) && enterParry(s, p, i)) break;
         if (!tryAttack(s, p, o, inp, i)) atkFrame(s, p, o, m, i); else atkFrame(s, p, o, C.mv[p.mv], i);
         break;
       }
@@ -491,7 +491,7 @@ const SIM = (function () {
     }
     if (how === 'armor') {
       const dm = Math.max(1, tr(h.d / 2)); d.hp = Math.max(1, d.hp - dm); d.arm--; d.armHit = 1; d.redT = 50; d.hs = 9; if (!isProj) { a.hs = 9; a.contact = 1; a.hitOK = 1; }
-      s.ev.push({ t: 'armor', x: cx, y: cy, who: di }); return;
+      s.ev.push({ t: 'armor', x: cx, y: cy, who: di }); if (m.di && CH[d.ch].mv[d.mv].di) { s.slow = 54; s.ev.push({ t: 'diclash', x: cx, y: cy }); } return;
     }
     if (how === 'block') {
       const chip = (special && d.bo) ? Math.max(1, tr(h.d / 4)) : 0;
@@ -513,7 +513,7 @@ const SIM = (function () {
     const ko = d.hp <= 0, wasAir = d.y > 0 || d.st === 'ahit';
     let launch = (isProj && last && h.launchLast) ? h.launchLast : h.launch;
     const crumple = m.di && (kind || a.armHit) && !wasAir && !ko;
-    if (crumple) launch = null;
+    if (crumple) { launch = null; s.slow = Math.max(s.slow, 36); }
     if (m.di && !d.bo) { d.dr -= BAR; burn(s, d, di); }
     if (kind) hsp += 2; if (ko) hsp = 22;
     const wasCr = crouching(d), wrong = !wasAir && !isProj && (h.g === 'l' || (h.g === 'h' && !m.isAir)) && (d.st === 'idle' || d.st === 'block') ? h.g : '';
@@ -608,7 +608,8 @@ const SIM = (function () {
     }
     if (s.phase === 'intro') { s.pt++; if (s.pt === 1) s.ev.push({ t: 'round', n: s.round }); if (s.pt >= INTRO) { s.phase = 'fight'; s.pt = 0; s.ev.push({ t: 'fight' }); } }
     if (s.freeze > 0) { s.freeze--; return s; }
-    if (s.phase === 'ko') { s.pt++; if (s.pt < 75 && s.pt % 3 !== 0) return s; }
+    if (s.phase === 'ko') { s.pt++; if (s.pt < 140 && s.pt % 4 !== 0) return s; }
+    else if (s.slow > 0) { s.slow--; if (s.slow % 3 !== 0) return s; }
     const fr = [s.p[0].hs > 0, s.p[1].hs > 0];
     for (let i = 0; i < 2; i++) { const p = s.p[i]; if (fr[i]) p.hs--; else update(s, p, s.p[1 - i], raw[i], i); }
     for (let i = 0; i < 2; i++) if (!fr[i]) physics(s, s.p[i], s.p[1 - i], i);
@@ -639,7 +640,7 @@ const SIM = (function () {
         }
       }
     } else if (s.phase === 'ko') {
-      if (s.pt === 90 && s.rw >= 0) { const w = s.p[s.rw]; if (w.st === 'idle' && w.y <= 0) { w.st = 'win'; w.sf = 0; w.vx = 0; } s.ev.push({ t: 'winpose', w: s.rw }); }
+      if (s.pt === 150 && s.rw >= 0) { const w = s.p[s.rw]; if (w.st === 'idle' && w.y <= 0) { w.st = 'win'; w.sf = 0; w.vx = 0; } s.ev.push({ t: 'winpose', w: s.rw }); }
       if (s.pt >= KOTIME) {
         const need = s.cfg.rounds;
         if (s.p[0].wins >= need || s.p[1].wins >= need || s.round >= need * 2 + 1) {

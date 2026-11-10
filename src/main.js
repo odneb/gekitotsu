@@ -29,7 +29,7 @@
 
   // ------------------------------------------------------------ match control
   function startMatch(mode, chars, extra) {
-    R.setFighters(chars);
+    R.setFighters(chars); R.snap();
     match = Object.assign({ mode: mode, chars: chars, s: SIM.newMatch({ chars: chars, training: mode === 'training', rounds: opt.rounds }), paused: false, ai: null, dev: null, hist: [], lastIn: -1, adv: null, act: [0, 0], was: [true, true], ex: false, overT: 0 }, extra || {});
     if (mode === 'arcade') match.ai = AI.make(Math.min(3, opt.level + (arc.stage === 2 ? 1 : 0)));
     if (mode === 'training') match.ai = AI.make(opt.level);
@@ -234,7 +234,7 @@
   function tick() { st++; INP.poll(); if (st % 10 === 0) voiceUi(); if (scene !== 'title' && (mn.ok || mn.start)) AUD.init(); SC[scene].tick(); click = null; }
   function draw() {
     const inFight = scene === 'fight' || (scene === 'cmd' && cmd && cmd.from === 'fight');
-    R.draw3d(inFight && match ? match.s : null, scene === 'select' ? { chars: sel.c, pose: sel.lock } : scene === 'vs' ? { chars: pan.chars, w: 300, y: 50 } : scene === 'ending' ? { chars: [arc.ch, arc.ch ^ 1], pose: [true, false], w: 300, y: 40 } : null);
+    R.draw3d(inFight && match ? match.s : null, scene === 'select' ? { chars: sel.c, pose: sel.lock } : scene === 'vs' ? { chars: pan.chars, w: 430, y: 68, x: 120 } : scene === 'ending' ? { chars: [arc.ch, arc.ch ^ 1], pose: [true, false], w: 300, y: 40 } : null);
     R.clear(); hot = []; if (scene === 'cmd' && cmd.from === 'fight') fightDraw(); SC[scene].draw();
     if (scene !== 'fight' && scene !== 'title' && scene !== 'vs' && scene !== 'select' && scene !== 'ending') { /* scanline tint for menu screens */ }
   }
