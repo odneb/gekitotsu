@@ -99,7 +99,7 @@ const SIM = (function () {
       hits: [{ s: 27, e: 31, hb: [0, -34, 62, 66], d: 120, stun: 29, kb: 300, air: [300, 520], lvl: 1, hsp: 13, bstun: 27 }],
       an: { k: [[0, 'idle'], [9, 'dlW'], [18, 'dlW'], [22, 'dlF'], [26, 'dlF'], [28, 'dlS'], [34, 'dlS'], [38, 'prejump'], [54, 'idle']] } });
     const dl2 = (k, st, bs, rec, o) => N(k, Object.assign({ n: 'Dragonlash Kick', sp: 1, su: 9, t: 999, ag: 108, rise: [8, 640, 972], landRec: rec, dd: 300, sg: 120, can: C_SU,
-      hits: [{ s: 8, e: 12, hb: [0, 0, 56, 70], d: 50, stun: 22, kb: 60, np: 1, air: [120, 470], lvl: 1, hsp: 9, bstun: 18 }, { s: 15, e: 22, hb: [0, -34, 62, 70], d: 70, stun: st, kb: 300, air: [200, 820], lvl: 2, hsp: 13, bstun: bs }],
+      hits: [{ s: 8, e: 12, hb: [0, 0, 56, 70], d: 50, stun: 22, kb: 60, np: 1, air: [120, 470], lvl: 1, hsp: 9, bstun: 18 }, Object.assign({ s: 15, e: 22, hb: [0, -34, 62, 70], d: 70, stun: st, kb: 300, air: [200, 820], lvl: 2, hsp: 13, bstun: bs }, o && o.thru ? { air: [40, -1300], gb: 1, xup: 470 } : {})],
       an: { k: [[0, 'dlW'], [8, 'dlF'], [13, 'dlF'], [15, 'dlS'], [24, 'dlS'], [28, 'prejump'], [48, 'idle']] } }, o || {}));
     dl2('DL_OD', 34, 24, 23, { od: 1 }); dl2('QDL', 34, 24, 22, { thru: 1 });
     // Jinrai Kick and its follow-ups
@@ -125,7 +125,7 @@ const SIM = (function () {
     // Shippu Jinrai-kyaku: kicks on the ground, then a rising Tatsumaki that carries them into the air
     const tk2 = (st, d) => ({ s: st, e: st + 1, hb: big, d: d, stun: 34, kb: 0, air: [0, 300], lvl: 1, hsp: 5, bstun: 20, req: 2, lk: 1, carry: [22, 2] });
     N('SA2', { n: 'Shippu Jinrai-kyaku', sup: 1, sa: 2, su: 6, t: 999, frz: 44, minScale: 40, mv: [[4, 14, 1300]], stopOnHit: 1, dd: 500, wEnd: [88, -1], rise: [38, 110, 1060], landRec: 14,
-      hits: [{ s: 5, e: 14, hb: [0, 6, 64, 110], d: 30, stun: 34, kb: 0, air: [0, 300], lk: 1, lvl: 1, hsp: 10, bstun: 33 }, rq(20, 30), rq(26, 30), rq(32, 30), tk2(40, 15), tk2(44, 15), tk2(48, 15), tk2(52, 15), { s: 57, e: 59, hb: [-10, -10, 90, 110], d: 100, launch: [900, 900], air: [900, 900], wb: 1, lvl: 2, hsp: 18, req: 2, bstun: 27 }] });
+      hits: [{ s: 5, e: 14, hb: [0, 6, 64, 110], d: 30, stun: 34, kb: 0, air: [0, 300], lk: 1, pop: [40, 640], lvl: 1, hsp: 10, bstun: 33 }, rq(20, 30), rq(26, 30), rq(32, 30), tk2(40, 15), tk2(44, 15), tk2(48, 15), tk2(52, 15), { s: 57, e: 59, hb: [-10, -10, 90, 110], d: 100, launch: [900, 900], air: [900, 900], wb: 1, lvl: 2, hsp: 18, req: 2, bstun: 27 }] });
     const fl = s => ({ s: s, e: s + 1, hb: big, d: 60, stun: 34, kb: 0, air: [0, 260], lvl: 1, hsp: 7, bstun: 20, lk: 1 });
     N('SA3', { n: 'Shinryu Reppa', sup: 1, sa: 3, su: 7, t: 999, frz: 60, inv: [0, 17], minScale: 50, partAt: 10, rise: [41, 100, 1280], landRec: 19, dd: 900, mv: [[1, 6, 1100]], stopOnHit: 1,
       hits: [{ s: 6, e: 9, hb: [0, 6, 70, 110], d: 60, stun: 34, kb: 0, air: [0, 260], lvl: 1, hsp: 7, bstun: 20 }, fl(14), fl(22), fl(30), { s: 40, e: 44, hb: big, d: 160, launch: [150, 1450], air: [150, 1450], lvl: 2, hsp: 22, bstun: 20 }],
@@ -214,7 +214,8 @@ const SIM = (function () {
   function cur(p) { return p.st === 'atk' ? CH[p.ch].mv[p.mv] : null; }
   function toIdle(p) { p.st = 'idle'; p.sf = 0; p.mv = ''; p.vx = 0; p.sub = 'stand'; p.air2 = 0; p.arm = 0; }
   function start(s, p, key, i, opt) {
-    const m = CH[p.ch].mv[key], fromDr = p.st === 'drush';
+    const m = CH[p.ch].mv[key], fromDr = p.st === 'drush', pm = p.st === 'atk' ? CH[p.ch].mv[p.mv] : null, o = s.p[1 - i];
+    if (m.sup || (pm && pm.thru)) { if (o.x > p.x) p.face = 1; else if (o.x < p.x) p.face = -1; }
     p.st = 'atk'; p.mv = key; p.mseq++; p.mf = 0; p.sf = 0; p.hitMask = 0; p.contact = 0; p.hitOK = 0; p.arm = m.arm || 0; p.armHit = 0;
     p.drb = fromDr && !m.sp && !m.sup && !m.thr ? 1 : 0; if (fromDr) p.pv = p.face * 480;
     p.mod = opt && opt.mod ? 1 : 0; p.fuq = ''; p.part = 0; p.ca = (m.sa === 3 && p.hp * 4 <= CH[p.ch].hp) ? 1 : 0; if (!(opt && opt.auto)) { p.ac = ''; p.aci = 0; }
@@ -299,8 +300,8 @@ const SIM = (function () {
       else if (m.fu) { let has = false; for (const kk in m.fu.to) if (m.fu.to[kk] === k) has = true; if (!has) continue; if (p.mf > m.fu.w[1]) { p.acq = 0; return false; } legal = p.mf >= m.fu.w[0]; }
       else {
         if (!((mm.sup && (m.can & C_SU)) || (mm.sp && !m.sp && !mm.sup) || (m.tc && (m.tc.M === k || m.tc.L === k || m.tc.H === k)) || (m.chain && !mm.sp && !mm.sup) || (k === 'SRK_H' && p.mv === 'QDL'))) continue;
-        if (p.mf > m.lastAct + 12) { p.acq = 0; return false; }
-        legal = p.contact && (!(mm.sup || m.sp) || m.hits.length < 2 || p.mf > m.hits[m.hits.length - 1].s);
+        if (p.mf > m.lastAct + 12 && !(m.thru && p.y > 0)) { p.acq = 0; return false; }
+        legal = p.contact && (!(mm.sup || m.sp) || m.hits.length < 2 || p.mf > m.hits[m.hits.length - 1].s) && !(m.thru && p.y > 14 * F);
       }
       if (!legal) return false;
       if (mm.od) spend(s, p, i, 2 * BAR, 120);
@@ -584,7 +585,8 @@ const SIM = (function () {
       const vec = wasAir ? (((isProj && last && h.launchLast) ? h.launchLast : h.air) || [300, 620]) : (launch || [520, 820]);
       d.st = 'ahit'; d.sf = 0; d.mv = '';
       d.vx = side * vec[0] + (isProj ? 0 : tr(a.vx / 4)); d.vy = vec[1]; if (d.y <= 0) { d.y = 1; if (d.vy < 0) d.vy = 300; }
-      if (h.lk) { d.vx = 0; d.vy = 430; if (d.y < 24 * F) d.y = 24 * F; } else d.jug++;
+      if (h.lk) { const pp = h.pop || [24, 430]; d.vx = 0; d.vy = pp[1]; if (d.y < pp[0] * F) d.y = pp[0] * F; } else d.jug++;
+      if (h.xup && wasAir) a.vx = a.face * h.xup;
       if (h.carry) { d.x = a.x + a.face * h.carry[0] * F; d.y = a.y + h.carry[1] * F; d.vx = a.vx; d.vy = a.vy; }
       d.pv = 0; d.hard = (m.sup || m.hardKd) ? 1 : 0;
       d.wbPend = ((h.wb || (isProj && last && h.wbLast)) && !d.wbUsed) ? 1 : 0; d.gbPend = (h.gb && !d.gbUsed) ? 1 : 0;
