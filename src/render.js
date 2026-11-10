@@ -11,9 +11,9 @@ const R = (function () {
   // ----------------------------------------------------------- skeleton + hand-keyed animation
   // A pose is a set of targets in the fighter's side plane (x forward, y up, optional z toward camera):
   // hip position, spine lean, chest/pelvis twist, and where each hand and foot is. Limbs are solved by IK.
-  const TH = 22, SHN = 22, SP1 = 13, SP2 = 15, UA = 14.5, FA = 14, SW = 12, HW = 6;
+  const TH = 23, SHN = 23, SP1 = 14, SP2 = 17, UA = 17, FA = 19, SW = 8.6, HW = 4.2;
   const NUM = ['ln', 'ln2', 'tw', 'pt', 'hd', 'eL', 'eR', 'kL', 'kR', 'yaw', 'rot', 'ay'], VEC = ['hip', 'hL', 'hR', 'fL', 'fR'];
-  const ST = { hip: [0, 42, 0], ln: 5, ln2: 9, tw: -50, pt: -35, hd: 0, hL: [21, 67, 0], hR: [8, 60, 0], fL: [14, 4, 0], fR: [-14, 4, 0], eL: -1, eR: -1, kL: 0, kR: 0, yaw: 0, rot: 0, ay: 0.5, aim: null, aw: 0 };
+  const ST = { hip: [0, 37, 0], ln: 24, ln2: 36, tw: -48, pt: -32, hd: -14, hL: [25, 27, 0], hR: [9, 23, 0], fL: [17, 4, 0], fR: [-16, 4, 0], eL: -0.7, eR: -0.7, kL: 0.25, kR: 0.25, yaw: 0, rot: 0, ay: 0.5, aim: null, aw: 0 };
   function norm(o, b) { const r = {}; for (const k of NUM) r[k] = o[k] != null ? o[k] : b[k]; for (const k of VEC) { const v = o[k] || b[k]; r[k] = [v[0], v[1], v[2] || 0]; } if (o.ln != null && o.ln2 == null) r.ln2 = o.ln + 4; r.aim = o.aim || null; r.aw = o.aim ? 1 : 0; r.up = o.up || 0; return r; }
   function mix(a, b, k) {
     if (k <= 0) return a; if (k >= 1) return b; const r = {}; for (const n of NUM) r[n] = a[n] + (b[n] - a[n]) * k;
@@ -23,21 +23,21 @@ const R = (function () {
   }
   const sm = k => k <= 0 ? 0 : k >= 1 ? 1 : k * k * (3 - 2 * k);
   const s = o => norm(o, ST);
-  const CRO = s({ hip: [0, 20], ln: 20, ln2: 26, hd: -14, hL: [17, 44], hR: [9, 40], fL: [17, 4], fR: [-16, 4], kL: 0.9, kR: 0.9, tw: -45 }), c = o => norm(o, CRO);
-  const JMP = s({ hip: [0, 44], ln: 10, ln2: 14, hL: [15, 60], hR: [3, 54], fL: [9, 25], fR: [-5, 19] }), j = o => norm(o, JMP);
+  const CRO = s({ hip: [0, 16], ln: 44, ln2: 54, hd: -30, hL: [24, 4], hR: [4, 5], fL: [19, 4], fR: [-17, 4], kL: 1, kR: 1, tw: -40 }), c = o => norm(o, CRO);
+  const JMP = s({ hip: [0, 44], ln: 20, ln2: 30, hd: -10, hL: [22, 62], hR: [-14, 56], fL: [12, 24], fR: [-12, 18], eL: 0, eR: 0 }), j = o => norm(o, JMP);
   const PZ = {
-    idle: ST, idle2: s({ hip: [0, 40.5], ln: 6, hL: [21, 65.5], hR: [8, 58.5] }), crouch: CRO, jump: JMP,
-    walkA: s({ hip: [1, 42.5], fL: [18, 4], fR: [-7, 8], hL: [20, 66], hR: [9, 61] }), walkB: s({ hip: [1, 41], fL: [7, 8], fR: [-16, 4], hL: [22, 68], hR: [7, 59] }),
-    prejump: s({ hip: [0, 30], ln: 16, hL: [16, 50], hR: [4, 44], kL: 0.4, kR: 0.4 }),
-    fall: s({ hip: [0, 44], ln: 4, hL: [17, 70], hR: [-7, 66], fL: [9, 9], fR: [-8, 7], eL: 0, eR: 0 }),
-    dashf: s({ hip: [5, 33], ln: 34, ln2: 38, hd: -20, tw: -30, hL: [22, 44], hR: [-12, 46], fL: [22, 5], fR: [-20, 9] }),
-    dashb: s({ hip: [-5, 44], ln: -8, hL: [14, 64], hR: [2, 58], fL: [10, 8], fR: [-12, 6] }),
-    runA: s({ hip: [4, 33], ln: 44, ln2: 48, hd: -34, tw: -75, pt: -55, hL: [-10, 40], hR: [26, 52], fL: [24, 8], fR: [-22, 18], eL: -0.2, eR: -1 }),
-    runB: s({ hip: [4, 35], ln: 44, ln2: 48, hd: -34, tw: 10, pt: -5, hL: [26, 54], hR: [-12, 40], fL: [-18, 20], fR: [20, 5], eL: -1, eR: -0.2 }),
-    runStop: s({ hip: [-2, 36], ln: -6, hL: [18, 58], hR: [4, 52], fL: [20, 4], fR: [-12, 4] }),
-    parry: s({ hip: [0, 32], ln: 16, ln2: 20, hd: -12, tw: -60, hL: [25, 54], hR: [11, 62], eL: -0.2, eR: -0.6, fL: [18, 4], fR: [-18, 4], kL: 0.4, kR: 0.4 }),
-    blockS: s({ hip: [-3, 42], ln: -5, ln2: -2, hd: -8, tw: -35, hL: [12, 74], hR: [8, 67], fL: [12, 4], fR: [-15, 4] }),
-    blockC: c({ hip: [-3, 21], ln: 10, hd: -8, hL: [13, 50], hR: [9, 43] }),
+    idle: ST, idle2: s({ hip: [0, 35], ln: 27, ln2: 40, hd: -18, hL: [27, 24], hR: [7, 26] }), crouch: CRO, jump: JMP,
+    walkA: s({ hip: [2, 36], ln: 30, fL: [22, 4], fR: [-8, 9], hL: [16, 26], hR: [20, 20] }), walkB: s({ hip: [2, 34], ln: 30, fL: [6, 9], fR: [-20, 4], hL: [30, 22], hR: [2, 28] }),
+    prejump: s({ hip: [0, 18], ln: 46, hd: -30, hL: [22, 5], hR: [2, 6], kL: 0.8, kR: 0.8 }),
+    fall: s({ hip: [0, 46], ln: 6, ln2: 2, hd: 6, hL: [10, 84], hR: [-10, 80], fL: [8, 6], fR: [-9, 4], eL: 0.4, eR: 0.4 }),
+    dashf: s({ hip: [6, 24], ln: 58, ln2: 66, hd: -46, tw: -30, hL: [40, 22], hR: [26, 12], fL: [20, 5], fR: [-24, 10] }),
+    dashb: s({ hip: [-6, 44], ln: -16, ln2: -8, hd: 6, hL: [26, 50], hR: [18, 42], fL: [10, 9], fR: [-12, 6], eL: 0, eR: 0 }),
+    runA: s({ hip: [4, 25], ln: 64, ln2: 70, hd: -52, tw: -70, pt: -50, hL: [38, 4], hR: [10, 16], fL: [-4, 11], fR: [-28, 4], eL: -0.2, eR: -1 }),
+    runB: s({ hip: [4, 28], ln: 60, ln2: 66, hd: -50, tw: 5, pt: -5, hL: [14, 18], hR: [34, 4], fL: [10, 4], fR: [-16, 16], eL: -1, eR: -0.2 }),
+    runStop: s({ hip: [-3, 30], ln: 8, hd: -6, hL: [26, 30], hR: [10, 22], fL: [22, 4], fR: [-12, 4] }),
+    parry: s({ hip: [0, 34], ln: 14, ln2: 20, hd: -10, tw: -60, hL: [15, 60], hR: [19, 50], eL: 0.3, eR: -0.9, fL: [18, 4], fR: [-18, 4], kL: 0.4, kR: 0.4 }),
+    blockS: s({ hip: [-3, 38], ln: 4, ln2: 10, hd: -6, tw: -35, hL: [13, 68], hR: [15, 56], eL: 0.2, eR: -0.8, fL: [13, 4], fR: [-16, 4] }),
+    blockC: c({ hip: [-3, 17], ln: 30, ln2: 36, hd: -20, hL: [14, 40], hR: [16, 30], eL: 0.2 }),
     hitHi: s({ hip: [-5, 42], ln: -22, ln2: -32, hd: -28, tw: -75, hL: [4, 62], hR: [-10, 52], fL: [10, 4], fR: [-17, 4], eL: -1, eR: -1 }),
     hitMid: s({ hip: [-7, 39], ln: 28, ln2: 42, hd: 22, tw: -30, hL: [12, 44], hR: [5, 40], fL: [11, 4], fR: [-16, 4] }),
     hitBig: s({ hip: [-9, 41], ln: -30, ln2: -44, hd: -35, tw: -95, hL: [-6, 70], hR: [-18, 50], fL: [12, 8], fR: [-18, 4], eL: 0.2 }),
@@ -49,7 +49,7 @@ const R = (function () {
     crumA: s({ hip: [-2, 36], ln: 34, ln2: 48, hd: 32, tw: -20, hL: [14, 30], hR: [4, 28], fL: [10, 4], fR: [-14, 4], kL: 0.5, kR: 0.5 }),
     crumB: s({ hip: [3, 15], ln: 62, ln2: 74, hd: 30, tw: -15, hL: [26, 3], hR: [18, 3], fL: [8, 4], fR: [-18, 4], kL: 0.3, kR: 0.3 }),
     splat: s({ hip: [-4, 44], ln: -8, ln2: -14, hd: -22, tw: -88, hL: [-10, 76, -8], hR: [-12, 70, 8], eL: 1, eR: 1, fL: [6, 8], fR: [-8, 6] }),
-    win: s({ hip: [0, 44], ln: 0, ln2: -4, tw: -85, hd: -8, hL: [10, 52], hR: [2, 100], eR: 0.2, fL: [9, 4], fR: [-10, 4] }),
+    win: s({ hip: [0, 47], ln: -6, ln2: -10, tw: -88, hd: 18, hL: [26, 34], hR: [-24, 36], eL: -0.2, eR: -0.2, fL: [8, 4], fR: [-9, 4], kL: 0, kR: 0 }),
     thrown: s({ hip: [0, 36], ln: -16, hd: -20, hL: [-8, 50], hR: [-14, 44], fL: [12, 10], fR: [-6, 6], eL: 0, eR: 0 }),
     grabW: s({ hip: [1, 41], ln: 10, tw: -30, hL: [22, 60], hR: [16, 54] }), grabS: s({ hip: [6, 40], ln: 20, tw: -10, hL: [35, 62], hR: [33, 55], fL: [18, 4] }),
     thPull: s({ hip: [2, 40], ln: -6, tw: -70, hL: [20, 58], hR: [16, 50] }), thKnee: s({ hip: [6, 44], ln: 12, tw: 20, hL: [24, 60], hR: [22, 54], fR: [20, 34], fL: [4, 4] }),
@@ -280,90 +280,82 @@ const R = (function () {
 
   // Two original fighters. ONIMARU: a horned oni brawler with a white mane, rope belt and flared hakama.
   // KITSUNEBI: a fox-masked shinobi with a glowing scarf and a great tail. Manes, scarf and tail trail behind with their own motion.
+  // RET and ARD: slender fluid beings. Long limbs, clawed hands, a smooth mask with slit eyes, ribbons that stream off the body.
+  // Semi-translucent bodies; a liquid pool follows each one across the floor and sparks of their energy drift off on the wind.
   const LOOKS = [
-    { skin: 0xc99872, hair: 0xf2eadc, coat: 0x5a5460, coat2: 0x413b48, scarf: 0xc62828, scarf2: 0x8f1c20, cream: 0xf0dcb8, pants: 0x2e2a33, pants2: 0x231f28, wrap: 0x7a5238, boot: 0x5c3b28, sole: 0x2a1c14, dark: 0x1a151c, gold: 0xb98a3a, glow: 0xff5a3a },
-    { skin: 0xb8805a, hair: 0xf3ead8, coat: 0xeed9b0, coat2: 0xd0b88c, scarf: 0x6a1f24, scarf2: 0x8a4a2c, cream: 0xf3ead8, pants: 0x3b3640, pants2: 0x2a2630, wrap: 0x5e2f1c, boot: 0xb8805a, sole: 0x4a3222, dark: 0x1f1a20, gold: 0x8a4a2c, glow: 0xf3ead8 }
+    { body: 0xffffff, body2: 0xd3dcf0, acc: 0x4aa8ff, acc2: 0x9fd0ff, eye: 0x16244e, ink: 0x27375e, op: 0.9 },
+    { body: 0x121016, body2: 0x2a1626, acc: 0xff4aa0, acc2: 0xff9ccb, eye: 0xff6ab4, ink: 0xd8327a, op: 0.9 }
   ];
-  const LOOKALT = [{ scarf: 0x2f3f8f, scarf2: 0x1f2a66, coat: 0x4a3f36, hair: 0x2a2630 }, { coat: 0x33303a, coat2: 0x26232c, pants: 0x6a1f24, pants2: 0x4a1418, gold: 0xf0dcb8, wrap: 0xd0b88c }];
+  const LOOKALT = [{ body: 0xdfe9e6, body2: 0xb3cfc8, acc: 0x2fd6b4, acc2: 0x9ff0dc, ink: 0x1f4a44 }, { body: 0x16101c, body2: 0x24163a, acc: 0xb06aff, acc2: 0xd6b0ff, eye: 0xc79aff, ink: 0x8a4ae0 }];
   function buildRig(ch, alt) {
     const lk = Object.assign({}, LOOKS[ch], alt ? LOOKALT[ch] : {}), mats = {}, lit = {};
-    const ramp = new THREE.DataTexture(new Uint8Array([115, 115, 115, 255, 185, 185, 185, 255, 255, 255, 255, 255]), 3, 1, THREE.RGBAFormat); ramp.minFilter = ramp.magFilter = THREE.NearestFilter; ramp.needsUpdate = true;
-    const mat = k => k === 'glow' ? (lit.glow || (lit.glow = new THREE.MeshBasicMaterial({ color: lk.glow }))) : mats[k] || (mats[k] = new THREE.MeshToonMaterial({ color: lk[k], gradientMap: ramp }));
-    const ink = new THREE.MeshBasicMaterial({ color: 0x0c0810, side: THREE.BackSide }), inkN = new THREE.MeshBasicMaterial({ color: 0x0c0810, side: THREE.BackSide });
-    inkN.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', 'vec3 transformed = position + normal * 1.6;'); };
+    const rv = ch === 0 ? [178, 222, 255] : [110, 185, 255], ramp = new THREE.DataTexture(new Uint8Array([rv[0], rv[0], rv[0], 255, rv[1], rv[1], rv[1], 255, 255, 255, 255, 255]), 3, 1, THREE.RGBAFormat); ramp.minFilter = ramp.magFilter = THREE.NearestFilter; ramp.needsUpdate = true;
+    const mat = k => (k === 'acc' || k === 'acc2' || k === 'eye') ? (lit[k] || (lit[k] = new THREE.MeshBasicMaterial({ color: lk[k], transparent: true, opacity: 0.95 }))) : mats[k] || (mats[k] = new THREE.MeshToonMaterial({ color: lk[k], gradientMap: ramp, transparent: true, opacity: lk.op }));
+    const inkN = new THREE.MeshBasicMaterial({ color: lk.ink, side: THREE.BackSide, transparent: true, opacity: 0.9 });
+    inkN.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', 'vec3 transformed = position + normal * 1.15;'); };
     const G = new THREE.Group(), M = new THREE.Group(), R = new THREE.Group(), T = new THREE.Group(); G.add(M); M.add(R); R.rotation.order = 'ZYX';
     const add = (g, k, par, noInk) => { const m = new THREE.Mesh(g, mat(k)); (par || R).add(m); if (!noInk) m.add(new THREE.Mesh(g, inkN)); return m; };
     const sph = (k, r, sx, sy, sz, par, x, y, z, noInk) => { const m = add(new THREE.IcosahedronGeometry(r, 2), k, par, noInk); m.scale.set(sx, sy, sz); m.position.set(x || 0, y || 0, z || 0); return m; };
-    const cyl = (k, r0, r1, len, par, noInk) => { const g = new THREE.CylinderGeometry(r1, r0, len, 12); g.translate(0, len / 2, 0); return add(g, k, par, noInk); };
-    const cap = (k, r, t0, t1, par) => add(new THREE.SphereGeometry(r, 16, 10, 0, Math.PI * 2, Math.PI * t0, Math.PI * (t1 - t0)), k, par);
-    const cone = (k, r, h, par, x, y, z, noInk) => { const m = add(new THREE.ConeGeometry(r, h, 8), k, par, noInk); m.position.set(x, y, z); return m; };
-    const tor = (k, R0, t, par, y) => { const m = add(new THREE.TorusGeometry(R0, t, 7, 16), k, par); m.rotation.x = Math.PI / 2; m.position.y = y; return m; };
-    const box = (k, w, h, d, par, x, y, z, noInk) => { const g = new THREE.BoxGeometry(w, h, d), m = new THREE.Mesh(g, mat(k)); (par || R).add(m); m.position.set(x || 0, y || 0, z || 0); if (!noInk) { const o = new THREE.Mesh(g, ink); o.scale.set((w + 1.8) / w, (h + 1.8) / h, (d + 1.8) / d); m.add(o); } return m; };
-    const b = {}, trails = [], DX = 0.74, HY = 9;
-    // a chain of pieces that hangs from a point on the body and swings after it
+    const cyl = (k, r0, r1, len, par, noInk) => { const g = new THREE.CylinderGeometry(r1, r0, len, 10); g.translate(0, len / 2, 0); return add(g, k, par, noInk); };
+    const cone = (k, r, h, par, x, y, z, noInk) => { const g = new THREE.ConeGeometry(r, h, 7); g.translate(0, h / 2, 0); const m = add(g, k, par, noInk); m.position.set(x, y, z); return m; };
+    const box = (k, w, h, d, par, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(k)); (par || R).add(m); m.position.set(x || 0, y || 0, z || 0); return m; };
+    const b = {}, trails = [];
     const trail = (par, off, n, len, grav, back, mk) => { const t = { par: par, off: new THREE.Vector3(off[0], off[1], off[2]), pts: [], segs: [], len: len, grav: grav, back: back, init: 0 }; for (let i = 0; i <= n; i++) t.pts.push(new THREE.Vector3()); for (let i = 0; i < n; i++) { const m = mk(i, n); T.add(m); t.segs.push(m); } trails.push(t); };
-    const inT = fn => { const keep = R; return fn; };
+    // a ribbon: wide where it leaves the body, a thread at the tip, the last third in the accent colour
+    const ribbon = (par, off, n, len, grav, back, w0) => trail(par, off, n, len, grav, back, (i, nn) => { const m = new THREE.Group(), u = i / (nn - 1), w = w0 * (1 - u * 0.86) + 0.5; const s1 = add(new THREE.BoxGeometry(w, len + 0.6, 1), u > 0.62 ? 'acc' : u > 0.4 ? 'body2' : 'body', m, u > 0.62); s1.position.y = len / 2; return m; });
+    // torso: wasp waist under a flared ribcage
+    b.pel = sph('body', 5.4, 0.8, 0.95, 1, R); b.abd = cyl('body', 3.6, 4.4, SP1 - 2); b.abd.scale.set(0.8, 1, 1);
+    b.chest = cyl('body', 4.6, 8.4, SP2); b.chest.scale.set(0.72, 1, 1); sph('body', 8.4, 1, 0.45, 1, b.chest, 0, SP2, 0);
+    for (const z of [-1, 1]) { const st = box('acc', 0.8, SP2 * 0.8, 1.1, b.chest, 7, SP2 * 0.45, z * 2.6); st.rotation.x = z * 0.32; }
+    const sp = add(new THREE.TorusGeometry(2.6, 0.8, 5, 12), 'acc', b.chest, 1); sp.position.set(0, SP2 - 2, 8.6);
+    // head: a long smooth mask, nothing on it but two slits
     const hd = b.head = new THREE.Group(); R.add(hd);
-    if (ch === 0) {
-      // ---------------- AKATSUKI: white-haired wanderer, blindfold, great red scarf and a torn cape with a cream sun on it
-      b.pel = cyl('pants', 10, 10.6, 9); b.pel.scale.set(DX, 1, 1);
-      const sw = new THREE.Group(); b.pel.add(sw); sw.position.set(-4, 6, -10.5); sw.rotation.z = -1.12; box('dark', 1.8, 34, 2.6, sw, 0, -4, 0); box('cream', 2, 8, 2.8, sw, 0, 17, 0); box('gold', 2.8, 1.4, 4, sw, 0, 12.4, 0); box('gold', 2, 2, 2.8, sw, 0, -20.5, 0, 1);
-      b.abd = cyl('coat', 10, 10.4, SP1 - 2); b.abd.scale.set(DX, 1, 1); const sa = cyl('scarf2', 10.9, 10.9, 4.4, b.abd); sa.position.y = 0.2; box('scarf2', 1.2, 9, 3.4, b.abd, 13, -4, 3).rotation.x = 0.15;
-      b.chest = cyl('coat', 10.4, 11.2, SP2); b.chest.scale.set(DX, 1, 1); sph('coat', 11.2, 1, 0.4, 1, b.chest, 0, SP2, 0); box('coat2', 1.4, SP2, 1.6, b.chest, 14.4, SP2 / 2, 0, 1).rotation.x = 0.5;
-      tor('scarf', 8.4, 4.4, b.chest, SP2 + 1.5); tor('scarf2', 9.4, 2.6, b.chest, SP2 - 1.6);
-      sph('skin', 8.9, 1, 0.97, 0.98, hd, 0, HY, 0); sph('scarf', 6.6, 1, 0.72, 1.25, hd, 2.6, HY - 6.2, 0);
-      const bf = cyl('dark', 9.1, 9.1, 3.4, hd); bf.position.y = HY - 0.6; box('dark', 1, 2.6, 7, hd, -9.6, HY - 2.5, 2).rotation.x = 0.4;
-      const hc = cap('hair', 9.9, 0, 0.5, hd); hc.position.set(-0.8, HY + 0.4, 0); hc.rotation.z = 0.55;
-      const spike = (x, y, z, rz, rx, h, rr) => { const m = cone('hair', rr || 2.9, h, hd, x, y, z); m.rotation.z = rz; m.rotation.x = rx || 0; return m; };
-      spike(-5, HY + 10.5, 0, 0.75, 0, 12); spike(-1.5, HY + 11.5, 4, 0.35, 0.45, 10); spike(-1.5, HY + 11.5, -4, 0.35, -0.45, 10); spike(-9.5, HY + 6.5, 4.5, 1.25, 0.3, 12); spike(-9.5, HY + 6.5, -4.5, 1.25, -0.3, 12);
-      spike(-11, HY + 1.5, 0, 1.6, 0, 13, 3.2); spike(-9, HY - 2, 5.5, 1.9, 0.3, 9, 2.4); spike(-9, HY - 2, -5.5, 1.9, -0.3, 9, 2.4); spike(3.5, HY + 11, 2.5, -0.25, 0.3, 8, 2.4); spike(7, HY + 7.5, -2.5, -1.75, -0.2, 8, 2.3); spike(6.5, HY + 8, 3.5, -1.55, 0.3, 7, 2.1);
-      const capeSeg = (i, n, wd) => { const m = new THREE.Group(); box(i % 2 ? 'scarf2' : 'scarf', wd + i * 0.9, 9, 1.4, m, 0, 4, 0); if (i === n - 1) { box('scarf', 3.4, 6, 1.4, m, wd / 3, 10, 0); box('scarf2', 3, 4.5, 1.4, m, -wd / 3, 9, 0); box('scarf', 2.4, 3.5, 1.4, m, 0, 9.5, 0); } return m; };
-      trail(b.chest, [-9.5, SP2 - 1, 7], 6, 8, 0.2, 1.7, (i, n) => { const m = capeSeg(i, n, 13); if (i === 2) { box('cream', 8, 8, 1.6, m, 0, 4.5, 0.5, 1); box('scarf', 3.8, 3.8, 1.8, m, 0, 4.5, 0.7, 1); } return m; });
-      trail(b.chest, [-9.5, SP2 - 1, -6], 6, 8, 0.26, 1.3, (i, n) => capeSeg(i, n, 11));
-      trail(b.chest, [-10, SP2 + 3, 0], 4, 7, 0.14, 2.1, (i, n) => { const m = new THREE.Group(); box('scarf', 6 - i, 8, 1.4, m, 0, 3.5, 0); return m; });
-      for (const n of ['L', 'R']) {
-        b['sh' + n] = sph('coat', 5.8, 1, 1, 1, R); b['ua' + n] = cyl('coat', 5.1, 4.6, UA);
-        b['fa' + n] = cyl('wrap', 4.5, 5.2, FA); for (const y of [2.5, 6.5, 10.5]) { const c = cyl('dark', 5.3, 5.3, 0.9, b['fa' + n], 1); c.position.y = y; }
-        b['fi' + n] = sph('skin', 5.9, 1, 1.05, 1.05, R);
-        b['th' + n] = cyl('pants', 7.4, 8.6, TH); b['sn' + n] = cyl('pants', 8.6, 6.2, SHN); const bc = cyl('boot', 6.8, 6.6, 8, b['sn' + n]); bc.position.y = SHN - 8; const bs = cyl('wrap', 7, 7, 1.6, b['sn' + n], 1); bs.position.y = SHN - 8;
-        const ft = b['ft' + n] = new THREE.Group(); R.add(ft); sph('boot', 6, 0.8, 1.5, 1, ft, -0.6, 7, 0); box('sole', 1.8, 15.5, 9, ft, 3, 7.2, 0);
-      }
-    } else {
-      // ---------------- GETSUTO: a heavy monk behind a white hare mask, with great prayer beads and a spiral-crested haori
-      b.pel = cyl('pants', 12, 12.8, 9); b.pel.scale.set(DX, 1, 1);
-      b.abd = cyl('coat', 12, 12.6, SP1 - 2); b.abd.scale.set(DX, 1, 1); tor('cream', 13.3, 1.9, b.abd, 1.5); sph('cream', 3, 1, 1, 1.2, b.abd, 15.6, 1.5, 0);
-      b.chest = cyl('coat', 12.6, 13.6, SP2); b.chest.scale.set(DX, 1, 1); sph('coat', 13.6, 1, 0.4, 1, b.chest, 0, SP2, 0);
-      box('scarf', 2.2, SP2 - 1, 6.4, b.chest, 14.6, SP2 / 2 + 1, 0, 1); for (const z of [-4.2, 4.2]) box('coat2', 2.6, SP2 + 2, 2.6, b.chest, 15, SP2 / 2, z).rotation.x = z > 0 ? 0.22 : -0.22;
-      for (let i = 0; i < 11; i++) { const a = i / 11 * 6.283 + 0.28; sph(i % 2 ? 'scarf2' : 'wrap', 3.3, 1.3, 1, 1, b.chest, Math.cos(a) * 15.5, SP2 + 1.5 - Math.cos(a) * 4.5, Math.sin(a) * 11.5); }
-      sph('hair', 9.5, 0.98, 0.98, 0.95, hd, 0, HY, 0); sph('hair', 4.8, 0.95, 0.72, 1, hd, 7.4, HY - 2.8, 0);
-      for (const z of [-1, 1]) { const e = box('dark', 1, 1.2, 4.2, hd, 8.5, HY + 1.4, z * 3.7, 1); e.rotation.x = -z * 0.38; e.rotation.y = -z * 0.3;
-        const ear = sph('hair', 3.2, 0.8, 4.3, 0.95, hd, -2.2, HY + 19.5, z * 3.9); ear.rotation.x = z * 0.13; ear.rotation.z = 0.1; const ie = sph('dark', 2, 0.5, 5.2, 0.6, hd, -0.3, HY + 20, z * 3.9, 1); ie.rotation.x = z * 0.13; ie.rotation.z = 0.1; }
-      box('dark', 0.9, 0.9, 1.8, hd, 11.8, HY - 1.6, 0, 1); box('dark', 0.7, 2.4, 0.7, hd, 11.4, HY - 3.6, 0, 1); for (const z of [-1, 1]) box('scarf', 0.6, 0.7, 2.6, hd, 9.2, HY - 2.2, z * 5.6, 1).rotation.y = -z * 0.6;
-      trail(b.abd, [13.5, 0.5, 2.2], 3, 5.5, 0.4, -0.6, (i, n) => { const m = new THREE.Group(); box('cream', 1.1, 6.5, 2.6, m, 0, 3, 0); return m; });
-      trail(b.abd, [13.5, 0.5, -2.2], 3, 5.5, 0.44, -0.5, (i, n) => { const m = new THREE.Group(); box('cream', 1.1, 6.5, 2.6, m, 0, 3, 0); return m; });
-      trail(b.chest, [-11.5, SP2 + 4, 0], 3, 5, 0.35, 0.8, (i, n) => { const m = new THREE.Group(); if (i < n - 1) sph(i ? 'scarf2' : 'wrap', 2.8, 1, 1, 1, m, 0, 2.5, 0); else box('scarf', 1.6, 7, 3.4, m, 0, 3, 0); return m; });
-      for (const n of ['L', 'R']) { const sd = n === 'L' ? -1 : 1;
-        b['sh' + n] = sph('coat', 8.2, 1, 1, 1, R); const r1 = add(new THREE.TorusGeometry(5, 1.05, 5, 14), 'dark', b['sh' + n], 1); r1.position.z = sd * 6.2; const r2 = add(new THREE.TorusGeometry(2.2, 0.95, 5, 10), 'dark', b['sh' + n], 1); r2.position.z = sd * 7.7; r2.position.x = 0.8;
-        b['ua' + n] = cyl('coat', 7, 7.6, UA); b['fa' + n] = cyl('coat', 7.6, 10, FA - 3); const op = cyl('dark', 9.2, 9.4, 1.2, b['fa' + n], 1); op.position.y = FA - 3.8; const hm = cyl('coat2', 10.1, 10.3, 2, b['fa' + n]); hm.position.y = FA - 5.6;
-        b['fi' + n] = sph('skin', 6.4, 1, 1.05, 1.05, R);
-        b['th' + n] = cyl('pants', 8.8, 10.4, TH); b['sn' + n] = cyl('pants', 10.4, 8.4, SHN); const aw = cyl('cream', 6.2, 6, 5, b['sn' + n]); aw.position.y = SHN - 4;
-        const ft = b['ft' + n] = new THREE.Group(); R.add(ft); sph('skin', 5.8, 0.72, 1.55, 1.05, ft, -0.2, 7.4, 0); box('cream', 2.4, 2.6, 9.6, ft, -1.6, 8, 0); box('sole', 1.6, 17, 10, ft, 3, 7.4, 0);
-      }
+    const nk = cyl('body', 2.1, 2.3, 7, hd); nk.position.y = -4;
+    const sk = new THREE.Group(); hd.add(sk); sk.position.set(1, 8.5, 0); sk.rotation.z = -0.42;
+    sph('body', 6.3, 1.02, 1.5, 0.86, sk, 0, 0, 0); const bk = sph('body2', 6.1, 0.86, 1.36, 0.9, sk, -1.9, 1.2, 0, 1); sph('acc', 2, 0.5, 2.6, 1.6, sk, -6.2, 3, 0, 1);
+    for (const z of [-1, 1]) { const e = box('eye', 0.9, 3.6, 1.3, sk, 5.5, -3.4, z * 2.2); e.rotation.x = z * 0.5; e.rotation.z = 0.25; }
+    ribbon(sk, [-5, 6, 1.5], 13, 6.2, -0.05, 2.2, 5.6); ribbon(sk, [-5.5, 2, -1.5], 10, 6, 0.02, 1.9, 4.4);
+    ribbon(b.chest, [-5.5, SP2 - 3, 5], 8, 5.6, 0.06, 1.6, 3.6); ribbon(b.chest, [-5.5, SP2 - 3, -5], 7, 5.6, 0.08, 1.4, 3.2); ribbon(b.pel, [-4, 1, 0], 9, 5.8, 0.1, 1.5, 4.2);
+    for (const n of ['L', 'R']) { const sd = n === 'L' ? -1 : 1;
+      b['sh' + n] = sph('body', 4.3, 1, 1, 1, R); const r1 = add(new THREE.TorusGeometry(2.4, 0.7, 5, 12), 'acc', b['sh' + n], 1); r1.position.z = sd * 3.6;
+      b['ua' + n] = cyl('body', 3.3, 2.4, UA); b['fa' + n] = cyl('body', 2.4, 3.5, FA); const bd = cyl('acc', 3.2, 3.5, 1.3, b['fa' + n], 1); bd.position.y = FA - 5; const b2 = cyl('body2', 2.9, 3.6, 5, b['fa' + n], 1); b2.position.y = FA - 5;
+      const hnd = b['fi' + n] = new THREE.Group(); R.add(hnd); sph('body2', 3.3, 0.8, 1.5, 1.15, hnd, 0, 1, 0);                    // local y runs out along the forearm
+      for (let k = -1; k <= 1; k++) { const c = cone(k === 0 ? 'body2' : 'body2', 1.15, 11 - Math.abs(k) * 1.5, hnd, k * 1.9, 3.4, k * 0.8); c.rotation.z = -k * 0.24; const tip = cone('acc', 0.75, 4, c, 0, 7.4 - Math.abs(k) * 1.5, 0, 1); }
+      const th = cone('body2', 1, 6, hnd, -2.6, 0.5, 2 * sd); th.rotation.z = 0.9;
+      b['th' + n] = cyl('body', 4.5, 3, TH); b['sn' + n] = cyl('body', 3, 2.2, SHN); const kb = cyl('acc', 3.1, 2.9, 1.2, b['sn' + n], 1); kb.position.y = 3; const s2 = cyl('body2', 2.6, 2.4, 7, b['sn' + n], 1); s2.position.y = SHN - 7;
+      const ft = b['ft' + n] = new THREE.Group(); R.add(ft); sph('body2', 3, 0.85, 1.2, 1, ft, 0, 3.2, 0); const toe = cone('body2', 2.5, 13, ft, 0.6, 4, 0); toe.scale.set(0.7, 1, 1); cone('acc', 1.1, 4.5, toe, 0, 9, 0, 1);
     }
-    return { G, M, R, T, b, mats, trails };
+    // the pool underneath, and the pool of sparks this body sheds
+    const pm = new THREE.MeshBasicMaterial({ color: lk.body, transparent: true, opacity: 0.72, depthWrite: false }), rm = new THREE.MeshBasicMaterial({ color: lk.acc, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending });
+    const pool = new THREE.Group(); T.add(pool); const drops = [];
+    for (let i = 0; i < 5; i++) { const g = new THREE.Group(); const c = new THREE.Mesh(new THREE.CircleGeometry(1, 18), pm), rr = new THREE.Mesh(new THREE.RingGeometry(1, 1.14, 18), rm); g.add(c); g.add(rr); g.rotation.x = -Math.PI / 2; pool.add(g); drops.push({ g: g, x: 0, r: i ? 3 + i * 1.3 : 19, o: i ? (i % 2 ? 1 : -1) * (14 + i * 6) : 0 }); }
+    const NP = 46, pg = new THREE.BufferGeometry(), pp = new Float32Array(NP * 3); pg.setAttribute('position', new THREE.BufferAttribute(pp, 3));
+    const pts = new THREE.Points(pg, new THREE.PointsMaterial({ color: lk.acc2, size: 2, sizeAttenuation: false, transparent: true, opacity: 0.9, depthWrite: false, blending: ch === 0 ? THREE.NormalBlending : THREE.AdditiveBlending })); pts.frustumCulled = false; T.add(pts);
+    const sparks = []; for (let i = 0; i < NP; i++) { sparks.push({ life: 0, vx: 0, vy: 0 }); pp[i * 3 + 1] = -99; }
+    return { G, M, R, T, b, mats, trails, drops, pts, pp, sparks, seed: ch * 977 + 13, acc: lk.acc, emit: [b.head, b.chest, b.fiL, b.fiR, b.ftL, b.ftR, b.pel] };
   }
   const _tv = new THREE.Vector3(), _tr = new THREE.Vector3();
   function trailStep(rig, face) {
-    if (!rig.trails) return; rig.G.updateMatrixWorld(true);
+    if (!rig.trails) return; rig.G.updateMatrixWorld(true); const gx = rig.G.position.x, gy = rig.G.position.y;
     for (const t of rig.trails) {
       const a = t.par.localToWorld(_tv.copy(t.off)), n = t.pts.length;
-      if (!t.init || t.pts[0].distanceToSquared(a) > 3600) { for (let i = 0; i < n; i++) t.pts[i].set(a.x - face * t.len * i * 0.5, a.y - t.len * i * 0.85, a.z); t.init = 1; }
+      if (!t.init || t.pts[0].distanceToSquared(a) > 4900) { for (let i = 0; i < n; i++) t.pts[i].set(a.x - face * t.len * i * 0.7, a.y + t.len * i * 0.1, a.z); t.init = 1; }
       t.pts[0].copy(a);
-      for (let i = 1; i < n; i++) { const p = t.pts[i], q = t.pts[i - 1];
-        _tr.set(q.x - face * t.len * 0.5 * t.back, q.y - t.len * 0.86, q.z); p.lerp(_tr, 0.07); p.y -= t.grav; p.z += (a.z - p.z) * 0.2;
-        _tr.subVectors(p, q); const L = _tr.length() || 1; p.copy(q).addScaledVector(_tr, t.len / L); if (p.y < 2) p.y = 2; }
-      for (let i = 0; i < n - 1; i++) { const p0 = t.pts[i], p1 = t.pts[i + 1]; place(t.segs[i], [p0.x, p0.y, p0.z], [p1.x, p1.y, p1.z], 0, [0, 0, 1]); }
+      for (let i = 1; i < n; i++) { const p = t.pts[i], q = t.pts[i - 1], wv = Math.sin(tick * 0.09 + i * 0.7 + t.len) * 0.5;
+        _tr.set(q.x - face * t.len * 0.62 * t.back + WIND * 3, q.y - t.len * 0.3 + wv * 2, q.z); p.lerp(_tr, 0.085); p.y -= t.grav; p.x += WIND * (0.5 + i * 0.07); p.y += wv * 0.35; p.z += (a.z - p.z) * 0.2;
+        _tr.subVectors(p, q); const L = _tr.length() || 1; p.copy(q).addScaledVector(_tr, t.len / L); if (p.y < 1.5) p.y = 1.5; }
+      for (let i = 0; i < n - 1; i++) { const p0 = t.pts[i], p1 = t.pts[i + 1]; place(t.segs[i], [p0.x, p0.y, p0.z], [p1.x, p1.y, p1.z], t.len, [0, 0, 1]); }
     }
+    // pool: the main body of it lags behind and smears along the direction of travel; droplets trail after it and lean with the wind
+    if (rig.drops) { const air = Math.max(0.25, 1 - gy / 70);
+      for (let i = 0; i < rig.drops.length; i++) { const d = rig.drops[i]; if (Math.abs(d.x - gx) > 200) d.x = gx; const tx = gx + d.o * (0.8 + 0.2 * Math.sin(tick * 0.05 + i)) + WIND * i * 3; d.x += (tx - d.x) * (i ? 0.07 + i * 0.012 : 0.2);
+        const sm2 = Math.min(1.3, Math.abs(tx - d.x) * 0.06), w = (1 + 0.07 * Math.sin(tick * 0.11 + i * 2)) * d.r * air; d.g.position.set(d.x, 0.45 + i * 0.02, rig.G.position.z + (i ? ((i * 37) % 9) - 4 : 0)); d.g.scale.set(w * (1 + sm2), w * 0.42, 1); } }
+    // sparks: shed from the head, hands, feet and core, rising and going with the wind
+    if (rig.sparks) { const pp = rig.pp;
+      for (let i = 0; i < rig.sparks.length; i++) { const sp = rig.sparks[i];
+        if (sp.life <= 0) { if (hsh(rig.seed + tick * 31 + i * 7) < 0.08) { const o = rig.emit[(hsh(rig.seed + tick + i * 3) * rig.emit.length) | 0]; o.getWorldPosition(_tv); pp[i * 3] = _tv.x + (hsh(i + tick) - 0.5) * 6; pp[i * 3 + 1] = _tv.y + (hsh(i * 5 + tick) - 0.5) * 6; pp[i * 3 + 2] = _tv.z + 3; sp.life = 30 + (hsh(i * 11 + tick) * 40 | 0); sp.vx = (hsh(i * 13 + tick) - 0.5) * 0.6; sp.vy = 0.25 + hsh(i * 17 + tick) * 0.6; } else pp[i * 3 + 1] = -99; continue; }
+        sp.life--; pp[i * 3] += sp.vx + WIND * 0.9; pp[i * 3 + 1] += sp.vy; sp.vx *= 0.97; }
+      rig.pts.geometry.attributes.position.needsUpdate = true; }
   }
   const _X = new THREE.Vector3(), _Y = new THREE.Vector3(), _Z = new THREE.Vector3(), _M = new THREE.Matrix4();
   // put a part with its base at p0, its long axis along p0->p1 and its width axis as close to zh as possible
@@ -381,7 +373,7 @@ const R = (function () {
   }
   function applyPose(rig, fp, face, flashK, tint) {
     if (rig.sk) return applyPoseM(rig, fp, face, flashK, tint);
-    const po = fp.po, b = rig.b, hip = [po.hip[0], po.hip[1], 0];
+    const sway = Math.sin(tick * 0.06 + rig.seed), sway2 = Math.sin(tick * 0.043 + rig.seed * 1.7), po0 = fp.po, po = Object.assign({}, po0, { ln: po0.ln + sway * 1.6, ln2: po0.ln2 + sway2 * 2.6, hd: po0.hd + sway2 * 3, hL: [po0.hL[0] + sway2 * 1.2, po0.hL[1] + sway * 1.4, po0.hL[2]], hR: [po0.hR[0] - sway * 1.2, po0.hR[1] + sway2 * 1.4, po0.hR[2]] }), b = rig.b, hip = [po.hip[0], po.hip[1], 0];
     const a1 = po.ln * D, a2 = po.ln2 * D, cb = [hip[0] + Math.sin(a1) * SP1, hip[1] + Math.cos(a1) * SP1, 0], nk = [cb[0] + Math.sin(a2) * SP2, cb[1] + Math.cos(a2) * SP2, 0];
     const tw = po.tw * D, pt = po.pt * D, cax = [Math.sin(tw), 0, Math.cos(tw)], pax = [Math.sin(pt), 0, Math.cos(pt)], mid = [(cax[0] + pax[0]) / 2, 0, (cax[2] + pax[2]) / 2];
     const sy = [nk[0] - Math.sin(a2) * 3, nk[1] - Math.cos(a2) * 3];
@@ -390,27 +382,27 @@ const R = (function () {
     const lim = {};
     for (const n of ['L', 'R']) {
       const sd = n === 'L' ? -1 : 1, sh = [sy[0] + cax[0] * SW * sd, sy[1], cax[2] * SW * sd], ht = tg['h' + n], e = po['e' + n];
-      const A = ik(sh, [ht[0], ht[1], sh[2] * 0.45 + ht[2]], UA, FA, [-0.35, e, sd * 0.7 * (e > 0 ? 1.4 : 1)], 1.3);
+      const A = ik(sh, [ht[0], ht[1], sh[2] * 0.45 + ht[2]], UA, FA, [-0.35, e, sd * 0.7 * (e > 0 ? 1.4 : 1)], 1.75);
       const hs = [hip[0] + pax[0] * HW * sd, hip[1] - 2, pax[2] * HW * sd], ft = tg['f' + n], kk = po['k' + n];
       const fty = fp.air ? ft[1] : Math.max(4, ft[1]);
-      const Lg = ik(hs, [ft[0], fty, sd * 5 + ft[2]], TH, SHN, [0.8, 0.45, sd * (0.4 + kk * 1.6)], 1.32);
+      const Lg = ik(hs, [ft[0], fty, sd * 5 + ft[2]], TH, SHN, [0.8, 0.45, sd * (0.4 + kk * 1.6)], 1.6);
       lim[n] = { sh: sh, el: A[0], wr: A[1], hs: hs, kn: Lg[0], an: Lg[1] };
     }
     const sub = (p) => [p[0] - hip[0], p[1] - hip[1], p[2]], Zc = [0, 0, 1];
     const d0 = [Math.sin(a1 * 0.5), Math.cos(a1 * 0.5), 0];
-    place(b.pel, sub([hip[0] - d0[0] * 5, hip[1] - d0[1] * 5, 0]), sub([hip[0] + d0[0] * 4, hip[1] + d0[1] * 4, 0]), 0, pax);
+    place(b.pel, sub(hip), sub([hip[0] + d0[0] * 4, hip[1] + d0[1] * 4, 0]), 0, pax);
     place(b.abd, sub([hip[0] + d0[0] * 2, hip[1] + d0[1] * 2, 0]), sub(cb), SP1 - 2, mid);
     place(b.chest, sub(cb), sub(nk), SP2, cax);
     const ha = a2 * 0.45 + po.hd * D, back = Math.max(0, Math.min(1, (Math.abs(po.tw) - 100) / 50)), hz = [-0.5 + back * 0.9 + cax[0] * 0.12, 0, 0.82];
-    place(b.head, sub([nk[0], nk[1] - 0.5, 0]), sub([nk[0] + Math.sin(ha) * 10, nk[1] - 0.5 + Math.cos(ha) * 10, 0]), 0, hz);
+    place(b.head, sub([nk[0], nk[1] + 1, 0]), sub([nk[0] + Math.sin(ha) * 10, nk[1] + 1 + Math.cos(ha) * 10, 0]), 0, hz);
     for (const n of ['L', 'R']) { const l = lim[n], sd = n === 'L' ? -1 : 1;
       place(b['sh' + n], sub(l.sh), sub(l.el), 0, cax, 0); place(b['ua' + n], sub(l.sh), sub(l.el), UA, Zc); place(b['fa' + n], sub(l.el), sub(l.wr), FA, Zc);
-      const fd = [l.wr[0] - l.el[0], l.wr[1] - l.el[1], l.wr[2] - l.el[2]]; place(b['fi' + n], sub(l.wr), sub([l.wr[0] + fd[0], l.wr[1] + fd[1], l.wr[2] + fd[2]]), 0, Zc, 2.5);
+      const fd = [l.wr[0] - l.el[0], l.wr[1] - l.el[1], l.wr[2] - l.el[2]]; place(b['fi' + n], sub(l.wr), sub([l.wr[0] + fd[0], l.wr[1] + fd[1], l.wr[2] + fd[2]]), 0, Zc, 0);
       place(b['th' + n], sub(l.hs), sub(l.kn), TH, Zc); place(b['sn' + n], sub(l.kn), sub(l.an), SHN, Zc);
       // foot: flat on the floor, turning to follow the shin once it leaves the ground
       const sx = l.an[0] - l.kn[0], sy2 = l.an[1] - l.kn[1], sl = Math.hypot(sx, sy2) || 1, k = fp.air ? 1 : Math.max(0, Math.min(1, (l.an[1] - 5) / 8));
       const fx0 = sd > 0 && !fp.air ? 0.8 : 1, tx = fx0 * (1 - k) + (-sy2 / sl * 0.85 + sx / sl * 0.35) * k, ty = (sx / sl * 0.85 + sy2 / sl * 0.35) * k, tz = (sd > 0 ? 0.6 : -0.15) * (1 - k);
-      const a0 = [l.an[0], l.an[1] - 0.4, l.an[2]]; place(b['ft' + n], sub(a0), sub([a0[0] + tx, a0[1] + ty, a0[2] + tz]), 0, [0, 0, 1], -4.5);
+      const a0 = [l.an[0], l.an[1] - 0.4, l.an[2]]; place(b['ft' + n], sub(a0), sub([a0[0] + tx, a0[1] + ty, a0[2] + tz]), 0, [0, 0, 1], -3);
     }
     rig.R.position.set(hip[0], hip[1], 0); rig.R.rotation.set(0, (po.yaw + fp.yaw) * D, -po.rot * D); rig.M.scale.x = face;
     for (const k in rig.mats) { const m = rig.mats[k]; m.emissive.setRGB(flashK + tint[0], flashK + tint[1], flashK + tint[2]); }
@@ -460,15 +452,94 @@ const R = (function () {
     // leaves on the wind
     st.userData.leaves = []; const lg = new THREE.PlaneGeometry(4.5, 3.5);
     for (let i = 0; i < 44; i++) { const m = new THREE.Mesh(lg, leafM[i % 5]); m.material.side = THREE.DoubleSide; m.userData = { x: (hsh(i * 3 + 700) - 0.5) * 1500, y: hsh(i * 5 + 701) * 260, z: -220 + hsh(i * 7 + 702) * 290, v: 0.35 + hsh(i * 11 + 703) * 0.55, p: hsh(i * 13) * 6.283 }; st.add(m); st.userData.leaves.push(m); }
+    st.userData.fx = { sky: skyM, glare: gl };
     scene.add(st); return st;
+  }
+
+  // ----------------------------------------------------------- atmosphere director
+  // One mood is always being blended toward. Which mood depends on the fight: the round, who is close to death, burnout, supers, the KO.
+  // A stage only has to hand over its sky planes and floor glare; the lights, weather, wind, rays, mist and grade are shared by every stage.
+  let ambL, keyL, rimL, WIND = -0.5, atm = null;
+  const C3 = h => [(h >> 16 & 255) / 255, (h >> 8 & 255) / 255, (h & 255) / 255];
+  const MOOD = {
+    dusk: { amb: C3(0xa88a94), ambI: 0.6, key: C3(0xffe8d0), keyI: 0.62, rim: C3(0xff3a2a), rimI: 0.95, fog: C3(0x4a2030), fogN: 560, sky: [1, 1, 1], night: 0, glare: C3(0xd6342c), glareO: 1, wind: 0.5, leaf: 1, rain: 0, snow: 0, ember: 0, ash: 0, vig: C3(0x140408), vigA: 0.3, rays: 0.4, mist: 0.2, bolt: 0 },
+    storm: { amb: C3(0x7f7a9c), ambI: 0.52, key: C3(0xcfd6ff), keyI: 0.5, rim: C3(0xd8327a), rimI: 1.05, fog: C3(0x2c2440), fogN: 400, sky: [0.6, 0.52, 0.78], night: 0, glare: C3(0xb02a6a), glareO: 0.75, wind: 1.5, leaf: 0.7, rain: 1, snow: 0, ember: 0, ash: 0, vig: C3(0x06040e), vigA: 0.44, rays: 0.1, mist: 0.5, bolt: 0.35 },
+    moon: { amb: C3(0x7088b8), ambI: 0.6, key: C3(0xd8e6ff), keyI: 0.55, rim: C3(0x5aa0ff), rimI: 1.15, fog: C3(0x1c2848), fogN: 500, sky: [1, 1, 1], night: 1, glare: C3(0x6aa0e8), glareO: 0.95, wind: 0.3, leaf: 0, rain: 0, snow: 1, ember: 0, ash: 0, vig: C3(0x02060e), vigA: 0.38, rays: 0.55, mist: 0.4, bolt: 0 }
+  };
+  const ACC = [C3(0x4aa8ff), C3(0xff4aa0)];
+  const mcopy = m => { const r = {}; for (const k in m) r[k] = Array.isArray(m[k]) ? m[k].slice() : m[k]; return r; };
+  const mlerp = (a, b, k) => { for (const n in b) { if (Array.isArray(b[n])) for (let i = 0; i < 3; i++) a[n][i] += (b[n][i] - a[n][i]) * k; else a[n] += (b[n] - a[n]) * k; } };
+  function atmInit() {
+    const A = atm = { cur: mcopy(MOOD.dusk), flash: 0, beat: 0, crit: 0 };
+    // night version of the stage sky: the same picture pushed cold, the sun turned into a pale moon
+    const fx = stage.userData.fx;
+    if (fx && fx.sky) { const src = fx.sky.material.map.image; const t = tex(src.width, src.height, (c, w, h) => { c.drawImage(src, 0, 0); const im = c.getImageData(0, 0, w, h), d = im.data; for (let i = 0; i < d.length; i += 4) { const r = d[i], g = d[i + 1], b = d[i + 2]; if (r > 240 && g > 100 && g < 150) continue; if (r > 160 && g < 60) { d[i] = 206; d[i + 1] = 222; d[i + 2] = 246; continue; } d[i] = b * 0.55 + r * 0.12; d[i + 1] = g * 0.75 + r * 0.1; d[i + 2] = r * 0.72 + b * 0.5 + 14; } c.putImageData(im, 0, 0); for (let i = 0; i < 70; i++) { c.fillStyle = 'rgba(230,240,255,' + (0.3 + hsh(i) * 0.6) + ')'; c.fillRect(hsh(i * 3 + 1) * w | 0, hsh(i * 7 + 2) * h * 0.42 | 0, 1, 1); } });
+      A.night = new THREE.Mesh(fx.sky.geometry, new THREE.MeshBasicMaterial({ map: t, fog: false, transparent: true, opacity: 0 })); A.night.position.copy(fx.sky.position); A.night.position.z += 2; scene.add(A.night); }
+    // light shafts fanning out from behind the skyline
+    A.rays = []; for (let i = 0; i < 7; i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(46 + (i % 3) * 22, 1100), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); m.position.set(0, 190, -860); m.rotation.z = (i - 3) * 0.3 + 0.07; scene.add(m); A.rays.push(m); }
+    // ground mist in two drifting sheets
+    const mt = tex(128, 16, (c, w, h) => { for (let i = 0; i < 90; i++) { c.fillStyle = 'rgba(255,255,255,' + (0.05 + hsh(i) * 0.16).toFixed(3) + ')'; const y = hsh(i * 3) * h | 0; c.fillRect(hsh(i * 7) * w | 0, y, 10 + hsh(i * 11) * 44, 1 + (y > 8 ? 1 : 0)); } }, [3, 1]);
+    A.mist = []; for (let i = 0; i < 2; i++) { const t2 = mt.clone(); t2.needsUpdate = true; const m = new THREE.Mesh(new THREE.PlaneGeometry(1700, 70), new THREE.MeshBasicMaterial({ map: t2, transparent: true, opacity: 0.3, depthWrite: false, fog: false })); m.position.set(0, 30, i ? -220 : 50); scene.add(m); A.mist.push(m); }
+    // rain as slanted streaks, and one cloud of motes that serves as snow, embers or ash
+    const NR = 170, rg = new THREE.BufferGeometry(); A.rp = new Float32Array(NR * 6); rg.setAttribute('position', new THREE.BufferAttribute(A.rp, 3)); A.rain = new THREE.LineSegments(rg, new THREE.LineBasicMaterial({ color: 0xaab8e0, transparent: true, opacity: 0.55, fog: false })); A.rain.frustumCulled = false; scene.add(A.rain);
+    A.rd = []; for (let i = 0; i < NR; i++) A.rd.push({ x: (hsh(i * 3 + 5) - 0.5) * 900, y: hsh(i * 7 + 6) * 300, z: -240 + hsh(i * 11 + 7) * 320, v: 7 + hsh(i * 13) * 5 });
+    const NM = 150, mg = new THREE.BufferGeometry(); A.mp = new Float32Array(NM * 3); mg.setAttribute('position', new THREE.BufferAttribute(A.mp, 3)); A.motes = new THREE.Points(mg, new THREE.PointsMaterial({ color: 0xffffff, size: 2, sizeAttenuation: false, transparent: true, opacity: 0.9, depthWrite: false, fog: false })); A.motes.frustumCulled = false; scene.add(A.motes);
+    A.md = []; for (let i = 0; i < NM; i++) A.md.push({ x: (hsh(i * 3 + 50) - 0.5) * 900, y: hsh(i * 7 + 60) * 280, z: -240 + hsh(i * 11 + 70) * 320, p: hsh(i * 17) * 6.283, v: 0.5 + hsh(i * 19) * 0.8 });
+  }
+  function atmStep(s) {
+    const A = atm; if (!A) return; const t = mcopy(MOOD.dusk); let rate = 0.035, crit = 0, sup = -1;
+    if (s) {
+      const a = s.p[0], b = s.p[1], need = s.cfg.rounds, ha = a.hp / SIM.CH[a.ch].hp, hb = b.hp / SIM.CH[b.ch].hp, live = s.phase === 'fight' || s.phase === 'intro';
+      const final = !s.cfg.training && a.wins === need - 1 && b.wins === need - 1 && need > 1;
+      mlerp(t, final ? MOOD.moon : (s.round % 2 === 0 && !s.cfg.training) ? MOOD.storm : MOOD.dusk, 1);
+      // both nearly dead: the world leans in. Wind up, embers, a harder backlight, thunder
+      if (live && ha <= 0.25 && hb <= 0.25) { crit = 2; t.rimI *= 1.4; t.wind += 1; t.ember = 1; t.keyI *= 0.78; t.rays += 0.35; t.vig = C3(0x3a0408); t.vigA = 0.55; t.bolt = Math.max(t.bolt, 0.5); t.fogN -= 120; }
+      else if (live && (ha <= 0.25 || hb <= 0.25)) { crit = 1; t.vig = C3(0x2a0408); t.vigA += 0.1; t.rimI *= 1.15; }
+      // burnout drains the colour out of everything
+      if (a.bo || b.bo) { t.amb = [0.52, 0.58, 0.66]; t.sky = [t.sky[0] * 0.6, t.sky[1] * 0.68, t.sky[2] * 0.8]; t.keyI *= 0.72; t.rimI *= 0.55; t.ash = 1; t.leaf *= 0.25; t.glareO *= 0.4; t.vig = C3(0x0a1018); t.vigA += 0.12; t.mist += 0.25; }
+      // a super takes the light for itself
+      for (let i = 0; i < 2; i++) { const p = s.p[i], m = p.st === 'atk' ? SIM.CH[p.ch].mv[p.mv] : null; if (m && m.sup) sup = i; }
+      if (sup >= 0) { rate = 0.22; t.ambI *= 0.42; t.keyI *= 0.5; t.rim = ACC[s.p[sup].ch].slice(); t.rimI = 2; t.rays = 1; t.vigA = 0.62; t.glare = ACC[s.p[sup].ch].slice(); t.wind += 0.8; t.sky = [t.sky[0] * 0.45, t.sky[1] * 0.45, t.sky[2] * 0.5]; }
+      if (s.phase === 'ko') { rate = 0.1; t.rimI *= 1.5; t.keyI *= 0.6; t.vigA = 0.55; t.wind *= 0.3; t.rays += 0.4; }
+    }
+    A.crit = crit; mlerp(A.cur, t, rate); const c = A.cur;
+    // lightning
+    if (c.bolt > 0.2 && A.flash <= 0 && hsh(tick * 7 + 3) < c.bolt * 0.012) A.flash = 9;
+    const fl = A.flash > 0 ? (A.flash > 6 || A.flash === 3 ? 1 : 0.25) : 0; if (A.flash > 0) A.flash--;
+    WIND = -(c.wind + 0.25 * Math.sin(tick * 0.013) + 0.15 * Math.sin(tick * 0.041));
+    ambL.color.setRGB(c.amb[0], c.amb[1], c.amb[2]); ambL.intensity = c.ambI + fl * 0.9; keyL.color.setRGB(c.key[0], c.key[1], c.key[2]); keyL.intensity = c.keyI + fl * 0.5;
+    const shim = 1 + 0.06 * Math.sin(tick * 0.21) + 0.04 * Math.sin(tick * 0.057); rimL.color.setRGB(c.rim[0], c.rim[1], c.rim[2]); rimL.intensity = c.rimI * shim;
+    scene.fog.color.setRGB(c.fog[0], c.fog[1], c.fog[2]); scene.fog.near = c.fogN;
+    const fx = stage.userData.fx; if (fx) { if (fx.sky) fx.sky.material.color.setRGB(Math.min(1, c.sky[0] + fl), Math.min(1, c.sky[1] + fl), Math.min(1, c.sky[2] + fl)); if (fx.glare) { fx.glare.material.color.setRGB(c.glare[0], c.glare[1], c.glare[2]); fx.glare.material.opacity = c.glareO * (0.85 + 0.15 * Math.sin(tick * 0.09)); } }
+    if (A.night) { A.night.material.opacity = Math.max(0, Math.min(1, c.night)); A.night.visible = c.night > 0.01; }
+    for (let i = 0; i < A.rays.length; i++) { const m = A.rays[i]; m.material.color.setRGB(c.rim[0], c.rim[1], c.rim[2]); m.material.opacity = c.rays * 0.085 * (0.6 + 0.4 * Math.sin(tick * 0.02 + i * 1.7)); m.rotation.z = (i - 3) * 0.3 + 0.07 + 0.03 * Math.sin(tick * 0.008 + i); m.visible = stage.visible; }
+    for (let i = 0; i < A.mist.length; i++) { const m = A.mist[i]; m.material.color.setRGB(Math.min(1, c.fog[0] * 2.2 + 0.1), Math.min(1, c.fog[1] * 2.2 + 0.1), Math.min(1, c.fog[2] * 2.2 + 0.1)); m.material.opacity = c.mist * (i ? 0.9 : 0.55); m.material.map.offset.x -= WIND * (i ? 0.0005 : 0.0011); m.position.x = camX; m.visible = stage.visible; }
+    // rain
+    const rp = A.rp, nr = Math.round(A.rd.length * Math.min(1, c.rain)); A.rain.visible = nr > 0 && stage.visible; A.rain.geometry.setDrawRange(0, nr * 2);
+    for (let i = 0; i < nr; i++) { const d = A.rd[i]; d.y -= d.v; d.x += WIND * 2.2; if (d.y < 0) { d.y = 290 + (i % 9) * 4; d.x = camX + ((i * 131 + tick * 3) % 900) - 400; } rp[i * 6] = d.x; rp[i * 6 + 1] = d.y; rp[i * 6 + 2] = d.z; rp[i * 6 + 3] = d.x - WIND * 3.4; rp[i * 6 + 4] = d.y + 13; rp[i * 6 + 5] = d.z; }
+    if (nr) A.rain.geometry.attributes.position.needsUpdate = true;
+    // motes
+    const kind = c.ember > 0.3 ? 2 : c.ash > 0.3 ? 3 : c.snow > 0.3 ? 1 : 0, dens = kind === 2 ? c.ember : kind === 3 ? c.ash : c.snow, nm = kind ? Math.round(A.md.length * Math.min(1, dens)) : 0, mp = A.mp;
+    A.motes.visible = nm > 0 && stage.visible; A.motes.geometry.setDrawRange(0, nm); A.motes.material.color.setHex(kind === 2 ? 0xff7a3a : kind === 3 ? 0x9a9aa6 : 0xeaf2ff); A.motes.material.blending = kind === 2 ? THREE.AdditiveBlending : THREE.NormalBlending;
+    for (let i = 0; i < nm; i++) { const d = A.md[i], vy = kind === 2 ? d.v * 0.9 : kind === 3 ? -d.v * 0.3 : -d.v * 0.75; d.y += vy; d.x += WIND * (kind === 2 ? 1.1 : 0.8) + Math.sin(tick * 0.04 + d.p) * 0.4; if (d.y < 0 || d.y > 290) { d.y = vy > 0 ? 1 : 288; d.x = camX + ((i * 173 + tick * 5) % 900) - 400; } mp[i * 3] = d.x; mp[i * 3 + 1] = d.y; mp[i * 3 + 2] = d.z; }
+    if (nm) A.motes.geometry.attributes.position.needsUpdate = true;
+    const LV = stage.userData.leaves; if (LV) { const nl = Math.round(LV.length * Math.min(1, c.leaf)); for (let i = 0; i < LV.length; i++) LV[i].visible = i < nl; }
+    A.fl = fl;
+  }
+  // the grade that sits over the picture: a vignette in the mood's colour, a heartbeat when someone is nearly dead, the white of a lightning strike
+  function atmOverlay() {
+    const A = atm; if (!A) return; const c = A.cur; let a = c.vigA; if (A.crit) { const ph = (tick % 54) / 54, beat = Math.max(0, 1 - ph * 5) + Math.max(0, 1 - Math.abs(ph - 0.26) * 7) * 0.6; a += beat * (A.crit === 2 ? 0.22 : 0.14); }
+    const g = g2.createRadialGradient(VW / 2, VH / 2, VH * 0.36, VW / 2, VH / 2, VW * 0.64), col = (c.vig[0] * 255 | 0) + ',' + (c.vig[1] * 255 | 0) + ',' + (c.vig[2] * 255 | 0);
+    g.addColorStop(0, 'rgba(' + col + ',0)'); g.addColorStop(1, 'rgba(' + col + ',' + Math.min(0.9, a).toFixed(3) + ')'); g2.fillStyle = g; g2.fillRect(0, 0, VW, VH);
+    if (A.fl > 0) { g2.fillStyle = 'rgba(235,240,255,' + (A.fl * 0.22).toFixed(3) + ')'; g2.fillRect(0, 0, VW, VH); }
   }
 
   function init(c3, c2) {
     ren = new THREE.WebGLRenderer({ canvas: c3, antialias: false, alpha: false, powerPreference: 'high-performance' }); ren.setPixelRatio(1); ren.setSize(VW, VH, false);
     scene = new THREE.Scene(); scene.background = new THREE.Color(0x16111b); scene.fog = new THREE.Fog(0x4a2030, 560, 1500);
     cam = new THREE.PerspectiveCamera(28, 16 / 9, 10, 3000);
-    scene.add(new THREE.AmbientLight(0xa88a94, 0.6)); const d = new THREE.DirectionalLight(0xffe8d0, 0.62); d.position.set(-0.4, 0.9, 1.2); scene.add(d); const rim = new THREE.DirectionalLight(0xff3a2a, 0.95); rim.position.set(0.15, 0.5, -1); scene.add(rim);
-    stage = buildStage();
+    ambL = new THREE.AmbientLight(0xa88a94, 0.6); scene.add(ambL); keyL = new THREE.DirectionalLight(0xffe8d0, 0.62); keyL.position.set(-0.4, 0.9, 1.2); scene.add(keyL); rimL = new THREE.DirectionalLight(0xff3a2a, 0.95); rimL.position.set(0.15, 0.5, -1); scene.add(rimL);
+    stage = buildStage(); atmInit();
     for (let i = 0; i < 2; i++) { const s = new THREE.Mesh(new THREE.CircleGeometry(20, 12), new THREE.MeshBasicMaterial({ color: 0x080410, transparent: true, opacity: 0.55 })); s.rotation.x = -Math.PI / 2; s.position.y = 0.4; scene.add(s); shadows.push(s); }
     g2 = c2.getContext('2d'); g2.imageSmoothingEnabled = false;
   }
@@ -509,9 +580,9 @@ const R = (function () {
 
   // ----------------------------------------------------------- 3D frame
   function draw3d(s, menuPan) {
-    tick++;
+    tick++; atmStep(s);
     const L = stage.userData.lamps; for (let i = 0; i < L.length; i++) L[i].material.color.setHSL(0.09, 1, 0.55 + 0.07 * Math.sin(tick * 0.13 + i * 2));
-    const LV = stage.userData.leaves; for (let i = 0; i < LV.length; i++) { const m = LV[i], u = m.userData; u.y -= u.v; u.x -= 0.5 + u.v * 0.6; if (u.y < 0) { u.y = 250 + (i % 7) * 6; u.x = camX + ((i * 137) % 900) - 380; } m.position.set(u.x + Math.sin(tick * 0.03 + u.p) * 14, u.y, u.z); m.rotation.set(tick * 0.04 + u.p, tick * 0.05 * u.v, tick * 0.03 + u.p); }
+    const LV = stage.userData.leaves; for (let i = 0; i < LV.length; i++) { const m = LV[i], u = m.userData; u.y -= u.v; u.x += WIND * (0.9 + u.v); if (u.y < 0) { u.y = 250 + (i % 7) * 6; u.x = camX + ((i * 137) % 900) - 380; } m.position.set(u.x + Math.sin(tick * 0.03 + u.p) * 14, u.y, u.z); m.rotation.set(tick * 0.04 + u.p, tick * 0.05 * u.v, tick * 0.03 + u.p); }
     let tx = 0, tw = 440, ty = 72;
     if (s) {
       const a = s.p[0], b = s.p[1], ax = a.x / F, bx = b.x / F;
@@ -564,6 +635,7 @@ const R = (function () {
   function burst(cx, cy, r0, r1, n, col, rot, lw) { g2.strokeStyle = col; g2.lineWidth = lw || 2; g2.beginPath(); for (let i = 0; i < n; i++) { const a = rot + i * 6.283 / n, k = 0.6 + 0.4 * hsh(i * 31 + n); g2.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0); g2.lineTo(cx + Math.cos(a) * r1 * k, cy + Math.sin(a) * r1 * k); } g2.stroke(); }
 
   function drawFx(s) {
+    atmOverlay();
     for (let i = fx.length - 1; i >= 0; i--) {
       const f = fx[i], t = f.t++; let dead = false;
       if (f.k === 'exflash') { if (s) { const p = s.p[f.who], q = toScreen(p.x / F, p.y / F + 50); g2.globalAlpha = Math.max(0, 1 - t / 14); burst(q[0], q[1], 10 + t * 3, 30 + t * 5, 14, '#f1dcb4', t * 0.2, 2); g2.globalAlpha = 1; } dead = t > 14; fx[i] = f; if (dead) fx.splice(i, 1); continue; }
