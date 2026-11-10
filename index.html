@@ -40,7 +40,7 @@ function fit(){const fs=document.fullscreenElement===c,W=fs?innerWidth:b.clientW
 addEventListener('resize',fit);document.addEventListener('fullscreenchange',fit);fit();setTimeout(fit,50);})();
 </script>
 <script>
-window.GK_BUILD='1110-1909 UTC';
+window.GK_BUILD='1110-1922 UTC';
 // ===================================================================
 // GEKITOTSU deterministic simulation core. Integer math only, no RNG,
 // no wall-clock, no floats. state = step(state, inputP1, inputP2).
@@ -784,7 +784,7 @@ const MOCAP_RAW = {
 'JIN_M': '5,42,-87,-46,161,15,5,-19,12,-84;10,59,-61,76,-3,34,-66,4,0,-73;7,36,-23,28,-123,-29,9,19,19,-66;-35,19,-114,-7,14,4,-6,11,-17,-79;-34,19,-112,-7,14,2,-3,7,-18,-79;-41,63,-153,114,-160,-2,-3,7,-11,-81;-38,103,-131,21,-79,-8,9,5,-5,-82;-24,44,133,3,113,-8,6,9,0,-77;-5,42,48,5,87,102,-111,2,-3,-102;2,38,142,6,84,25,-9,-12,-4,-95;8,32,103,-14,107,28,-28,-16,-16,-79;9,34,-15,-36,149,24,-9,-17,14,-90;4,34,-50,-27,149,25,-4,-17,20,-81'
 };
 // Second set, from Capcom's official Ken move clips. Packed: 9 characters per row, (code - 78) * 6 degrees.
-const MOCAP2 = {"KAZE": "NTCLdQOJRNTELcQOISNTELcQOISNSCLdRNITNTDKdQOJSNTCLdQOJRNTFLcQOISQHl@1GPOTNAjF>IPJJFAjZfIPJLDEe]cHQJHc@k_aOXNPMCiB0PYLMLWSIfX=KSLZOJaZGKTMQ;J`TILS", "GORAI": "NTFKdQNISNTEJdQOITNSDKdROJTNSDKeQOITNTAKdPPJRNSFLcQOITQGXZKUDTANS?FLORMKNS?FLOWMZHS?FLOWJ^KGb[QPOOEIA1_AMOTFJI1S[NR]AJVWVlPKWEMK6WYQKO<NSFSTOIMK", "SENKA": "NSEKfPPISNSDIgPPJRNSEKcRNJTNTCKdQOJRNTCLdQOJSNTDLcQOITNTBKdQOJSPW@YTU>T=FHcH[B`KEORHD_B_JJWRHD_=^V;KE6aMNVVF>[VS_KRLOX[VIiT?QLKPXTBPOLRNP@HGOTGR", "KASAI": "JQYHdOIQGNPPLbOLJQMT6MLPNLONTIJgPOKPOSEIfQOJRNTCKdQOJTNSDKdPPHUNSDLcQOIUNSCLdQOITQHbYMUEU?OLKJ<JIOCIcLT_MTKJJSfPdX<KJOP;aeMRPN?WBaf^?JPK\\CIjONPO", "THROW": "^NKNJ>ePNNTAJfPPJRORFJeQOIROREJcQOJS]LLLKHVOFOPMN]QPKNPP^@jIKREOVO:2SLHWQRWFfZ=PLNWDJPTHIUOU>FgTJIQMVEMcQOIRNSDKeQNJQNSFKfPPISNSEKdQOJSNTCLcQOJS", "BTHROW": "NTAJfPQISORCJfPQGVNTCIfPPJSOZiSSTLIPOVZLkYGDZOVVL4YGD\\OVSLkYGC\\OWRK1YGC\\OVSK0YGD[OWSLkXHD[NYQKkWJD[NYTJ0VJDZNXUM>VJEZNWSJMTMEWPWRJ_SKIPOUfWURLJQ", "DI": "NSDKeQOKQLLNJOQLXLLLcIOQLWNMEEKFIPPSEGhMLKYMMA_S_2UCKQF`:U:LOMNG`7V2LONOKWcPa`?NNKJBFhWOLPKW7HFWNJSLXSJcZJLSMZDN]]ALSNKAFbRLKTNS9IgPPITORFGiPPIR"};
+const MOCAP2 = {"KAZE": "NTCLdQOJRNTELcQOISNTELcQOISNSCLdRNITNTDKdQOJSNTCLdQOJRNTFLcQOISQHl@1GPOTNAjF>IPJJFAjZfIPJLDEe]cHQJHc@k_aOXNPMCiB0PYLMLWSIfX=KSLZOJaZGKTMQ;J`TILS", "GORAI": "NTFKdQNISNTEJdQOITNSDKdROJTNSDKeQOITNTAKdPPJRNSFLcQOITQGXZKUDTANS?FLORMKNS?FLOWMZHS?FLOWJ^KGb[QPOOEIA1_AMOTFJI1S[NR]AJVWVlPKWEMK6WYQKO<NSFSTOIMK", "SENKA": "NSEKfPPISNSDIgPPJRNSEKcRNJTNTCKdQOJRNTCLdQOJSNTDLcQOITNTBKdQOJSPW@YTU>T=FHcH[B`KEORHD_B_JJWRHD_=^V;KE6aMNVVF>[VS_KRLOX[VIiT?QLKPXTBPOLRNP@HGOTGR", "KASAI": "JQYHdOIQGNPPLbOLJQMT6MLPNLONTIJgPOKPOSEIfQOJRNTCKdQOJTNSDKdPPHUNSDLcQOIUNSCLdQOITQHbYMUEU?OLKJ<JIOCIcLT_MTKJJSfPdX<KJOP;aeMRPN?WBaf^?JPK\\CIjONPO", "THROW": "^NKNJ>ePNNTAJfPPJRORFJeQOIROREJcQOJS]LLLKHVOFOPMN]QPKNPP^@jIKREOVO:2SLHWQRWFfZ=PLNWDJPTHIUOU>FgTJIQMVEMcQOIRNSDKeQNJQNSFKfPPISNSEKdQOJSNTCLcQOJS", "BTHROW": "NTAJfPQISORCJfPQGVNTCIfPPJSOZiSSTLIPOVZLkYGDZOVVL4YGD\\OVSLkYGC\\OWRK1YGC\\OVSK0YGD[OWSLkXHD[NYQKkWJD[NYTJ0VJDZNXUM>VJEZNWSJMTMEWPWRJ_SKIPOUfWURLJQ", "DI": "NSDKeQOKQLLNJOQLXLLLcIOQLWNMEEKFIPPSEGhMLKYMMA_S_2UCKQF`:U:LOMNG`7V2LONOKWcPa`?NNKJBFhWOLPKW7HFWNJSLXSJcZJLSMZDN]]ALSNKAFbRLKTNS9IgPPITORFGiPPIR", "SA1": "MNEHfFYHTNTCKePOIRNSCJeQOJSNE_MkNOE_Sfa8;MBOAQ;D@4G^F5AciIlc<c>H5?LdPiU@G[?N`OHPFIUNOY\\ONeQP^Ek]BO[RZd]5KbUgCRS`H3d8hCRS`H3d8hUJ091@=<@MTHLdQOJT", "SA2": "ORDKdQPJRY3ZESQP_LSU?Y6^4Z2ONeKVNdS<[\\4<^EWPN`PJ=8SKMQTSGCj[>KUIZRM_RKQMKHgIhLQMQNKh@kPMGVNPf[Dc7OdNR\\]iKQMfOVCFjNNK_PDBFCJBIDMXNCkY@KaMSHI`NTGV", "DREV": "NP`G\\WEKHPR2E1QKJOQDXLEGWIWLD_G0>_COA_;\\2UPSWNU>Di48cSOO6LKNOQ>P<1=6ML=_cL=LLKOMTMQKPWPKLMOQ2N3AXIk\\MIMO<bDWF7V<LNVQS9jE`<F]F^@2T`Zc>3FQSPL[VFMN"};
 
 
 // ===================================================================
@@ -944,7 +944,7 @@ const R = (function () {
           else if (f <= end) po = P(a.s);
           else po = mix(P(a.s), P(bn), sm((f - end) / (rec - end)));
         }
-        const procPo = po, mcp = m.isAir || m.sup || m.thr ? null : mcPose(p.mv, f, m); let usedMc = false;
+        const procPo = po, mcp = m.isAir || m.thr ? null : mcPose(p.mv, f, m); let usedMc = false;
         if (mcp) { const tot = m.t < 900 ? m.t : 999; po = mix(P(bn), mcp, Math.min(1, (f + 1) / 2) * (tot < 900 ? Math.min(1, Math.max(0, (tot - f) / 3)) : 1)); usedMc = true; }
         if (a.spin && f >= a.spin[0]) spin = Math.min(1, (f - a.spin[0]) / (a.spin[1] - a.spin[0])) * a.spin[2];
         // the striking limb is aimed at, and stretched to, the far end of the real hitbox
@@ -970,27 +970,30 @@ const R = (function () {
     { top: 0x1c1f2e, pants: 0x2848d0, skin: 0xd9a27c, hair: 0xf3dc4a, glove: 0xffd21e, belt: 0xffd21e, band: 0, shoe: 0xf4f4f4, trim: 0xffd21e }
   ];
   const ALT = [{ top: 0x27357a, pants: 0x1f2a63, band: 0xf2c230, glove: 0xf2c230, trim: 0xf2c230 }, { top: 0xb3202c, pants: 0x25252c, hair: 0xdfe6ee, glove: 0xffffff, belt: 0xffffff, trim: 0xffffff }];
+  // More anatomy than the first rig: split spine (abdomen + chest), wide tapered chest, separate feet that plant on the ground.
   function buildRig(ch, alt) {
     const lk = Object.assign({}, LOOK[ch], alt ? ALT[ch] : {}), mats = {}, all = [];
     const mat = k => mats[k] || (mats[k] = new THREE.MeshLambertMaterial({ color: lk[k] }));
     const ol = new THREE.MeshBasicMaterial({ color: 0x0a0810, side: THREE.BackSide });
-    function bx(par, w, h, d, x, y, z, k) {
-      const g = new THREE.BoxGeometry(w, h, d); const m = new THREE.Mesh(g, mat(k)); m.position.set(x, y, z); par.add(m);
+    function bx(par, w, h, d, x, y, z, k, tw) {
+      const g = new THREE.BoxGeometry(w, h, d);
+      if (tw) { const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const f = p.getY(i) > 0 ? tw : 1; p.setX(i, p.getX(i) * f); p.setZ(i, p.getZ(i) * f); } p.needsUpdate = true; g.computeVertexNormals(); }
+      const m = new THREE.Mesh(g, mat(k)); m.position.set(x, y, z); par.add(m);
       const o = new THREE.Mesh(g, ol); o.scale.set((w + 2.4) / w, (h + 2.4) / h, (d + 2.4) / d); m.add(o); all.push(m); return m;
     }
-    const G = new THREE.Group(), spin = new THREE.Group(), pel = new THREE.Group(), tor = new THREE.Group(), head = new THREE.Group();
-    G.add(spin); spin.add(pel); pel.add(tor); tor.add(head);
-    bx(pel, 15, 10, 21, 0, 0, 0, 'pants'); bx(pel, 16, 4, 22, 0, 5, 0, 'belt');
-    tor.position.set(0, 6, 0); bx(tor, 16, 25, 25, 0, 13, 0, 'top'); bx(tor, 3, 21, 9, 8, 14, 0, ch === 0 ? 'skin' : 'trim');
-    head.position.set(0, 27, 0); bx(head, 6, 4, 6, 0, 1, 0, 'skin'); bx(head, 13, 13, 12, 1, 9, 0, 'skin'); bx(head, 14, 5, 13, 0, 16, 0, 'hair'); bx(head, 5, 12, 13, -6, 10, 0, 'hair');
-    bx(head, 2, 2, 8, 7.5, 10, 0, 'hair');
-    if (ch === 0) { bx(head, 14.5, 3, 13.5, 0.8, 12.5, 0, 'band'); const tl = bx(head, 12, 2.5, 2, -13, 11, 3, 'band'); tl.rotation.z = 0.35; const t2 = bx(head, 10, 2.5, 2, -12, 9, -2, 'band'); t2.rotation.z = 0.6; }
-    else { bx(head, 8, 6, 9, 3, 19, 0, 'hair'); bx(tor, 12, 9, 20, -6, 24, 0, 'top'); }
+    const G = new THREE.Group(), spin = new THREE.Group(), pel = new THREE.Group(), tor = new THREE.Group(), chest = new THREE.Group(), head = new THREE.Group();
+    G.add(spin); spin.add(pel); pel.add(tor); tor.add(chest); chest.add(head);
+    bx(pel, 13, 9, 20, 0, 0, 0, 'pants'); bx(pel, 14, 4, 21, 0, 5, 0, 'belt');
+    tor.position.set(0, 6, 0); bx(tor, 12, 13, 18, 0, 6, 0, 'top', 1.15);
+    chest.position.set(0, 12, 0); bx(chest, 15, 15, 24, 0, 7, 0, 'top', 1.18); bx(chest, 3, 11, 8, 8, 6, 0, ch === 0 ? 'skin' : 'trim');
+    head.position.set(0, 15, 0); bx(head, 6, 4, 6, 0, 1, 0, 'skin'); bx(head, 12, 12, 11, 1, 8.5, 0, 'skin'); bx(head, 13, 5, 12, 0, 15, 0, 'hair'); bx(head, 5, 11, 12, -5.5, 9.5, 0, 'hair'); bx(head, 2, 2, 7, 7, 10, 0, 'hair');
+    if (ch === 0) { bx(head, 13.5, 3, 12.5, 0.8, 12, 0, 'band'); const tl = bx(head, 12, 2.5, 2, -13, 10.5, 3, 'band'); tl.rotation.z = 0.35; const t2 = bx(head, 10, 2.5, 2, -12, 8.5, -2, 'band'); t2.rotation.z = 0.6; }
+    else { bx(head, 8, 6, 9, 3, 18.5, 0, 'hair'); bx(chest, 11, 8, 18, -6, 13, 0, 'top'); }
     const limbs = {};
-    function arm(z, n) { const s = new THREE.Group(); s.position.set(0, 23, z); tor.add(s); bx(s, 8, 9, 8, 0, 0, 0, ch === 0 ? 'top' : 'skin'); bx(s, 6.5, 14, 6.5, 0, -8, 0, 'skin'); const e = new THREE.Group(); e.position.set(0, -15, 0); s.add(e); bx(e, 6.5, 13, 6.5, 0, -6, 0, ch === 0 ? 'skin' : 'trim'); bx(e, 8.5, 8.5, 8.5, 0, -15, 0, 'glove'); limbs[n] = [s, e]; }
-    function leg(z, n) { const s = new THREE.Group(); s.position.set(0, -3, z); pel.add(s); bx(s, 10, 24, 10, 0, -11, 0, 'pants'); const e = new THREE.Group(); e.position.set(0, -24, 0); s.add(e); bx(e, 8.5, 22, 8.5, 0, -11, 0, 'pants'); bx(e, 14, 5, 9, 3, -24, 0, 'shoe'); limbs[n] = [s, e]; }
-    arm(15, 'aP'); arm(-15, 'aN'); leg(6.5, 'lP'); leg(-6.5, 'lN');
-    return { G, spin, pel, tor, head, limbs, mats, all };
+    function arm(z, n) { const s = new THREE.Group(); s.position.set(0, 11, z); chest.add(s); bx(s, 9.5, 9.5, 9.5, 0, 0, 0, ch === 0 ? 'top' : 'skin'); bx(s, 7, 14, 7, 0, -8, 0, 'skin', 1.2); const e = new THREE.Group(); e.position.set(0, -15, 0); s.add(e); bx(e, 6, 13, 6, 0, -6, 0, ch === 0 ? 'skin' : 'trim', 1.2); bx(e, 9, 9, 9, 0, -15, 0, 'glove'); limbs[n] = [s, e, null]; }
+    function leg(z, n) { const s = new THREE.Group(); s.position.set(0, -3, z); pel.add(s); bx(s, 9.5, 24, 9.5, 0, -11, 0, 'pants', 1.25); const e = new THREE.Group(); e.position.set(0, -24, 0); s.add(e); bx(e, 7.5, 22, 7.5, 0, -11, 0, 'pants', 1.25); const f = new THREE.Group(); f.position.set(0, -22.5, 0); e.add(f); bx(f, 15, 5, 8.5, 3.5, -1.5, 0, 'shoe'); limbs[n] = [s, e, f]; }
+    arm(14, 'aP'); arm(-14, 'aN'); leg(6.5, 'lP'); leg(-6.5, 'lN');
+    return { G, spin, pel, tor, chest, head, limbs, mats, all };
   }
   function applyPose(rig, fp, face, flashK, tint) {
     let po = fp.po; const L = po.l, T = po.t, st = fp.strike && fp.strike.w > 0 ? fp.strike : null;
@@ -1014,11 +1017,11 @@ const R = (function () {
       const vx = st.tx / c - bx, vy = st.ty - by, dist = Math.sqrt(vx * vx + vy * vy), ang = Math.atan2(vx, -vy) / D, k = Math.max(0.75, Math.min(2.1, dist / (leg ? 52 : 36)));
       const a = po[st.lim], o = {}; o[st.lim] = [a[0] + wrapA(ang - a[0]) * st.w, a[1] * (1 - st.w)]; po = Object.assign({}, po, o); sc[st.lim] = 1 + (k - 1) * st.w;
     }
-    rig.spin.rotation.z = -po.rot * D; rig.pel.rotation.z = -L * D; rig.tor.rotation.z = -T * D; rig.head.rotation.z = (L + T - po.h) * D;
+    rig.spin.rotation.z = -po.rot * D; rig.pel.rotation.z = -L * D; rig.tor.rotation.z = -T * D / 2; rig.chest.rotation.z = -T * D / 2; rig.head.rotation.z = (L + T - po.h) * D;
     // lead limbs sit on the far side from the camera, whichever way we face
     const lead = face > 0 ? 'N' : 'P', rear = face > 0 ? 'P' : 'N';
     const A = (n, a, s) => { rig.limbs[n][0].rotation.z = (a[0] + L + T) * D; rig.limbs[n][1].rotation.z = a[1] * D; rig.limbs[n][0].scale.y = s; };
-    const Lg = (n, a, s) => { rig.limbs[n][0].rotation.z = (a[0] + L) * D; rig.limbs[n][1].rotation.z = a[1] * D; rig.limbs[n][0].scale.y = s; };
+    const Lg = (n, a, s) => { rig.limbs[n][0].rotation.z = (a[0] + L) * D; rig.limbs[n][1].rotation.z = a[1] * D; rig.limbs[n][0].scale.y = s; const ank = hip + fp.dy + (-24 * Math.cos(a[0] * D) - 24 * Math.cos((a[0] + a[1]) * D)) * s, k = fp.ground ? Math.max(0, Math.min(1, (ank - 7) / 12)) : 1; rig.limbs[n][2].rotation.z = (-(a[0] + a[1]) * (1 - k) - 25 * k) * D; };
     A('a' + lead, po.af, sc.af); A('a' + rear, po.ab, sc.ab); Lg('l' + lead, po.lf, sc.lf); Lg('l' + rear, po.lb, sc.lb);
     rig.spin.position.y = hip + fp.dy;
     const yaw = (26 + po.yaw + fp.spin) * D;
