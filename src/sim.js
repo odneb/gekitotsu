@@ -396,7 +396,7 @@ const SIM = (function () {
         break;
       }
       case 'parry':
-        p.vx = 0; p.dr -= 5; if (p.drT < 20) p.drT = 20;
+        p.vx = 0; p.dr -= 9; if (p.drT < 20) p.drT = 20;
         if (p.dr <= 0) { p.dr = 0; burn(s, p, i); p.st = 'prec'; p.sf = 0; break; }
         if (p.plock > 0) { p.plock--; break; }
         if (p.sf >= 4 && p.d66 <= BUF && p.dr > 0) { spend(s, p, i, BAR / 2, 240); enterRush(s, p, o, i, false); break; }
@@ -548,7 +548,7 @@ const SIM = (function () {
     if (how === 'parry') {
       const bk = (dinp & (side > 0 ? 8 : 4)) !== 0, cr = (dinp & 2) !== 0;
       const perfect = d.sf <= 2 && d.plock === 0 && (isProj || (bk && !(h.g === 'l' && !cr) && !(h.g === 'h' && cr && !m.isAir)));
-      d.dr = Math.min(DMAX, d.dr + (isProj ? 500 : 1000)); d.drT = 20; d.pok = 1; d.plock = Math.max(1, h.bstun - 3); d.hs = 8; if (!isProj) { a.hs = 8; a.contact = 1; }
+      d.dr = Math.min(DMAX, d.dr + (isProj ? 150 : 350)); d.drT = 20; d.pok = 1; d.plock = Math.max(1, h.bstun - 3); d.hs = 8; if (!isProj) { a.hs = 8; a.contact = 1; }
       if (perfect) { s.freeze = isProj ? 8 : 20; s.frzWho = di; toIdle(d); d.hs = 0; d.tinv = 4; a.pp = 70; if (!isProj) a.hs = 14; s.ev.push({ t: 'pparry', x: cx, y: cy, who: di }); }
       else s.ev.push({ t: 'parry', x: cx, y: cy, who: di });
       return;
