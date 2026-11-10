@@ -92,7 +92,7 @@ const SIM = (function () {
     N('5MP', { n: 'Medium Punch', su: 5, ac: 4, rc: 14, d: 60, ha: 4, ba: -2, xh: 1, hb: [10, 47, 26, 19], kb: 460, hsp: 11, lvl: 1, dd: 300, sg: 50, can: CS, tc: { M: 'CB2' }, an: { w: 'mpW', s: 'mpS' } });
     N('CB2', { n: 'Chin Buster', su: 11, ac: 3, rc: 27, d: 40, ba: -14, mv: [[1, 9, 420]], xh: 1, hb: [6, 40, 40, 52], launch: [110, 940], air: [110, 940], hsp: 13, lvl: 1, dd: 100, sg: 30, cx: 1, can: CS, an: { w: 'cupW', s: 'cupS' } });
     N('2MK', { n: 'Crouching Medium Kick', su: 7, ac: 3, rc: 19, d: 50, g: 'l', ha: -2, ba: -6, xh: 1, hb: [20, 0, 40, 21], kb: 460, hsp: 9, lvl: 1, dd: 200, sg: 60, ss: 1, crouch: 1, can: CS, an: { w: 'clkW', s: 'cmkS' } });
-    N('5HK', { n: 'Heavy Kick', su: 12, ac: 2, rc: 23, d: 80, ha: 1, ba: -5, xh: 1, hb: [15, 47, 49, 21], kb: 900, hsp: 13, lvl: 1, dd: 600, sg: 100, ss: 2, pcLaunch: [160, 900], an: { w: 'hkW', s: 'hkS' } });
+    N('5HK', { n: 'Heavy Kick', su: 12, ac: 2, rc: 23, d: 80, ha: 1, ba: -5, xh: 1, hb: [15, 47, 49, 21], kb: 900, hsp: 13, lvl: 1, dd: 600, sg: 100, ss: 2, wr: 2, pcLaunch: [160, 900], an: { w: 'hkW', s: 'hkS' } });
     N('5HP', { n: 'Heavy Punch', su: 10, ac: 5, rc: 17, d: 80, ha: 3, ba: -2, xh: 1, hb: [17, 57, 31, 16], kb: 760, hsp: 13, lvl: 1, dd: 500, sg: 100, can: CS, an: { w: 'strW', s: 'strS' } });
     N('2HP', { n: 'Crouching Heavy Punch', su: 8, ac: 4, rc: 24, d: 80, ha: 3, ba: -7, xh: 1, hb: [4, 40, 30, 72], kb: 560, air: [140, 950], hsp: 13, lvl: 1, dd: 600, sg: 100, crouch: 1, stand: 1, can: CS, an: { w: 'cupW', s: 'cupS' } });
     N('2HK', { n: 'Sweep', su: 8, ac: 3, rc: 24, d: 90, g: 'l', ba: -10, xh: 1, hb: [18, 13, 49, 28], launch: [320, 480], hardKd: 1, hsp: 13, lvl: 1, dd: 400, sg: 100, crouch: 1, an: { w: 'swW', s: 'swS' } });
@@ -105,47 +105,47 @@ const SIM = (function () {
     N('DREV', { n: 'Drive Reversal', su: 20, ac: 3, rc: 26, d: 50, inv: [0, 21], ba: -6, xh: 1, hb: [4, 30, 50, 44], launch: [760, 430], air: [760, 430], lvl: 1, hsp: 11, dd: 0, xm: 1, mv: [[10, 20, 250]], an: { w: 'strW', s: 'strS' } });
     // Quick Dash branches
     N('TK', { n: 'Thunder Kick', su: 18, ac: 3, rc: 20, d: 100, g: 'h', ha: 3, ba: -3, hb: [8, 30, 52, 60], kb: 560, hsp: 13, lvl: 1, dd: 250, sg: 50, can: C_SU, mv: [[0, 12, 300]], an: { w: 'axW', s: 'axS' } });
-    N('FSK', { n: 'Forward Step Kick', su: 8, ac: 4, rc: 24, d: 80, ha: 1, ba: -4, hb: [10, 30, 72, 18], kb: 700, hsp: 13, lvl: 1, dd: 500, sg: 100, ss: 1, can: C_SU, mv: [[0, 7, 520]], an: { w: 'lkW', s: 'mkS' } });
+    N('FSK', { n: 'Forward Step Kick', su: 8, ac: 4, rc: 20, wr: 4, d: 80, ha: 1, ba: -4, hb: [10, 30, 72, 18], kb: 700, hsp: 13, lvl: 1, dd: 500, sg: 100, ss: 1, can: C_SU, mv: [[0, 7, 520]], an: { w: 'lkW', s: 'mkS' } });
     // Hadoken (Modern has only the heavy and the Overdrive)
     const fb = (k, su, t, st, bs, od) => N(k, { n: 'Hadoken', sp: 1, su: su, t: t, hits: [], fc: [su, su + 12], can: C_SU, od: od, sg: 60,
       proj: { f: su - 1, vx: 780, y: 50, w: 26, h: 22, hits: od ? 2 : 1, d: od ? 40 : 60, stun: st, bstun: bs, kb: 560, hsp: 9, lvl: 1, dd: od ? 125 : 250 },
       an: { k: [[0, 'idle'], [su - 6, 'fbW'], [su - 1, 'fbS'], [su + 14, 'fbS'], [t, 'idle']] } });
-    fb('HAD_H', 12, 49, 32, 26); fb('HAD_OD', 12, 40, 30, 26, 1);
+    fb('HAD_H', 12, 49, 24, 20); fb('HAD_OD', 12, 40, 8, 8, 1);
     // Shoryuken
-    const hbA = [2, 30, 56, 62], hbB = [0, 20, 56, 90], g = (s, e, d, o) => Object.assign({ s: s, e: e, hb: hbB, d: d, stun: 26, kb: 0, air: [40, 600], lvl: 1, hsp: 9, bstun: 18 }, o || {});
+    const hbA = [2, 30, 56, 62], hbB = [0, 20, 56, 90], g = (s, e, d, o) => Object.assign({ s: s, e: e, hb: hbB, d: d, np: 1, stun: 26, kb: 0, air: [40, 600], lvl: 1, hsp: 9, bstun: 18 }, o || {});
     const fin = (s, e, d, o) => Object.assign({ s: s, e: e, hb: hbB, d: d, launch: [200, 1150], air: [200, 1150], lvl: 2, hsp: 13, bstun: 18 }, o || {});
     const sr = (k, su, hits, vy, rec, o) => N(k, Object.assign({ n: 'Shoryuken', sp: 1, su: su, t: 999, mv: [[0, su - 1, 500]], rise: [su + 1, 150, vy], landRec: rec, can: C_SU, hits: hits, ss: 2,
       an: { k: [[0, 'cupW'], [su - 1, 'srS'], [su + 12, 'srS2'], [su + 32, 'jump']], spin: [su, su + 26, 360] } }, o || {}));
-    sr('SRK_L', 5, [fin(4, 13, 110, { hb: hbA })], 868, 12, { ainv: [0, 13], dd: 400, sg: 80 });
-    sr('SRK_M', 6, [g(5, 6, 70, { hb: hbA }), fin(9, 14, 60)], 1085, 12, { ainv: [0, 7], dd: 400, sg: 100 });
-    sr('SRK_H', 7, [g(6, 7, 80, { hb: hbA }), g(10, 11, 30), fin(13, 15, 30)], 1300, 15, { ainv: [0, 8], dd: 420, sg: 120 });
-    sr('SRK_OD', 6, [g(5, 6, 20, { hb: hbA }), g(8, 9, 20), g(11, 12, 20), g(14, 15, 20), g(17, 18, 20), fin(21, 30, 60)], 1300, 15, { inv: [0, 9], od: 1, dd: 500, sg: 150, rise: [20, 150, 1300], an: { k: [[0, 'cupW'], [5, 'srS'], [19, 'cupS'], [21, 'srS'], [34, 'srS2'], [56, 'jump']], spin: [20, 46, 720] } });
-    sr('QSRK', 8, [g(7, 8, 50, { hb: hbA }), g(10, 11, 45), g(13, 14, 25), g(16, 17, 25), fin(19, 22, 25)], 1240, 15, { ainv: [0, 17], dd: 400, sg: 140, rise: [18, 150, 1240], fire: 1, an: { k: [[0, 'cupW'], [7, 'srS'], [17, 'cupS'], [19, 'srS'], [32, 'srS2'], [52, 'jump']], spin: [18, 44, 720] } });
+    sr('SRK_L', 5, [fin(4, 13, 110, { hb: hbA, bstun: 20 })], 930, 12, { ainv: [0, 13], dd: 400, sg: 80 });
+    sr('SRK_M', 6, [g(5, 6, 70, { hb: hbA }), fin(9, 14, 60)], 1147, 12, { ainv: [0, 7], dd: 400, sg: 100 });
+    sr('SRK_H', 7, [g(6, 7, 80, { hb: hbA }), g(8, 9, 30), fin(10, 12, 30, { bstun: 20 })], 1393, 15, { ainv: [0, 8], dd: 420, sg: 120 });
+    sr('SRK_OD', 6, [g(5, 6, 20, { hb: hbA }), g(10, 11, 20), g(15, 16, 20), g(20, 21, 20), g(25, 26, 20), fin(32, 38, 60, { bstun: 17 })], 1271, 17, { inv: [0, 9], od: 1, dd: 500, sg: 150, rise: [32, 150, 1271], an: { k: [[0, 'cupW'], [5, 'srS'], [30, 'cupS'], [33, 'srS'], [46, 'srS2'], [68, 'jump']], spin: [32, 58, 720] } });
+    sr('QSRK', 8, [g(7, 8, 50, { hb: hbA }), g(9, 10, 45), g(11, 12, 25), g(13, 14, 25), fin(15, 17, 25, { bstun: 16 })], 1240, 17, { ainv: [0, 17], dd: 400, sg: 140, rise: [10, 150, 1240], fire: 1, an: { k: [[0, 'cupW'], [7, 'srS'], [24, 'srS2'], [46, 'jump']], spin: [10, 36, 720] } });
     // Tatsumaki
     const sb = [-4, 40, 58, 24], th = (s, d, last, wb) => last ? { s: s, e: s + 2, hb: sb, d: d, launch: last, air: last, wb: wb, lvl: 2, hsp: 12, bstun: 17 } : { s: s, e: s + 1, hb: sb, d: d, stun: 18, kb: 110, air: [260, 420], lvl: 1, hsp: 7, bstun: 16 };
     const ts = (k, su, t, run, spd, hits, deg, o) => N(k, Object.assign({ n: 'Tatsumaki Senpu-kyaku', sp: 1, su: su, t: t, mv: [[Math.max(1, su - 7), run, spd]], hits: hits, lowInv: [4, run], dd: 400, sg: 100,
       an: { k: [[0, 'idle'], [Math.max(1, su - 6), 'spW'], [su - 1, 'spS'], [run + 2, 'spS'], [t, 'idle']], spin: [Math.max(0, su - 4), run + 4, deg] } }, o || {}));
-    ts('TAT_L', 4, 46, 14, 460, [th(3, 30), th(9, 40, [450, 660])], 720);
-    ts('TAT_M', 14, 61, 30, 470, [th(13, 45), th(24, 45, [600, 700])], 720);
-    ts('TAT_H', 16, 78, 47, 480, [th(15, 30), th(27, 60), th(40, 40, [780, 760], 1)], 1440);
-    ts('TAT_OD', 9, 90, 56, 520, [th(8, 30), th(18, 20), th(28, 20), th(38, 20), th(50, 80, [1000, 820], 1)], 2160, { od: 1 });
-    ts('QTAT', 13, 78, 57, 520, [th(12, 20), th(22, 20), th(32, 20), th(42, 20), { s: 52, e: 54, hb: sb, d: 40, stun: 28, kb: 320, air: [500, 620], lvl: 1, hsp: 11, bstun: 16 }], 2160, { ss: 1 });
+    ts('TAT_L', 4, 46, 14, 460, [th(3, 30), Object.assign(th(9, 40, [450, 660]), { bstun: 23 })], 720);
+    ts('TAT_M', 14, 61, 30, 470, [th(13, 45), Object.assign(th(24, 45, [600, 700]), { bstun: 25 })], 720);
+    ts('TAT_H', 16, 78, 47, 480, [th(15, 30), th(27, 30), Object.assign(th(40, 40, [780, 760], 1), { bstun: 26 })], 1440);
+    ts('TAT_OD', 9, 90, 56, 520, [Object.assign(th(8, 30), { bstun: 21 }), Object.assign(th(18, 20), { req: 1 }), Object.assign(th(28, 20), { req: 1 }), Object.assign(th(38, 20), { req: 1 }), Object.assign(th(50, 80, [1000, 820], 1), { req: 1 })], 2160, { od: 1 });
+    ts('QTAT', 13, 78, 57, 520, [th(12, 20), th(22, 20), th(32, 20), th(42, 20), { s: 52, e: 54, hb: sb, d: 40, stun: 29, kb: 320, air: [500, 620], lvl: 1, hsp: 11, bstun: 17 }], 2160, { ss: 1 });
     N('ATAT', { n: 'Air Tatsumaki', sp: 1, air: 1, su: 11, t: 999, landRec: 14, ss: 2, dd: 300, sg: 60, hits: [{ s: 10, e: 26, hb: [-10, 6, 60, 24], d: 90, launch: [520, 640], air: [520, 640], lvl: 1, hsp: 11, bstun: 14 }], an: { k: [[0, 'jump'], [9, 'spS'], [40, 'spS']], spin: [6, 30, 1080] } });
     N('ATAT_OD', { n: 'Air Tatsumaki', sp: 1, air: 1, od: 1, su: 11, t: 999, landRec: 14, ss: 2, dd: 300, sg: 100, hits: [{ s: 10, e: 14, hb: [-10, 6, 60, 24], d: 30, stun: 18, air: [200, 300], lvl: 1, hsp: 7, bstun: 14 }, { s: 17, e: 21, hb: [-10, 6, 60, 24], d: 30, stun: 18, air: [200, 300], lvl: 1, hsp: 7, bstun: 14 }, { s: 24, e: 28, hb: [-10, 6, 60, 24], d: 30, launch: [620, 700], air: [620, 700], lvl: 2, hsp: 12, bstun: 14 }], an: { k: [[0, 'jump'], [9, 'spS'], [40, 'spS']], spin: [6, 34, 1440] } });
     // Dragonlash Kick
     const dlA = { k: (su) => [[0, 'idle'], [Math.max(2, su - 14), 'jump'], [su - 4, 'jhkW'], [su - 1, 'axS'], [su + 10, 'axS']] };
     N('DL_H', { n: 'Dragonlash Kick', sp: 1, su: 28, ac: 5, rc: 21, d: 120, ha: 3, ba: 1, hb: [4, 16, 54, 66], kb: 460, lvl: 1, hsp: 13, mv: [[8, 27, 300]], lowInv: [18, 36], ss: 2, dd: 300, sg: 80, an: { k: dlA.k(28).concat([[53, 'idle']]) } });
-    const dl2 = (k, st, bs, o) => N(k, Object.assign({ n: 'Dragonlash Kick', sp: 1, su: 9, t: 47, mv: [[3, 12, 560]], lowInv: [9, 26], dd: 300, sg: 120, can: C_SU,
-      hits: [{ s: 8, e: 12, hb: [4, 16, 54, 66], d: 70, stun: 22, kb: 60, air: [120, 760], lvl: 1, hsp: 9, bstun: 18 }, { s: 15, e: 22, hb: [4, 10, 56, 70], d: 50, stun: st, kb: 420, air: [200, 820], lvl: 2, hsp: 13, bstun: bs }], an: { k: dlA.k(9).concat([[22, 'axS'], [47, 'idle']]) } }, o || {}));
-    dl2('DL_OD', 32, 22, { od: 1 }); dl2('QDL', 33, 23);
+    const dl2 = (k, st, bs, o) => N(k, Object.assign({ n: 'Dragonlash Kick', sp: 1, su: 9, t: o && o.od ? 48 : 47, mv: [[3, 12, 560]], lowInv: [9, 26], dd: 300, sg: 120, can: C_SU,
+      hits: [{ s: 8, e: 12, hb: [4, 16, 54, 66], d: 50, stun: 22, kb: 60, air: [120, 470], lvl: 1, hsp: 9, bstun: 18 }, { s: 15, e: 22, hb: [4, 6, 60, 90], d: 70, stun: st, kb: 420, air: [200, 820], lvl: 2, hsp: 13, bstun: bs }], an: { k: dlA.k(9).concat([[22, 'axS'], [47, 'idle']]) } }, o || {}));
+    dl2('DL_OD', 34, 24, { od: 1 }); dl2('QDL', 34, 24);
     // Jinrai Kick and its follow-ups
     const fu = { S4: 'KAZE', S2: 'GORAI', S5: 'SENKA', L: 'KAZE', M: 'GORAI', H: 'SENKA' }, fuO = { S4: 'KAZE_OD', S2: 'GORAI_OD', S5: 'SENKA_OD', L: 'KAZE_OD', M: 'GORAI_OD', H: 'SENKA_OD' }, ka = { S4: 'KASAI', S2: 'KASAI', S5: 'KASAI', L: 'KASAI', M: 'KASAI', H: 'KASAI' };
     const jb = [8, 40, 62, 22], jA = (su, t) => ({ k: [[0, 'idle'], [Math.max(2, su - 6), 'lkW'], [su - 1, 'hkS'], [su + 6, 'hkS'], [t, 'idle']] });
     N('JIN_L', { n: 'Jinrai Kick', sp: 1, su: 12, ac: 3, rc: 28, d: 50, ha: 1, ba: -11, hb: jb, kb: 300, lvl: 1, hsp: 11, dd: 200, sg: 55, can: C_SU, mv: [[3, 12, 420]], fu: { w: [31, 35], to: fu }, an: jA(12, 42) });
     N('JIN_M', { n: 'Jinrai Kick', sp: 1, su: 16, ac: 3, rc: 24, d: 60, ha: 2, ba: -7, hb: jb, kb: 300, lvl: 1, hsp: 11, dd: 200, sg: 55, can: C_SU, mv: [[5, 16, 420]], fu: { w: [31, 35], to: fu }, an: jA(16, 42) });
     N('JIN_H', { n: 'Jinrai Kick', sp: 1, su: 25, ac: 3, rc: 19, d: 70, ba: -2, hb: jb, launch: [260, 760], air: [260, 760], lvl: 1, hsp: 13, dd: 400, sg: 55, can: C_SU, mv: [[10, 25, 380]], fu: { w: [35, 41], to: fu }, an: jA(25, 46) });
-    N('JIN_OD', { n: 'Jinrai Kick', sp: 1, od: 1, su: 13, ac: 3, rc: 25, d: 60, ha: -4, ba: -7, hb: jb, kb: 240, lvl: 1, hsp: 11, dd: 300, sg: 40, can: C_SU, mv: [[3, 13, 460]], fu: { w: [20, 27], to: fuO }, an: jA(13, 40) });
-    N('KAZE', { n: 'Kazekama Shin Kick', sp: 1, su: 6, ac: 4, rc: 19, d: 50, g: 'l', ha: 3, ba: -5, hb: [6, 0, 62, 14], kb: 420, lvl: 1, hsp: 11, dd: 200, sg: 40, can: C_SU, mv: [[0, 5, 300]], crouch: 1, an: { w: 'clkW', s: 'cmkS' } });
+    N('JIN_OD', { n: 'Jinrai Kick', sp: 1, od: 1, su: 13, ac: 2, rc: 25, d: 60, ha: -4, ba: -7, hb: jb, kb: 240, lvl: 1, hsp: 11, dd: 300, sg: 40, can: C_SU, mv: [[3, 13, 460]], fu: { w: [20, 27], to: fuO }, an: jA(13, 40) });
+    N('KAZE', { n: 'Kazekama Shin Kick', sp: 1, su: 6, ac: 4, rc: 19, d: 60, g: 'l', ha: 3, ba: -5, hb: [6, 0, 62, 14], kb: 420, lvl: 1, hsp: 11, dd: 200, sg: 40, can: C_SU, mv: [[0, 5, 300]], crouch: 1, an: { w: 'clkW', s: 'cmkS' } });
     N('GORAI', { n: 'Gorai Axe Kick', sp: 1, su: 18, ac: 3, rc: 20, d: 100, g: 'h', ha: 3, ba: -3, hb: [8, 30, 52, 60], kb: 520, air: [150, -1400], gb: 1, lvl: 1, hsp: 13, dd: 250, sg: 50, can: C_SU, mv: [[0, 12, 260]], an: { w: 'axW', s: 'axS' } });
     N('SENKA', { n: 'Senka Snap Kick', sp: 1, su: 10, ac: 3, rc: 25, d: 80, ba: -3, hb: [8, 58, 66, 22], launch: [520, 620], air: [520, 620], lvl: 2, hsp: 13, dd: 700, sg: 60, can: C_SU, mv: [[0, 8, 300]], an: { w: 'hkW', s: 'hkS' } });
     N('KAZE_OD', { n: 'Kazekama Shin Kick', sp: 1, su: 6, ac: 3, rc: 20, d: 50, g: 'l', ha: 3, ba: -5, hb: [6, 0, 62, 14], kb: 300, lvl: 1, hsp: 11, dd: 300, sg: 40, can: C_SU, mv: [[0, 5, 300]], crouch: 1, fu: { w: [10, 27], to: ka }, tint: 1, an: { w: 'clkW', s: 'cmkS' } });
@@ -154,13 +154,13 @@ const SIM = (function () {
     N('KASAI', { n: 'Kasai Thrust Kick', sp: 1, su: 15, ac: 3, rc: 29, d: 50, ba: -12, hb: [8, 30, 70, 40], launch: [240, 800], air: [240, 800], lvl: 2, hsp: 14, dd: 500, sg: 60, cx: 1, can: C_SU, mv: [[2, 14, 520]], tint: 1, an: { w: 'lkW', s: 'mkS' } });
     // Super Arts
     N('SA1', { n: 'Dragonlash Flame', sup: 1, sa: 1, su: 7, ac: 3, rc: 41, d: 200, frz: 40, inv: [0, 8], minScale: 30, ba: -24, hb: [2, 10, 64, 80], launch: [320, 1050], air: [320, 1050], lvl: 2, hsp: 18, dd: 250, mv: [[2, 8, 760]], an: { k: [[0, 'jhkW'], [6, 'axS'], [20, 'axS'], [50, 'idle']], spin: [0, 8, 360] } });
-    const big = [-4, 0, 84, 104], rq = (s, d) => ({ s: s, e: s + 1, hb: big, d: d, stun: 34, kb: 0, air: [0, 250], lvl: 1, hsp: 6, bstun: 20, req: 1 });
-    N('SA2', { n: 'Shippu Jinrai-kyaku', sup: 1, sa: 2, su: 6, t: 89, frz: 44, minScale: 40, mv: [[4, 14, 1300]], stopOnHit: 1, wEnd: [17, 62], dd: 500,
-      hits: [{ s: 5, e: 14, hb: [0, 30, 54, 50], d: 30, stun: 34, kb: 0, air: [0, 300], lvl: 1, hsp: 10, bstun: 33 }, rq(20, 30), rq(26, 30), rq(32, 30), rq(38, 30), rq(44, 30), { s: 56, e: 58, hb: big, d: 100, launch: [900, 1000], air: [900, 1000], wb: 1, lvl: 2, hsp: 18, req: 1 }],
+    const big = [-4, 0, 84, 104], rq = (s, d) => ({ s: s, e: s + 1, hb: big, d: d, stun: 34, kb: 0, air: [0, 250], lvl: 1, hsp: 6, bstun: 20, req: 2, lk: 1 });
+    N('SA2', { n: 'Shippu Jinrai-kyaku', sup: 1, sa: 2, su: 6, t: 89, frz: 44, minScale: 40, mv: [[4, 14, 1300]], stopOnHit: 1, dd: 500,
+      hits: [{ s: 5, e: 14, hb: [0, 6, 64, 110], d: 30, stun: 34, kb: 0, air: [0, 300], lk: 1, lvl: 1, hsp: 10, bstun: 33 }, rq(20, 30), rq(26, 30), rq(32, 30), rq(38, 30), rq(44, 30), { s: 56, e: 58, hb: big, d: 100, launch: [900, 1000], air: [900, 1000], wb: 1, lvl: 2, hsp: 18, req: 2, bstun: 28 }],
       an: { k: [[0, 'lkW'], [5, 'hkS'], [18, 'hkS'], [20, 'lkS'], [23, 'hkW'], [26, 'hkS'], [29, 'lkW'], [32, 'lkS'], [35, 'hkW'], [38, 'hkS'], [41, 'lkW'], [44, 'lkS'], [50, 'spW'], [56, 'spS'], [70, 'spS'], [89, 'idle']], spin: [46, 62, 720] } });
-    const fl = s => ({ s: s, e: s + 1, hb: big, d: 60, stun: 34, kb: 0, air: [0, 260], lvl: 1, hsp: 7, bstun: 20, req: 1 });
-    N('SA3', { n: 'Shinryu Reppa', sup: 1, sa: 3, su: 7, t: 999, frz: 60, inv: [0, 17], minScale: 50, wEnd: [12, -48], rise: [41, 100, 1280], landRec: 34, dd: 900, mv: [[1, 6, 1100]], stopOnHit: 1,
-      hits: [{ s: 6, e: 9, hb: [0, 6, 70, 110], d: 60, stun: 34, kb: 0, air: [0, 260], lvl: 1, hsp: 7, bstun: 20 }, fl(14), fl(22), fl(30), { s: 40, e: 46, hb: big, d: 160, launch: [150, 1450], air: [150, 1450], lvl: 2, hsp: 22, req: 1 }],
+    const fl = s => ({ s: s, e: s + 1, hb: big, d: 60, stun: 34, kb: 0, air: [0, 260], lvl: 1, hsp: 7, bstun: 20, lk: 1 });
+    N('SA3', { n: 'Shinryu Reppa', sup: 1, sa: 3, su: 7, t: 999, frz: 60, inv: [0, 17], minScale: 50, partAt: 10, rise: [41, 100, 1280], landRec: 19, dd: 900, mv: [[1, 6, 1100]], stopOnHit: 1,
+      hits: [{ s: 6, e: 9, hb: [0, 6, 70, 110], d: 60, stun: 34, kb: 0, air: [0, 260], lvl: 1, hsp: 7, bstun: 20 }, fl(14), fl(22), fl(30), { s: 40, e: 44, hb: big, d: 160, launch: [150, 1450], air: [150, 1450], lvl: 2, hsp: 22, bstun: 20 }],
       an: { k: [[0, 'cupW'], [6, 'srS'], [11, 'cupW'], [14, 'srS'], [19, 'cupW'], [22, 'srS'], [27, 'cupW'], [30, 'srS'], [36, 'cupW'], [40, 'srS'], [56, 'srS2'], [80, 'jump']], spin: [40, 70, 1080] } });
     return {
       name: 'KAITO', jp: '海斗', title: 'THE BLAZING FIST', hp: 1000, walkF: 230, walkB: 157, jx: 245, jxB: 196, runV: 450, mv: mv,
@@ -182,7 +182,7 @@ const SIM = (function () {
     return { ch: ch, x: (i ? 80 : -80) * F, y: 0, vx: 0, vy: 0, pv: 0, face: i ? -1 : 1, hp: CH[ch].hp, sa: 0, dr: DMAX, bo: 0, drT: 0, st: 'idle', sub: 'stand', sf: 0, subf: 0,
       mv: '', mf: 0, hitMask: 0, contact: 0, hitOK: 0, hs: 0, stun: 0, buf: b, prev: 0, age: [99, 99, 99, 99, 99, 99, 99], d66: 99, d44: 99, combo: 0, comboDmg: 0, jug: 0,
       wbUsed: 0, gbUsed: 0, wbPend: 0, gbPend: 0, jd: 0, rec: 0, cb: 0, hitHi: 1, tinv: 0, wins: 0, back: 0, red: CH[ch].hp, redT: 0, air2: 0, noTech: 0,
-      jg: 0, cxSeq: -1, fuq: '', fum: 0, pd: [0, 0, 0, 0, 0, 0, 0], mseq: 0, cs: 0, lastSeq: -1, acq: 0, rcn: 0, sshift: 0, drs: 0, pok: 0, roll: 0, hard: 0, arm: 0, armHit: 0, drb: 0, mod: 0, ac: '', aci: 0, crum: 0, pp: 0, plock: 0, half: 0 };
+      rq: 99, part: 0, jg: 0, cxSeq: -1, fuq: '', fum: 0, pd: [0, 0, 0, 0, 0, 0, 0], mseq: 0, cs: 0, lastSeq: -1, acq: 0, rcn: 0, sshift: 0, drs: 0, pok: 0, roll: 0, hard: 0, arm: 0, armHit: 0, drb: 0, mod: 0, ac: '', aci: 0, crum: 0, pp: 0, plock: 0, half: 0 };
   }
   function newMatch(cfg) {
     const s = { frame: 0, slow: 0, phase: 'intro', pt: 0, round: 1, time: 99 * 60, freeze: 0, frzWho: 0, proj: [], ev: [], winner: -1, rw: -1, koType: '', cfg: { training: !!cfg.training, chars: cfg.chars.slice(), rounds: cfg.rounds || 2 }, p: [] };
@@ -249,7 +249,7 @@ const SIM = (function () {
     const m = CH[p.ch].mv[key], fromDr = p.st === 'drush';
     p.st = 'atk'; p.mv = key; p.mseq++; p.mf = 0; p.sf = 0; p.hitMask = 0; p.contact = 0; p.hitOK = 0; p.arm = m.arm || 0; p.armHit = 0;
     p.drb = fromDr && !m.sp && !m.sup && !m.thr ? 1 : 0; if (fromDr) p.pv = p.face * 480;
-    p.mod = opt && opt.mod ? 1 : 0; p.fuq = ''; if (!(opt && opt.auto)) { p.ac = ''; p.aci = 0; }
+    p.mod = opt && opt.mod ? 1 : 0; p.fuq = ''; p.part = 0; if (!(opt && opt.auto)) { p.ac = ''; p.aci = 0; }
     if (!m.isAir) p.vx = 0;
     if (m.sa) p.sa -= m.sa * 1000; else if (m.sp) p.sa = Math.min(3000, p.sa + 10);
     if (m.frz) { s.freeze = m.frz; s.frzWho = i; s.ev.push({ t: 'super', who: i, lv: m.sa }); }
@@ -281,7 +281,7 @@ const SIM = (function () {
     const bi = spb ? 3 : hv ? 2 : md ? 1 : 0, pin = (p.pd[bi] & 15) | (inp & 256) | (p.pd[bi] & 256);
     const h = hdir(pin, p.face), v = vdir(pin), as = (pin & 256) !== 0;
     const myProj = s.proj.some(q => q.o === i);
-    if (m && ok && m.tc) { const k = (A[1] <= 12 && m.tc.M) || (A[0] <= 12 && m.tc.L) || (A[2] <= 12 && m.tc.H); if (k) return start(s, p, k, i); }
+    if (m && ok && m.tc && p.rq > 12) { const k = (A[1] <= 12 && m.tc.M) || (A[0] <= 12 && m.tc.L) || (A[2] <= 12 && m.tc.H); if (k) return start(s, p, k, i); }
     if (canSu && !air) {
       let lv = 0, mod = 0;
       if (motionOK(p, 'SUP') && (lt || md || hv)) lv = hv ? 3 : md ? 2 : 1;
@@ -326,12 +326,12 @@ const SIM = (function () {
       if (mm.sa && p.sa < mm.sa * 1000) continue;
       if (mm.od && (p.bo || p.dr <= 0)) continue;
       let legal;
-      if (inRun) legal = p.sf >= 12;
+      if (inRun) legal = p.sf >= 11;
       else if (m.fu) { let has = false; for (const kk in m.fu.to) if (m.fu.to[kk] === k) has = true; if (!has) continue; if (p.mf > m.fu.w[1]) { p.acq = 0; return false; } legal = p.mf >= m.fu.w[0]; }
       else {
         if (!((mm.sup && (m.can & C_SU)) || (mm.sp && !m.sp && !mm.sup) || (m.tc && (m.tc.M === k || m.tc.L === k || m.tc.H === k)))) continue;
         if (p.mf > m.lastAct + 12) { p.acq = 0; return false; }
-        legal = p.contact;
+        legal = p.contact && (!mm.sup || m.hits.length < 2 || p.mf > m.hits[m.hits.length - 1].s);
       }
       if (!legal) return false;
       if (mm.od) spend(s, p, i, 2 * BAR, 120);
@@ -347,13 +347,13 @@ const SIM = (function () {
   function fuKey(p, m, inp) {
     const h = hdir(p.pd[3], p.face), v = vdir(p.pd[3]), to = m.fu.to;
     if (p.age[3] <= BUF) return { k: to[v < 0 ? 'S2' : h < 0 ? 'S4' : 'S5'], mod: 1 };
-    if (hdir(inp, p.face) > 0) { if (p.age[0] <= BUF) return { k: to.L, mod: 0 }; if (p.age[1] <= BUF) return { k: to.M, mod: 0 }; if (p.age[2] <= BUF) return { k: to.H, mod: 0 }; }
+    for (let b = 0; b < 3; b++) if (p.age[b] <= BUF && hdir(p.pd[b], p.face) > 0) return { k: b === 0 ? to.L : b === 1 ? to.M : to.H, mod: 0 };
     return null;
   }
-  function runHeld(p, inp) { return (inp & 32) && (inp & 64) && p.age[1] <= BUF + 3 && p.age[2] <= BUF + 3; }
+  function runHeld(p, inp) { return p.rq <= BUF; }
   function enterParry(s, p, i) { if (!spend(s, p, i, BAR / 2, 240)) return false; p.st = 'parry'; p.sf = 0; p.mv = ''; p.vx = 0; p.plock = 0; p.pok = 0; p.arm = 0; s.ev.push({ t: 'parryOn', who: i }); return true; }
   function enterRush(s, p, o, i, fromCancel) { p.st = 'drush'; p.sf = 0; p.rcn = fromCancel ? 1 : 0; p.mv = ''; p.vx = 0; p.d66 = 99; p.arm = 0; p.drT = fromCancel ? 120 : 240; if (fromCancel && o.combo > 0) o.drs = 1; s.freeze = fromCancel ? 9 : 10; s.frzWho = i; s.ev.push({ t: 'rush', who: i }); }
-  function enterRun(s, p, i, keepAuto) { p.st = 'run'; p.sf = 0; p.mv = ''; p.arm = 0; p.age = [99, 99, 99, 99, 99, 99, 99]; if (!keepAuto) { p.ac = ''; p.aci = 0; p.acq = 0; } s.ev.push({ t: 'run', who: i }); }
+  function enterRun(s, p, i, keepAuto) { p.st = 'run'; p.rq = 99; p.sf = 0; p.mv = ''; p.arm = 0; p.age = [99, 99, 99, 99, 99, 99, 99]; if (!keepAuto) { p.ac = ''; p.aci = 0; p.acq = 0; } s.ev.push({ t: 'run', who: i }); }
   function neutral(s, p, o, inp, i) {
     p.st = 'idle'; p.mv = '';
     if (o.x > p.x) p.face = 1; else if (o.x < p.x) p.face = -1;
@@ -386,6 +386,7 @@ const SIM = (function () {
     }
     if (m.wEnd && f === m.wEnd[0] && !p.hitOK) { if (m.wEnd[1] < 0) { p.st = 'land'; p.sf = 0; p.rec = -m.wEnd[1]; p.mv = ''; p.vx = 0; return; } p.mf = m.wEnd[1]; }
     if (m.arm && f > m.lastAct) p.arm = 0;
+    if (m.partAt && f === m.partAt && !p.hitOK) p.part = 1;
     for (const h of m.hits) if (f === h.s && !(h.req && !p.hitOK)) s.ev.push({ t: 'whiff', who: i, lvl: h.lvl });
     if (m.thr && f === 4) s.ev.push({ t: 'whiff', who: i, lvl: 0 });
   }
@@ -413,8 +414,8 @@ const SIM = (function () {
         p.vx = p.face * C.runV; const R = C.run, f = p.sf;
         autoPress(p, inp); if (p.acq && autoStep(s, p, o, i)) { atkFrame(s, p, o, C.mv[p.mv], i); break; }
         let k = '';
-        if (f >= 10 && p.age[2] <= BUF) k = R.H;
-        else if (f >= 12) {
+        if (f >= 9 && p.age[2] <= BUF) k = R.H;
+        else if (f >= 11) {
           if (p.age[3] <= BUF) { const h = hdir(p.pd[3], p.face), v = vdir(p.pd[3]); k = R[v < 0 ? 'S2' : h < 0 ? 'S4' : h > 0 ? 'S6' : 'S5']; if (k) { start(s, p, k, i, { mod: 1 }); atkFrame(s, p, o, C.mv[k], i); break; } }
           else if (p.age[0] <= BUF || p.age[1] <= BUF) { if (motionOK(p, '623')) k = R.m623; else if (motionOK(p, '214')) k = R.m214; else k = p.age[1] <= BUF ? R.M : R.L; }
         }
@@ -433,7 +434,7 @@ const SIM = (function () {
       case 'prec': if (p.sf >= 33) { toIdle(p); neutral(s, p, o, inp, i); } break;
       case 'atk': {
         p.mf++; let m = C.mv[p.mv];
-        if (m.t < 900 && p.mf >= m.t) { toIdle(p); neutral(s, p, o, inp, i); break; }
+        if (m.t < 900 && p.mf >= m.t + (m.wr && !p.contact ? m.wr : 0)) { toIdle(p); neutral(s, p, o, inp, i); break; }
         autoPress(p, inp); if (p.acq && autoStep(s, p, o, i)) { if (p.st === 'atk') atkFrame(s, p, o, C.mv[p.mv], i); break; }
         if (m.fu && p.mf <= m.fu.w[1]) { if (!p.fuq && p.mf >= m.su - 1) { const r = fuKey(p, m, inp); if (r && r.k) { p.fuq = r.k; p.fum = r.mod; p.age = [99, 99, 99, 99, 99, 99, 99]; } } if (p.fuq && p.mf >= m.fu.w[0]) { const k = p.fuq; start(s, p, k, i, { mod: p.fum, auto: 1 }); atkFrame(s, p, o, C.mv[k], i); break; } }
         const live = p.contact && p.mf <= m.lastAct + 10, kara = !m.sp && !m.sup && !m.thr && !m.di && p.mf <= 2 && !p.contact, ground = p.y <= 0;
@@ -536,7 +537,7 @@ const SIM = (function () {
   }
   function hitboxes(p) {
     const r = []; if (p.st !== 'atk') return r; const m = CH[p.ch].mv[p.mv];
-    for (const h of m.hits) if (p.mf >= h.s && p.mf <= h.e && !(p.hitMask & (1 << h.grp)) && !(h.req && !p.hitOK)) r.push({ h: h, b: box(p, h.hb) });
+    for (const h of m.hits) if (p.mf >= h.s && p.mf <= h.e && !(p.hitMask & (1 << h.grp)) && !(h.req && !(h.req === 2 ? p.contact : p.hitOK))) r.push({ h: h, b: box(p, h.hb) });
     return r;
   }
   function pbox(q) { const pr = CH[q.ch].mv[q.k].proj; return [q.x - pr.w * F / 2, q.y - pr.h * F / 2, q.x + pr.w * F / 2, q.y + pr.h * F / 2]; }
@@ -584,7 +585,7 @@ const SIM = (function () {
       const chip = (special && d.bo) ? Math.max(1, tr(h.d / 4)) : 0;
       d.hp = Math.max(s.cfg.training ? 1 : 0, d.hp - chip);
       if (!d.bo) { d.dr -= h.dd != null ? h.dd : tr(h.d * 4); d.drT = Math.max(d.drT, 90); burn(s, d, di); }
-      d.st = 'block'; d.sf = 0; d.stun = h.bstun + drb + (d.bo ? 4 : 0); d.cb = (dinp & 2) ? 1 : 0; d.pv = side * Math.max(h.kb, 260); d.vx = 0; d.redT = 40;
+      d.st = 'block'; d.sf = 0; d.stun = h.bstun + drb + (d.bo ? 4 : 0); d.cb = (dinp & 2) ? 1 : 0; d.pv = (h.lk || h.np) ? 0 : side * Math.max(h.kb, 260); d.vx = 0; d.redT = 40;
       hsp = Math.max(4, hsp - 2); d.hs = hsp; if (!isProj) { a.hs = hsp; a.contact = 1; }
       a.sa = Math.min(3000, a.sa + tr(h.d * 3 / 10)); d.sa = Math.min(3000, d.sa + tr(h.d / 5));
       s.ev.push({ t: 'block', x: cx, y: cy, lvl: h.lvl, who: ai });
@@ -595,7 +596,7 @@ const SIM = (function () {
     const inCombo = d.combo > 0 && (d.st === 'hit' || d.st === 'ahit');
     if (inCombo) d.combo++; else { d.combo = 1; d.comboDmg = 0; d.jug = 0; d.wbUsed = 0; d.gbUsed = 0; d.half = d.pp > 0 ? 1 : 0; }
     const seq = isProj ? -2 - ai : a.mseq; if (!inCombo) { d.sshift = m.ss || 0; d.drs = 0; d.cs = 1; d.lastSeq = seq; } else if (seq !== d.lastSeq) { d.cs++; d.lastSeq = seq; } if (drb) d.drs = 1; if (m.cx && seq !== d.cxSeq) { d.cxSeq = seq; d.sshift++; } let pct = SCALE[Math.min(d.cs - 1 + (d.cs > 1 ? d.sshift : 0), 9)]; if (d.drs && d.cs > 1) pct = tr(pct * 85 / 100); if (m.minScale && pct < m.minScale) pct = m.minScale;
-    let dmg = tr(h.d * pct / 100); if (kind) dmg = tr(dmg * 120 / 100); if (mod) dmg = tr(dmg * 80 / 100); if (d.half) dmg = tr(dmg / 2); if (a.bo) dmg = tr(dmg * 90 / 100); if (dmg < 1) dmg = 1;
+    let dmg = tr(h.d * pct / 100); if (kind) dmg = tr(dmg * 120 / 100); if (mod) dmg = tr(dmg * 80 / 100); if (a.part && m.sup && !isProj) dmg = tr(dmg * 6 / 10); if (d.half) dmg = tr(dmg / 2); if (a.bo) dmg = tr(dmg * 90 / 100); if (dmg < 1) dmg = 1;
     d.hp = Math.max(s.cfg.training ? 1 : 0, d.hp - dmg); d.comboDmg += dmg; d.redT = 50;
     const ko = d.hp <= 0, wasAir = d.y > 0 || d.st === 'ahit';
     let launch = (isProj && last && h.launchLast) ? h.launchLast : h.launch;
@@ -610,7 +611,7 @@ const SIM = (function () {
       const vec = wasAir ? (((isProj && last && h.launchLast) ? h.launchLast : h.air) || [300, 620]) : (launch || [520, 820]);
       d.st = 'ahit'; d.sf = 0; d.mv = '';
       d.vx = side * vec[0] + (isProj ? 0 : tr(a.vx / 4)); d.vy = vec[1]; if (d.y <= 0) { d.y = 1; if (d.vy < 0) d.vy = 300; }
-      if (h.req) { d.vx = 0; d.vy = 430; if (d.y < 24 * F) d.y = 24 * F; } else d.jug++;
+      if (h.lk) { d.vx = 0; d.vy = 430; if (d.y < 24 * F) d.y = 24 * F; } else d.jug++;
       d.pv = 0; d.hard = (m.sup || m.hardKd) ? 1 : 0;
       d.wbPend = ((h.wb || (isProj && last && h.wbLast)) && !d.wbUsed) ? 1 : 0; d.gbPend = (h.gb && !d.gbUsed) ? 1 : 0;
     } else {
@@ -691,6 +692,7 @@ const SIM = (function () {
       p.buf.push(inp); p.buf.shift();
       const pr = inp & ~p.prev;
       for (let b = 0; b < NB; b++) { if (pr & (16 << b)) { p.age[b] = 0; p.pd[b] = inp & 271; } else if (!frozen && p.age[b] < 99) p.age[b]++; }
+      if ((inp & 32) && (inp & 64) && p.age[1] <= 3 && p.age[2] <= 3 && (pr & 96)) p.rq = 0; else if (!frozen && p.rq < 99) p.rq++;
       if (dashIn(p, 1)) p.d66 = 0; else if (!frozen && p.d66 < 99) p.d66++;
       if (dashIn(p, -1)) p.d44 = 0; else if (!frozen && p.d44 < 99) p.d44++;
       p.prev = inp;
@@ -739,7 +741,8 @@ const SIM = (function () {
     }
     return s;
   }
-  return { F, BT, MASK, STAGE, SEP, CH, INTRO, KOTIME, KD, GETUP, DMAX, newMatch, step, clone, hash, hurt, hitboxes, pbox, crouching, invul, npad, hdir };
+  function debugStart(s, i, key) { const p = s.p[i]; p.y = 0; start(s, p, key, i); }
+  return { debugStart, F, BT, MASK, STAGE, SEP, CH, INTRO, KOTIME, KD, GETUP, DMAX, newMatch, step, clone, hash, hurt, hitboxes, pbox, crouching, invul, npad, hdir };
 })();
 
 
