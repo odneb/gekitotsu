@@ -21,11 +21,11 @@
     if (ok) AUD.play('ok'); return ok;
   }
   function list(items, x, y, dy, w, al) {
-    items.forEach((it, i) => { const on = i === cur, yy = y + i * dy; if (on) { RC(x - 8, yy - 4, w, dy - 2, '#d01f2e'); RC(x - 8, yy - 4, 3, dy - 2, '#ffd21e'); } T(it, al === 'center' ? x - 8 + w / 2 : x, yy, 8, on ? '#fff' : '#bfb0cc', al || 'left', 0, on ? '#5a0a14' : undefined); hot.push({ x: x - 8, y: yy - 4, w: w, h: dy, i: i }); });
+    items.forEach((it, i) => { const on = i === cur, yy = y + i * dy; if (on) { RC(x - 8, yy - 4, w, dy - 2, '#d01f2e'); RC(x - 8, yy - 4, 3, dy - 2, '#f1dcb4'); } T(it, al === 'center' ? x - 8 + w / 2 : x, yy, 8, on ? '#fff' : '#cdbcae', al || 'left', 0, on ? '#5a0a14' : undefined); hot.push({ x: x - 8, y: yy - 4, w: w, h: dy, i: i }); });
   }
-  function panel(x, y, w, h, title) { RC(x, y, w, h, 'rgba(10,6,18,0.86)'); RC(x, y, w, 2, '#ff3355'); RC(x, y + h - 2, w, 2, '#ff3355'); if (title) { RC(x, y, w, 16, '#d01f2e'); T(title, x + 8, y + 4, 8, '#fff', 'left', 0, '#5a0a14'); } }
-  function foot(s) { T(s, 240, 258, 8, '#8d7fa0', 'center', 1); }
-  function logo(y, k) { T('激突', 240, y, 64 * k, '#ff3355', 'center', 1, '#ffd21e'); }
+  function panel(x, y, w, h, title) { RC(x, y, w, h, 'rgba(10,6,18,0.86)'); RC(x, y, w, 2, '#d8322e'); RC(x, y + h - 2, w, 2, '#d8322e'); if (title) { RC(x, y, w, 16, '#d01f2e'); T(title, x + 8, y + 4, 8, '#fff', 'left', 0, '#5a0a14'); } }
+  function foot(s) { T(s, 240, 258, 8, '#9a8488', 'center', 1); }
+  function logo(y, k) { T('激突', 240, y, 64 * k, '#d8322e', 'center', 1, '#f1dcb4'); }
 
   // ------------------------------------------------------------ match control
   function startMatch(mode, chars, extra) {
@@ -93,17 +93,17 @@
     const tag = m.mode === 'online' ? (NET.host ? ['YOU', ''] : ['', 'YOU']) : m.mode === 'versus' ? ['P1', 'P2'] : m.mode === 'arcade' ? ['P1', 'CPU'] : ['P1', 'DUMMY'];
     R.hud(s, { tag: tag });
     if (m.mode === 'training') {
-      m.hist.forEach((h, i) => { const y = 60 + i * 11, d = SIM.npad(h.m, 1); T(('' + h.f).padStart(2, ' '), 6, y, 8, '#8d7fa0'); T(DIRG[d] || '·', 28, y - 2, 10, '#fff', 'left', 1); let x = 42; [['L', 16, '#7fdcff'], ['M', 32, '#ffd21e'], ['H', 64, '#ff5a3a'], ['SP', 128, '#5dffa0'], ['AS', 256, '#bfb0cc'], ['DI', 512, '#ff5ad2'], ['PA', 1024, '#33a0ff']].forEach(b => { if (h.m & b[1]) { T(b[0], x, y, 8, b[2]); x += b[0].length * 8 + 4; } }); });
-      if (m.adv !== null) T('FRAME ADV ' + (m.adv > 0 ? '+' : '') + m.adv, 240, 44, 8, m.adv >= 0 ? '#7fffa0' : '#ff7f8a', 'center');
-      T('DUMMY: ' + DUMMY[opt.dummy], 474, 60, 8, '#8d7fa0', 'right'); T('START: MENU', 474, 71, 8, '#8d7fa0', 'right');
+      m.hist.forEach((h, i) => { const y = 60 + i * 11, d = SIM.npad(h.m, 1); T(('' + h.f).padStart(2, ' '), 6, y, 8, '#9a8488'); T(DIRG[d] || '·', 28, y - 2, 10, '#fff', 'left', 1); let x = 42; [['L', 16, '#f6e7c8'], ['M', 32, '#f1dcb4'], ['H', 64, '#ff5a3a'], ['SP', 128, '#f08a5a'], ['AS', 256, '#cdbcae'], ['DI', 512, '#ff5a3a'], ['PA', 1024, '#e9a58a']].forEach(b => { if (h.m & b[1]) { T(b[0], x, y, 8, b[2]); x += b[0].length * 8 + 4; } }); });
+      if (m.adv !== null) T('FRAME ADV ' + (m.adv > 0 ? '+' : '') + m.adv, 240, 44, 8, m.adv >= 0 ? '#f08a5a' : '#ff7f8a', 'center');
+      T('DUMMY: ' + DUMMY[opt.dummy], 474, 60, 8, '#9a8488', 'right'); T('START: MENU', 474, 71, 8, '#9a8488', 'right');
     }
     if (m.mode === 'online') {
-      const ss = NET.sess; if (ss) { T((NET.kind === 'p2p' ? 'P2P ' : 'RELAY ') + Math.round(ss.rtt) + 'MS  RB' + ss.rbMax, 240, 40, 8, ss.desync ? '#ff3355' : '#8d7fa0', 'center'); if (st % 60 === 0) ss.rbMax = 0; if (ss.stall > 20) T('WAITING FOR OPPONENT...', 240, 100, 8, '#ffd21e', 'center'); if (ss.desync) T('DESYNC DETECTED', 240, 50, 8, '#ff3355', 'center'); if (NET.voice.on) T(NET.voice.muted ? 'MIC MUTED' : 'MIC LIVE', 240, 238, 8, NET.voice.muted ? '#8d7fa0' : '#7fffa0', 'center'); }
-      if (NET.status === 'lost' || NET.status === 'error') { panel(110, 100, 260, 60, 'ONLINE'); T(NET.err || 'CONNECTION LOST', 240, 124, 8, '#ffd21e', 'center'); T('PRESS ANY BUTTON', 240, 142, 8, '#fff', 'center'); }
-      else if (s.phase === 'over' && m.overT > 50) { panel(120, 150, 240, 66, s.winner < 0 ? 'DRAW GAME' : (s.winner === (NET.host ? 0 : 1) ? 'YOU WIN  勝利' : 'YOU LOSE  敗北')); T(NET.wantRematch[0] ? 'WAITING FOR OPPONENT...' : 'CONFIRM: REMATCH', 240, 176, 8, '#fff', 'center'); T(NET.wantRematch[1] ? 'OPPONENT WANTS A REMATCH' : 'BACK: LEAVE', 240, 194, 8, NET.wantRematch[1] ? '#ffd21e' : '#bfb0cc', 'center'); }
+      const ss = NET.sess; if (ss) { T((NET.kind === 'p2p' ? 'P2P ' : 'RELAY ') + Math.round(ss.rtt) + 'MS  RB' + ss.rbMax, 240, 40, 8, ss.desync ? '#d8322e' : '#9a8488', 'center'); if (st % 60 === 0) ss.rbMax = 0; if (ss.stall > 20) T('WAITING FOR OPPONENT...', 240, 100, 8, '#f1dcb4', 'center'); if (ss.desync) T('DESYNC DETECTED', 240, 50, 8, '#d8322e', 'center'); if (NET.voice.on) T(NET.voice.muted ? 'MIC MUTED' : 'MIC LIVE', 240, 238, 8, NET.voice.muted ? '#9a8488' : '#f08a5a', 'center'); }
+      if (NET.status === 'lost' || NET.status === 'error') { panel(110, 100, 260, 60, 'ONLINE'); T(NET.err || 'CONNECTION LOST', 240, 124, 8, '#f1dcb4', 'center'); T('PRESS ANY BUTTON', 240, 142, 8, '#fff', 'center'); }
+      else if (s.phase === 'over' && m.overT > 50) { panel(120, 150, 240, 66, s.winner < 0 ? 'DRAW GAME' : (s.winner === (NET.host ? 0 : 1) ? 'YOU WIN  勝利' : 'YOU LOSE  敗北')); T(NET.wantRematch[0] ? 'WAITING FOR OPPONENT...' : 'CONFIRM: REMATCH', 240, 176, 8, '#fff', 'center'); T(NET.wantRematch[1] ? 'OPPONENT WANTS A REMATCH' : 'BACK: LEAVE', 240, 194, 8, NET.wantRematch[1] ? '#f1dcb4' : '#cdbcae', 'center'); }
     } else if (s.phase === 'over' && m.overT > 50) {
       const w = s.winner; panel(130, 140, 220, 96, w < 0 ? 'DRAW GAME' : CH[s.p[w].ch].name + ' WINS  勝利');
-      if (m.mode === 'arcade') { if (w === 0) { T(arc.stage >= 2 ? 'FINAL STAGE CLEAR' : 'STAGE ' + (arc.stage + 1) + ' CLEAR', 240, 172, 8, '#ffd21e', 'center'); T('PRESS START', 240, 196, 8, '#fff', 'center'); } else list(['CONTINUE', 'MAIN MENU'], 190, 174, 20, 116, 'center'); }
+      if (m.mode === 'arcade') { if (w === 0) { T(arc.stage >= 2 ? 'FINAL STAGE CLEAR' : 'STAGE ' + (arc.stage + 1) + ' CLEAR', 240, 172, 8, '#f1dcb4', 'center'); T('PRESS START', 240, 196, 8, '#fff', 'center'); } else list(['CONTINUE', 'MAIN MENU'], 190, 174, 20, 116, 'center'); }
       else list(['REMATCH', 'CHARACTER SELECT', 'MAIN MENU'], 170, 168, 20, 156, 'center');
     }
     if (m.paused) { const it = pauseItems(); panel(140, 70, 200, 40 + it.length * 20, 'PAUSE  一時停止'); list(it, 160, 98, 20, 176); }
@@ -135,15 +135,15 @@
     }
   }
   function selDraw() {
-    const s = sel; RC(0, 0, 480, 34, 'rgba(10,6,18,0.86)'); RC(0, 34, 480, 2, '#ff3355'); T('CHARACTER SELECT', 240, 8, 16, '#fff', 'center'); T('闘士選択', 240, 40, 12, '#ffd21e', 'center', 1);
+    const s = sel; RC(0, 0, 480, 34, 'rgba(10,6,18,0.86)'); RC(0, 34, 480, 2, '#d8322e'); T('CHARACTER SELECT', 240, 8, 16, '#fff', 'center'); T('闘士選択', 240, 40, 12, '#f1dcb4', 'center', 1);
     for (let i = 0; i < 2; i++) {
       const C = CH[s.c[i]], x = i ? 300 : 20, active = !s.lock[i] && (s.mode === 'versus' || i === (s.lock[0] ? 1 : 0));
-      panel(x, 176, 160, 66); T(C.name, x + 80, 184, 16, i ? '#33e0ff' : '#ffd21e', 'center'); T(C.jp + '  ' + C.title, x + 80, 204, 8, '#fff', 'center', 1);
+      panel(x, 176, 160, 66); T(C.name, x + 80, 184, 16, i ? '#e9a58a' : '#f1dcb4', 'center'); T(C.jp + '  ' + C.title, x + 80, 204, 8, '#fff', 'center', 1);
       const lab = s.mode === 'versus' ? 'P' + (i + 1) : i === 0 ? 'YOU' : s.mode === 'training' ? 'DUMMY' : s.mode === 'online' ? 'RIVAL' : 'CPU';
-      T(s.lock[i] && (i === 0 || s.mode === 'versus' || s.mode === 'training') ? lab + ' READY' : active ? '◀ ' + lab + ' ▶' : lab, x + 80, 224, 8, active && (s.t >> 4) & 1 ? '#ff3355' : '#bfb0cc', 'center', 1);
+      T(s.lock[i] && (i === 0 || s.mode === 'versus' || s.mode === 'training') ? lab + ' READY' : active ? '◀ ' + lab + ' ▶' : lab, x + 80, 224, 8, active && (s.t >> 4) & 1 ? '#d8322e' : '#cdbcae', 'center', 1);
       hot.push({ x: x, y: 60, w: 160, h: 180, i: i });
     }
-    T('VS', 240, 196, 16, '#ff3355', 'center'); foot(s.mode === 'versus' ? 'LEFT/RIGHT: CHANGE   LIGHT OR MEDIUM: LOCK IN   HEAVY: UNLOCK' : 'LEFT/RIGHT: CHANGE   CONFIRM: LOCK IN   BACK: RETURN');
+    T('VS', 240, 196, 16, '#d8322e', 'center'); foot(s.mode === 'versus' ? 'LEFT/RIGHT: CHANGE   LIGHT OR MEDIUM: LOCK IN   HEAVY: UNLOCK' : 'LEFT/RIGHT: CHANGE   CONFIRM: LOCK IN   BACK: RETURN');
   }
 
   // ------------------------------------------------------------ online lobby
@@ -164,15 +164,15 @@
     if (mn.back || ((NET.status === 'error') && (mn.ok || click))) { NET.close(); l.mode = 'menu'; linkBar(false); AUD.play('back');  }
   }
   function lobDraw() {
-    const l = lob; panel(70, 46, 340, 176, 'ONLINE VERSUS  通信対戦'); T('YOU: ' + CH[l.ch].name, 240, 70, 8, '#ffd21e', 'center');
-    if (l.mode === 'menu') { list(['HOST A ROOM', 'JOIN WITH A CODE'], 150, 100, 22, 196, 'center'); T(NET.inArtifact ? 'INSIDE CLAUDE: BOTH PLAYERS MUST BE INVITED TO THIS PAGE.' : 'DIRECT PEER-TO-PEER WITH ROLLBACK NETCODE.', 240, 160, 8, '#8d7fa0', 'center', 1); T(NET.inArtifact ? 'THE HOSTED BUILD WORKS FOR ANYONE WITH THE LINK.' : 'HOST A ROOM, SEND THE LINK, FIGHT.', 240, 174, 8, '#8d7fa0', 'center', 1); }
-    else if (l.mode === 'code') { T('ENTER ROOM CODE', 240, 96, 8, '#fff', 'center'); for (let i = 0; i < 4; i++) { const x = 170 + i * 38; RC(x, 116, 30, 36, i === l.pos ? '#d01f2e' : '#2a1838'); T(l.code[i].toUpperCase(), x + 15, 126, 16, '#fff', 'center'); } T('UP/DOWN: LETTER   LEFT/RIGHT: MOVE   CONFIRM: JOIN', 240, 172, 8, '#8d7fa0', 'center', 1); }
+    const l = lob; panel(70, 46, 340, 176, 'ONLINE VERSUS  通信対戦'); T('YOU: ' + CH[l.ch].name, 240, 70, 8, '#f1dcb4', 'center');
+    if (l.mode === 'menu') { list(['HOST A ROOM', 'JOIN WITH A CODE'], 150, 100, 22, 196, 'center'); T(NET.inArtifact ? 'INSIDE CLAUDE: BOTH PLAYERS MUST BE INVITED TO THIS PAGE.' : 'DIRECT PEER-TO-PEER WITH ROLLBACK NETCODE.', 240, 160, 8, '#9a8488', 'center', 1); T(NET.inArtifact ? 'THE HOSTED BUILD WORKS FOR ANYONE WITH THE LINK.' : 'HOST A ROOM, SEND THE LINK, FIGHT.', 240, 174, 8, '#9a8488', 'center', 1); }
+    else if (l.mode === 'code') { T('ENTER ROOM CODE', 240, 96, 8, '#fff', 'center'); for (let i = 0; i < 4; i++) { const x = 170 + i * 38; RC(x, 116, 30, 36, i === l.pos ? '#d01f2e' : '#2a181e'); T(l.code[i].toUpperCase(), x + 15, 126, 16, '#fff', 'center'); } T('UP/DOWN: LETTER   LEFT/RIGHT: MOVE   CONFIRM: JOIN', 240, 172, 8, '#9a8488', 'center', 1); }
     else {
-      const stt = NET.status; T('ROOM CODE', 240, 92, 8, '#bfb0cc', 'center'); T((NET.code || l.code.join('')).toUpperCase(), 240, 108, 24, '#fff', 'center');
+      const stt = NET.status; T('ROOM CODE', 240, 92, 8, '#cdbcae', 'center'); T((NET.code || l.code.join('')).toUpperCase(), 240, 108, 24, '#fff', 'center');
       const dots = '.'.repeat((st >> 4) % 4);
-      T(stt === 'connecting' ? 'CONNECTING' + dots : stt === 'waiting' ? 'WAITING FOR CHALLENGER' + dots : stt === 'joining' ? 'KNOCKING ON THE DOJO DOOR' + dots : stt === 'error' ? NET.err : stt.toUpperCase(), 240, 150, 8, stt === 'error' ? '#ff3355' : '#ffd21e', 'center');
-      if (stt === 'waiting') T(NET.inArtifact ? 'FRIEND: OPEN THIS PAGE > ONLINE > JOIN > CODE' : 'SEND THE LINK BELOW TO YOUR RIVAL', 240, 172, 8, '#8d7fa0', 'center', 1);
-      T('BACK: CANCEL', 240, 200, 8, '#8d7fa0', 'center');
+      T(stt === 'connecting' ? 'CONNECTING' + dots : stt === 'waiting' ? 'WAITING FOR CHALLENGER' + dots : stt === 'joining' ? 'KNOCKING ON THE DOJO DOOR' + dots : stt === 'error' ? NET.err : stt.toUpperCase(), 240, 150, 8, stt === 'error' ? '#d8322e' : '#f1dcb4', 'center');
+      if (stt === 'waiting') T(NET.inArtifact ? 'FRIEND: OPEN THIS PAGE > ONLINE > JOIN > CODE' : 'SEND THE LINK BELOW TO YOUR RIVAL', 240, 172, 8, '#9a8488', 'center', 1);
+      T('BACK: CANCEL', 240, 200, 8, '#9a8488', 'center');
     }
   }
 
@@ -181,50 +181,50 @@
   const SC = {
     title: {
       tick() { if (mn.ok || mn.start || click || INP.merged() & INP.ATK) { AUD.init(); AUD.play('ok'); if (inv) selInit('online'); else go('menu'); } },
-      draw() { const b = 1 + Math.max(0, 1 - st / 14) * 1.5; RC(0, 54, 480, 112, 'rgba(10,6,18,0.55)'); RC(0, 54, 480, 2, '#ff3355'); RC(0, 164, 480, 2, '#ff3355'); R.g.save(); R.g.translate(240, 100); R.g.scale(b, b); T('激突', 0, -42, 64, '#ff3355', 'center', 1, '#ffd21e'); R.g.restore(); T('GEKITOTSU', 240, 132, 24, '#fff', 'center'); T('IRON FIST COLLISION', 240, 170, 8, '#ffd21e', 'center');
-        if ((st >> 5) & 1) T(inv ? 'INVITED TO ROOM ' + inv.toUpperCase() + ' - PRESS START' : 'PRESS START', 240, 204, 8, '#fff', 'center'); T('60 FPS FIXED STEP · ZERO RNG · ROLLBACK NETCODE', 240, 236, 8, '#8d7fa0', 'center', 1); T('BUILD ' + (window.GK_BUILD || 'dev'), 474, 4, 8, '#8d7fa0', 'right', 1); T(INP.padBlocked ? 'THIS VIEWER BLOCKS CONTROLLERS: KEYBOARD ONLY HERE. PADS WORK IN THE HOSTED BUILD.' : INP.padCount() ? INP.padCount() + ' CONTROLLER' + (INP.padCount() > 1 ? 'S' : '') + ' READY' : 'PLUG IN A PAD AND PRESS ANY BUTTON, OR USE THE KEYBOARD', 240, 250, 8, INP.padBlocked ? '#ffd21e' : INP.padCount() ? '#7fffa0' : '#8d7fa0', 'center', 1); }
+      draw() { const b = 1 + Math.max(0, 1 - st / 14) * 1.5; RC(0, 54, 480, 112, 'rgba(10,6,18,0.55)'); RC(0, 54, 480, 2, '#d8322e'); RC(0, 164, 480, 2, '#d8322e'); R.g.save(); R.g.translate(240, 100); R.g.scale(b, b); T('激突', 0, -42, 64, '#d8322e', 'center', 1, '#f1dcb4'); R.g.restore(); T('GEKITOTSU', 240, 132, 24, '#fff', 'center'); T('IRON FIST COLLISION', 240, 170, 8, '#f1dcb4', 'center');
+        if ((st >> 5) & 1) T(inv ? 'INVITED TO ROOM ' + inv.toUpperCase() + ' - PRESS START' : 'PRESS START', 240, 204, 8, '#fff', 'center'); T('60 FPS FIXED STEP · ZERO RNG · ROLLBACK NETCODE', 240, 236, 8, '#9a8488', 'center', 1); T('BUILD ' + (window.GK_BUILD || 'dev'), 474, 4, 8, '#9a8488', 'right', 1); T(INP.padBlocked ? 'THIS VIEWER BLOCKS CONTROLLERS: KEYBOARD ONLY HERE. PADS WORK IN THE HOSTED BUILD.' : INP.padCount() ? INP.padCount() + ' CONTROLLER' + (INP.padCount() > 1 ? 'S' : '') + ' READY' : 'PLUG IN A PAD AND PRESS ANY BUTTON, OR USE THE KEYBOARD', 240, 250, 8, INP.padBlocked ? '#f1dcb4' : INP.padCount() ? '#f08a5a' : '#9a8488', 'center', 1); }
     },
     menu: {
       tick() { if (mn.back) { go('title'); return; } if (!nav(MENU.length)) return; const k = MENU[cur][0];
         if (k === 'ARCADE') selInit('arcade'); else if (k === 'VERSUS') { go('devs'); sel = { dev: [], prev: {} }; } else if (k === 'ONLINE') selInit('online'); else if (k === 'TRAINING') selInit('training'); else if (k === 'COMMAND LIST') { cmd = { ch: 0, from: 'menu' }; go('cmd'); } else go('options'); },
-      draw() { logo(8, 0.5); T('GEKITOTSU', 240, 46, 8, '#fff', 'center'); panel(130, 66, 220, 150); list(MENU.map(m => m[0]), 150, 82, 22, 196); MENU.forEach((m, i) => { T(m[1], 336, 82 + i * 22 - 2, 12, i === cur ? '#ffd21e' : '#5a4a6a', 'right', 1, i === cur ? '#5a0a14' : undefined); }); foot(MENU[cur][2]); }
+      draw() { logo(8, 0.5); T('GEKITOTSU', 240, 46, 8, '#fff', 'center'); panel(130, 66, 220, 150); list(MENU.map(m => m[0]), 150, 82, 22, 196); MENU.forEach((m, i) => { T(m[1], 336, 82 + i * 22 - 2, 12, i === cur ? '#f1dcb4' : '#5a4448', 'right', 1, i === cur ? '#5a0a14' : undefined); }); foot(MENU[cur][2]); }
     },
     devs: {
       tick() { if (mn.back && sel.dev.length === 0) { go('menu'); return; } if (mn.back) { sel.dev.pop(); AUD.play('back'); } const p = {}; for (const d of INP.devs) p[d.id] = d.m; if (st > 12 && sel.dev.length < 2) { for (const d of INP.devs) if ((d.m & INP.ATK) && !(sel.prev[d.id] & INP.ATK) && sel.dev.indexOf(d.id) < 0) { sel.dev.push(d.id); AUD.play('ok'); break; } } sel.prev = p; if (sel.dev.length === 2) { sel.t = (sel.t || 0) + 1; if (sel.t > 40) selInit('versus', sel.dev.slice()); } },
-      draw() { panel(60, 50, 360, 160, 'VERSUS  対戦  CONTROLLER SETUP'); for (let i = 0; i < 2; i++) { const id = sel.dev[i], d = INP.devs.find(x => x.id === id); T('PLAYER ' + (i + 1), 80, 86 + i * 44, 8, i ? '#33e0ff' : '#ffd21e'); T(id ? (d ? d.name : id.toUpperCase()) : (sel.dev.length === i && (st >> 4) & 1 ? 'PRESS AN ATTACK BUTTON' : '...'), 80, 102 + i * 44, 8, id ? '#7fffa0' : '#fff'); } T('KEYBOARD 1: WASD + J K L I     KEYBOARD 2: ARROWS + NUMPAD 1 2 3 5', 240, 180, 8, '#8d7fa0', 'center', 1); T(INP.padCount() + ' PAD(S) DETECTED', 240, 194, 8, '#8d7fa0', 'center'); foot('BACK: RETURN'); }
+      draw() { panel(60, 50, 360, 160, 'VERSUS  対戦  CONTROLLER SETUP'); for (let i = 0; i < 2; i++) { const id = sel.dev[i], d = INP.devs.find(x => x.id === id); T('PLAYER ' + (i + 1), 80, 86 + i * 44, 8, i ? '#e9a58a' : '#f1dcb4'); T(id ? (d ? d.name : id.toUpperCase()) : (sel.dev.length === i && (st >> 4) & 1 ? 'PRESS AN ATTACK BUTTON' : '...'), 80, 102 + i * 44, 8, id ? '#f08a5a' : '#fff'); } T('KEYBOARD 1: WASD + J K L I     KEYBOARD 2: ARROWS + NUMPAD 1 2 3 5', 240, 180, 8, '#9a8488', 'center', 1); T(INP.padCount() + ' PAD(S) DETECTED', 240, 194, 8, '#9a8488', 'center'); foot('BACK: RETURN'); }
     },
     select: { tick: selTick, draw: selDraw },
     vs: {
       tick() { if (st === 1) { if (arc) { const opp = [arc.ch ^ 1, arc.ch, arc.ch ^ 1][arc.stage]; pan = { chars: [arc.ch, opp] }; } else pan = { chars: match.pending.chars }; R.setFighters(pan.chars); AUD.play('round'); } if (st > 110 || (st > 20 && (mn.ok || mn.start))) { if (arc) startMatch('arcade', pan.chars); else startMatch(match.pending.mode, match.pending.chars, { dev: match.pending.dev }); } },
-      draw() { const a = CH[pan.chars[0]], b = CH[pan.chars[1]], k = Math.min(1, st / 12); RC(0, 96, 480, 70, 'rgba(10,6,18,0.8)'); RC(0, 96, 480, 2, '#ff3355'); RC(0, 164, 480, 2, '#ff3355'); T(a.name, -160 + 280 * k, 112, 24, '#ffd21e', 'center'); T(a.jp, -160 + 280 * k, 140, 16, '#fff', 'center', 1); T(b.name, 640 - 280 * k, 112, 24, '#33e0ff', 'center'); T(b.jp, 640 - 280 * k, 140, 16, '#fff', 'center', 1); if (st > 12) T('VS', 240, 118, 24, '#ff3355', 'center'); if (arc) T(arc.stage === 2 ? 'FINAL STAGE  最終戦' : 'STAGE ' + (arc.stage + 1), 240, 74, 8, '#fff', 'center', 1); T('紅の屋上  CRIMSON ROOFTOP', 240, 176, 8, '#bfb0cc', 'center', 1); }
+      draw() { const a = CH[pan.chars[0]], b = CH[pan.chars[1]], k = Math.min(1, st / 12); RC(0, 96, 480, 70, 'rgba(10,6,18,0.8)'); RC(0, 96, 480, 2, '#d8322e'); RC(0, 164, 480, 2, '#d8322e'); T(a.name, -160 + 280 * k, 112, 24, '#f1dcb4', 'center'); T(a.jp, -160 + 280 * k, 140, 16, '#fff', 'center', 1); T(b.name, 640 - 280 * k, 112, 24, '#e9a58a', 'center'); T(b.jp, 640 - 280 * k, 140, 16, '#fff', 'center', 1); if (st > 12) T('VS', 240, 118, 24, '#d8322e', 'center'); if (arc) T(arc.stage === 2 ? 'FINAL STAGE  最終戦' : 'STAGE ' + (arc.stage + 1), 240, 74, 8, '#fff', 'center', 1); T('紅の屋上  CRIMSON ROOFTOP', 240, 176, 8, '#cdbcae', 'center', 1); }
     },
     fight: { tick: fightTick, draw: fightDraw },
     lobby: { tick: lobTick, draw: lobDraw },
     ending: {
       tick() { if (st === 1) AUD.play('win'); if (st > 60 && (mn.ok || mn.start || click)) go('menu'); },
-      draw() { RC(0, 60, 480, 130, 'rgba(10,6,18,0.8)'); T('天下無双', 240, 70, 48, '#ffd21e', 'center', 1, '#d01f2e'); T('ALL STAGES CLEAR', 240, 130, 16, '#fff', 'center'); T(CH[arc.ch].name + ' STANDS UNRIVALED UNDER HEAVEN', 240, 158, 8, '#bfb0cc', 'center'); if (st > 60 && (st >> 5) & 1) T('PRESS START', 240, 176, 8, '#fff', 'center'); }
+      draw() { RC(0, 60, 480, 130, 'rgba(10,6,18,0.8)'); T('天下無双', 240, 70, 48, '#f1dcb4', 'center', 1, '#d01f2e'); T('ALL STAGES CLEAR', 240, 130, 16, '#fff', 'center'); T(CH[arc.ch].name + ' STANDS UNRIVALED UNDER HEAVEN', 240, 158, 8, '#cdbcae', 'center'); if (st > 60 && (st >> 5) & 1) T('PRESS START', 240, 176, 8, '#fff', 'center'); }
     },
     cmd: {
       tick() { if (mn.left || mn.right || (click && click.y < 44)) { cmd.ch ^= 1; AUD.play('move'); } if (mn.back || mn.ok || mn.start || (click && click.y >= 44)) { AUD.play('back'); if (cmd.from === 'fight') scene = 'fight'; else go('menu', 1), cur = 4; } },
-      draw() { const C = CH[cmd.ch]; panel(16, 12, 448, 240, '◀  ' + C.name + ' ' + C.jp + '  COMMAND LIST  ▶'); let y = 34; C.cmd.forEach(m => { T(m[0].toUpperCase(), 28, y, 8, '#ffd21e'); T(m[1], 452, y - 2, 8, '#33e0ff', 'right', 1); T(m[2], 28, y + 10, 8, '#bfb0cc', 'left', 1); y += 22; });
-        y = 216; T('NORMALS: L = PUNCH, ↓L = LOW KICK, M = KICK (M M M TRIPLE FLASH), ↓M = LOW POKE, H = ROUNDHOUSE, ↓H = UPPERCUT, ↘H = SWEEP.', 28, y, 8, '#8d7fa0', 'left', 1); T('ASSIST + L / M / H = ALTERNATE NORMALS (LIGHT KICK, MEDIUM PUNCH, HEAVY PUNCH). ASSIST + SP = OVERDRIVE (2 DRIVE BARS).', 28, y + 10, 8, '#8d7fa0', 'left', 1); T('DRIVE: IMPACT (ARMOR) · PARRY (HOLD) · RUSH = →→ FROM PARRY, OR FROM A CANCELLABLE NORMAL (3 BARS) · REVERSAL = IMPACT WHILE BLOCKING.', 28, y + 20, 8, '#8d7fa0', 'left', 1); }
+      draw() { const C = CH[cmd.ch]; panel(16, 12, 448, 240, '◀  ' + C.name + ' ' + C.jp + '  COMMAND LIST  ▶'); let y = 34; C.cmd.forEach(m => { T(m[0].toUpperCase(), 28, y, 8, '#f1dcb4'); T(m[1], 452, y - 2, 8, '#e9a58a', 'right', 1); T(m[2], 28, y + 10, 8, '#cdbcae', 'left', 1); y += 22; });
+        y = 216; T('NORMALS: L = PUNCH, ↓L = LOW KICK, M = KICK (M M M TRIPLE FLASH), ↓M = LOW POKE, H = ROUNDHOUSE, ↓H = UPPERCUT, ↘H = SWEEP.', 28, y, 8, '#9a8488', 'left', 1); T('ASSIST + L / M / H = ALTERNATE NORMALS (LIGHT KICK, MEDIUM PUNCH, HEAVY PUNCH). ASSIST + SP = OVERDRIVE (2 DRIVE BARS).', 28, y + 10, 8, '#9a8488', 'left', 1); T('DRIVE: IMPACT (ARMOR) · PARRY (HOLD) · RUSH = →→ FROM PARRY, OR FROM A CANCELLABLE NORMAL (3 BARS) · REVERSAL = IMPACT WHILE BLOCKING.', 28, y + 20, 8, '#9a8488', 'left', 1); }
     },
     options: {
       tick() { const n = 6; if (mn.back) { saveOpt(); go('menu', 1); cur = 5; return; } const d = mn.right ? 1 : mn.left ? -1 : 0;
         if (d) { AUD.play('move'); if (cur === 0) opt.level = Math.max(1, Math.min(3, opt.level + d)); if (cur === 1) opt.rounds = Math.max(1, Math.min(3, opt.rounds + d)); if (cur === 2) AUD.setVol('mus', AUD.vol.mus + d * 0.1); if (cur === 3) AUD.setVol('sfx', AUD.vol.sfx + d * 0.1); saveOpt(); }
         if (nav(n)) { if (cur === 4) { bc = { wait: -1 }; go('buttons'); } else if (cur === 5) { saveOpt(); go('menu', 1); cur = 5; } } },
-      draw() { panel(100, 40, 280, 180, 'OPTIONS  設定'); const bar = v => '■'.repeat(Math.round(v * 10)) + '□'.repeat(10 - Math.round(v * 10)); list(['CPU LEVEL', 'ROUNDS TO WIN', 'MUSIC', 'SOUND FX', 'BUTTON CONFIG', 'BACK'], 120, 70, 22, 256); const v = [['EASY', 'NORMAL', 'HARD'][opt.level - 1], '' + opt.rounds, bar(AUD.vol.mus), bar(AUD.vol.sfx), '▶', '']; v.forEach((s, i) => T(s, 364, 70 + i * 22 - (i === 2 || i === 3 ? 2 : 0), i === 2 || i === 3 ? 10 : 8, '#ffd21e', 'right', i === 2 || i === 3 || i === 4)); foot('LEFT/RIGHT: CHANGE   BACK: RETURN'); }
+      draw() { panel(100, 40, 280, 180, 'OPTIONS  設定'); const bar = v => '■'.repeat(Math.round(v * 10)) + '□'.repeat(10 - Math.round(v * 10)); list(['CPU LEVEL', 'ROUNDS TO WIN', 'MUSIC', 'SOUND FX', 'BUTTON CONFIG', 'BACK'], 120, 70, 22, 256); const v = [['EASY', 'NORMAL', 'HARD'][opt.level - 1], '' + opt.rounds, bar(AUD.vol.mus), bar(AUD.vol.sfx), '▶', '']; v.forEach((s, i) => T(s, 364, 70 + i * 22 - (i === 2 || i === 3 ? 2 : 0), i === 2 || i === 3 ? 10 : 8, '#f1dcb4', 'right', i === 2 || i === 3 || i === 4)); foot('LEFT/RIGHT: CHANGE   BACK: RETURN'); }
     },
     buttons: {
       tick() { const A = INP.ACTS, n = A.length + 3;
         const cap = i => { bc.wait = i; bc.t = 0; INP.capture(btn => { const a = A[i][0]; for (const k in INP.pad) if (INP.pad[k] === btn) INP.pad[k] = bc.all ? -1 : INP.pad[a]; INP.pad[a] = btn; INP.savePad(); AUD.play('ok'); if (bc.all && i + 1 < A.length) cap(i + 1); else { bc.wait = -1; bc.all = false; } }); };
         if (bc.wait >= 0) { bc.t++; if (bc.t > 600 || INP.keys.Escape || INP.keys.Backspace) { INP.cancelCapture(); bc.wait = -1; bc.all = false; } return; } if (mn.back) { go('options', 1); cur = 4; return; }
         if (nav(n)) { if (cur < A.length) { bc.all = false; cap(cur); } else if (cur === A.length) { bc.all = true; cap(0); } else if (cur === A.length + 1) { Object.assign(INP.pad, INP.DEFPAD); INP.savePad(); } else { go('options', 1); cur = 4; } } },
-      draw() { const A = INP.ACTS; panel(60, 10, 360, 242, 'CONTROLLER MAPPER  PAD / FIGHT STICK'); list(A.map(a => a[2]).concat(['MAP ALL BUTTONS IN ORDER', 'RESET TO PS LAYOUT', 'BACK']), 80, 32, 15, 336); A.forEach((a, i) => T(bc.wait === i ? ((bc.t >> 3) & 1 ? 'PRESS A BUTTON' : 'ESC = CANCEL') : INP.pad[a[0]] < 0 ? 'NOT SET' : (PADN[INP.pad[a[0]]] || 'BUTTON ' + INP.pad[a[0]]), 404, 32 + i * 15, 8, bc.wait === i ? '#fff' : '#ffd21e', 'right'));
-        const pads = INP.devs.filter(d => d.id.indexOf('pad') === 0), m = INP.merged(); let x = 80; T('TEST', x, 206, 8, '#8d7fa0'); x += 40; T(DIRG[SIM.npad(m, 1)] || '\u00b7', x, 203, 12, '#fff', 'left', 1); x += 22; [['L', 16], ['M', 32], ['H', 64], ['SP', 128], ['AS', 256], ['PA', 1024], ['DI', 512]].forEach(b => { T(b[0], x, 206, 8, m & b[1] ? '#ff3355' : '#3a2a4a'); x += b[0].length * 8 + 6; });
-        const raw = []; pads.forEach(d => d.raw.forEach((v, i) => { if (v) raw.push(PADN[i] && d.std ? PADN[i] : '#' + i); })); T(raw.join(' ').slice(0, 26), 404, 206, 8, '#7fdcff', 'right');
-        T(INP.padBlocked ? 'CONTROLLERS ARE BLOCKED IN THIS VIEWER - USE THE HOSTED BUILD' : pads.length ? pads.map(d => d.name + (d.std ? ' \u00b7 STANDARD LAYOUT' : ' \u00b7 CUSTOM LAYOUT') + ' \u00b7 ' + d.nb + ' BUTTONS').join('   ') : 'NO CONTROLLER SEEN YET - PRESS ANY BUTTON ON IT', 240, 222, 8, pads.length ? '#7fffa0' : '#ffd21e', 'center', 1);
-        T('DIRECTIONS READ FROM D-PAD, LEFT STICK AND HAT AUTOMATICALLY', 240, 234, 8, '#8d7fa0', 'center', 1); foot('KEYBOARD: WASD, J K L = LIGHT MEDIUM HEAVY, I = SPECIAL, SPACE = ASSIST, U = PARRY, O = IMPACT, H = THROW, K+L = RUN'); }
+      draw() { const A = INP.ACTS; panel(60, 10, 360, 242, 'CONTROLLER MAPPER  PAD / FIGHT STICK'); list(A.map(a => a[2]).concat(['MAP ALL BUTTONS IN ORDER', 'RESET TO PS LAYOUT', 'BACK']), 80, 32, 15, 336); A.forEach((a, i) => T(bc.wait === i ? ((bc.t >> 3) & 1 ? 'PRESS A BUTTON' : 'ESC = CANCEL') : INP.pad[a[0]] < 0 ? 'NOT SET' : (PADN[INP.pad[a[0]]] || 'BUTTON ' + INP.pad[a[0]]), 404, 32 + i * 15, 8, bc.wait === i ? '#fff' : '#f1dcb4', 'right'));
+        const pads = INP.devs.filter(d => d.id.indexOf('pad') === 0), m = INP.merged(); let x = 80; T('TEST', x, 206, 8, '#9a8488'); x += 40; T(DIRG[SIM.npad(m, 1)] || '\u00b7', x, 203, 12, '#fff', 'left', 1); x += 22; [['L', 16], ['M', 32], ['H', 64], ['SP', 128], ['AS', 256], ['PA', 1024], ['DI', 512]].forEach(b => { T(b[0], x, 206, 8, m & b[1] ? '#d8322e' : '#3a2a30'); x += b[0].length * 8 + 6; });
+        const raw = []; pads.forEach(d => d.raw.forEach((v, i) => { if (v) raw.push(PADN[i] && d.std ? PADN[i] : '#' + i); })); T(raw.join(' ').slice(0, 26), 404, 206, 8, '#f6e7c8', 'right');
+        T(INP.padBlocked ? 'CONTROLLERS ARE BLOCKED IN THIS VIEWER - USE THE HOSTED BUILD' : pads.length ? pads.map(d => d.name + (d.std ? ' \u00b7 STANDARD LAYOUT' : ' \u00b7 CUSTOM LAYOUT') + ' \u00b7 ' + d.nb + ' BUTTONS').join('   ') : 'NO CONTROLLER SEEN YET - PRESS ANY BUTTON ON IT', 240, 222, 8, pads.length ? '#f08a5a' : '#f1dcb4', 'center', 1);
+        T('DIRECTIONS READ FROM D-PAD, LEFT STICK AND HAT AUTOMATICALLY', 240, 234, 8, '#9a8488', 'center', 1); foot('KEYBOARD: WASD, J K L = LIGHT MEDIUM HEAVY, I = SPECIAL, SPACE = ASSIST, U = PARRY, O = IMPACT, H = THROW, K+L = RUN'); }
     }
   };
 
