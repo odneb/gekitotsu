@@ -32,8 +32,8 @@ const R = (function () {
     fall: s({ hip: [0, 44], ln: 4, hL: [17, 70], hR: [-7, 66], fL: [9, 9], fR: [-8, 7], eL: 0, eR: 0 }),
     dashf: s({ hip: [5, 33], ln: 34, ln2: 38, hd: -20, tw: -30, hL: [22, 44], hR: [-12, 46], fL: [22, 5], fR: [-20, 9] }),
     dashb: s({ hip: [-5, 44], ln: -8, hL: [14, 64], hR: [2, 58], fL: [10, 8], fR: [-12, 6] }),
-    runA: s({ hip: [4, 37], ln: 38, ln2: 42, hd: -28, tw: -75, pt: -55, hL: [-10, 44], hR: [24, 56], fL: [22, 9], fR: [-22, 20], eL: -0.2, eR: -1 }),
-    runB: s({ hip: [4, 39], ln: 38, ln2: 42, hd: -28, tw: 10, pt: -5, hL: [24, 58], hR: [-12, 44], fL: [-18, 22], fR: [18, 5], eL: -1, eR: -0.2 }),
+    runA: s({ hip: [4, 33], ln: 44, ln2: 48, hd: -34, tw: -75, pt: -55, hL: [-10, 40], hR: [26, 52], fL: [24, 8], fR: [-22, 18], eL: -0.2, eR: -1 }),
+    runB: s({ hip: [4, 35], ln: 44, ln2: 48, hd: -34, tw: 10, pt: -5, hL: [26, 54], hR: [-12, 40], fL: [-18, 20], fR: [20, 5], eL: -1, eR: -0.2 }),
     runStop: s({ hip: [-2, 36], ln: -6, hL: [18, 58], hR: [4, 52], fL: [20, 4], fR: [-12, 4] }),
     parry: s({ hip: [0, 40], ln: 2, tw: -25, hL: [15, 73], hR: [12, 63], eL: -0.2, eR: -0.2, fL: [15, 4], fR: [-15, 4] }),
     blockS: s({ hip: [-3, 42], ln: -5, ln2: -2, hd: -8, tw: -35, hL: [12, 74], hR: [8, 67], fL: [12, 4], fR: [-15, 4] }),
@@ -53,6 +53,7 @@ const R = (function () {
     thrown: s({ hip: [0, 36], ln: -16, hd: -20, hL: [-8, 50], hR: [-14, 44], fL: [12, 10], fR: [-6, 6], eL: 0, eR: 0 }),
     grabW: s({ hip: [1, 41], ln: 10, tw: -30, hL: [22, 60], hR: [16, 54] }), grabS: s({ hip: [6, 40], ln: 20, tw: -10, hL: [35, 62], hR: [33, 55], fL: [18, 4] }),
     thPull: s({ hip: [2, 40], ln: -6, tw: -70, hL: [20, 58], hR: [16, 50] }), thKnee: s({ hip: [6, 44], ln: 12, tw: 20, hL: [24, 60], hR: [22, 54], fR: [20, 34], fL: [4, 4] }),
+    thKick: s({ hip: [6, 43], ln: -18, tw: 60, pt: 55, fR: [48, 40], fL: [4, 4], hL: [8, 58], hR: [-6, 50] }),
     thSlam: s({ hip: [8, 34], ln: 44, ln2: 52, hd: -20, tw: 40, hL: [30, 24], hR: [34, 18], fL: [20, 4], fR: [-16, 6] }),
     bthRoll: s({ hip: [-10, 16], ln: -62, ln2: -70, hd: 20, hL: [10, 44], hR: [8, 38], fL: [14, 4], fR: [16, 40] }), bthToss: s({ hip: [-14, 12], ln: -84, ln2: -90, hd: 10, hL: [-24, 30], hR: [-26, 24], fL: [8, 4], fR: [-10, 52] }),
     // ---- normals
@@ -78,15 +79,15 @@ const R = (function () {
     jlkS: j({ ln: 6, fL: [20, 14], aim: 'fL', fR: [-14, 26], hL: [10, 60] }), jmkS: j({ hip: [0, 46], ln: -16, tw: -88, pt: -75, fL: [42, 27], aim: 'fL', fR: [-26, 30], hL: [4, 58], hR: [-10, 60] }),
     jhkS: j({ hip: [0, 46], ln: -22, tw: 95, pt: 80, fR: [40, 22], aim: 'fR', fL: [-12, 34], hL: [-4, 60], hR: [-12, 56] }), njhkS: j({ hip: [0, 46], ln: -10, tw: -85, pt: -75, fL: [39, 45], aim: 'fL', fR: [-30, 40], hL: [6, 66], hR: [-10, 66] }),
     // ---- specials
-    hadW: s({ hip: [-4, 36], ln: 4, tw: -86, pt: -60, hL: [-8, 46], hR: [-13, 40], fL: [17, 4], fR: [-17, 4], eL: -0.4 }), hadS: s({ hip: [7, 33], ln: 20, ln2: 24, hd: -16, tw: -8, pt: -10, hL: [37, 55], hR: [35, 49], fL: [23, 4], fR: [-20, 6], eL: 0, eR: 0 }),
-    srW: c({ hip: [3, 21], ln: 24, tw: -72, hR: [3, 22], hL: [17, 44] }), srS: s({ hip: [4, 46], ln: -8, ln2: -14, hd: -24, tw: 68, pt: 30, hR: [14, 99], hL: [-2, 52], fL: [16, 30], fR: [-1, 6], eR: 0 }),
+    hadW: s({ hip: [-4, 36], ln: 4, tw: -86, pt: -60, hL: [-8, 46], hR: [-13, 40], fL: [17, 4], fR: [-17, 4], eL: -0.4 }), hadS: s({ hip: [8, 31], ln: 22, ln2: 26, hd: -18, tw: -8, pt: -10, hL: [38, 60], hR: [36, 55], fL: [24, 4], fR: [-24, 5], eL: 0, eR: 0 }),
+    srW: c({ hip: [5, 19], ln: 34, hd: -20, tw: -72, hR: [4, 18], hL: [18, 40] }), srS: s({ hip: [4, 46], ln: -8, ln2: -14, hd: -24, tw: 110, pt: 60, hR: [14, 99], hL: [-2, 52], fL: [10, 22], fR: [1, 5], eR: 0 }),
     srF: s({ hip: [2, 46], ln: 0, tw: 30, hR: [10, 92], hL: [2, 54], fL: [10, 14], fR: [-6, 8] }),
-    tatS: s({ hip: [0, 46], ln: -4, ln2: -2, tw: -90, pt: -85, fR: [44, 46], fL: [3, 26], hL: [6, 64, -8], hR: [-6, 62, 8], kL: 0.3 }),
+    tatS: s({ hip: [0, 45], ln: -18, ln2: -14, hd: 12, tw: -90, pt: -85, fR: [44, 48], fL: [2, 8], hL: [4, 62, -8], hR: [-8, 60, 8] }),
     dlW: s({ hip: [4, 28], ln: 34, hd: -20, tw: -60, hL: [18, 40], hR: [-8, 40], kL: 0.3, kR: 0.3 }), dlF: j({ hip: [0, 46], ln: 30, ln2: 40, tw: 60, fL: [-4, 30], fR: [-14, 36], hL: [16, 50], hR: [4, 44] }),
-    dlS: j({ hip: [-2, 48], ln: -30, ln2: -34, hd: 24, tw: 140, pt: 120, fR: [46, 14], aim: 'fR', ay: 0.75, fL: [-6, 30], hL: [-10, 58], hR: [-18, 66] }),
-    jinW: s({ hip: [4, 43], ln: 2, tw: 45, pt: 35, fR: [2, 26], fL: [6, 4], hL: [14, 62], hR: [-6, 58] }), jinS: s({ hip: [6, 45], ln: -24, ln2: -28, hd: 20, tw: 135, pt: 115, fR: [67, 51], aim: 'fR', fL: [5, 4], hL: [-6, 54], hR: [-16, 62] }),
-    kazeS: s({ hip: [0, 30], ln: -16, ln2: -8, hd: 14, tw: -84, pt: -74, fL: [65, 7], aim: 'fL', ay: 0.45, fR: [-10, 4], hL: [6, 50], hR: [-10, 42], kR: 0.5 }),
-    goW: s({ hip: [2, 47], ln: -16, tw: 60, pt: 50, fR: [20, 88], fL: [4, 4], hL: [2, 58], hR: [-10, 62] }), goS: s({ hip: [6, 41], ln: 16, tw: 40, pt: 30, fR: [56, 40], aim: 'fR', ay: 0.25, fL: [4, 4], hL: [10, 54], hR: [-4, 48] }),
+    dlS: j({ hip: [-2, 50], ln: -50, ln2: -55, hd: 34, tw: 140, pt: 120, fR: [46, 14], aim: 'fR', ay: 0.75, fL: [-6, 34], hL: [-14, 60], hR: [-22, 66] }),
+    jinW: s({ hip: [3, 43], ln: 4, tw: 150, pt: 110, fR: [-2, 20], fL: [6, 4], hL: [10, 62], hR: [-8, 60] }), jinS: s({ hip: [6, 45], ln: -14, ln2: -18, hd: 14, tw: 135, pt: 115, fR: [67, 60], aim: 'fR', ay: 0.9, fL: [5, 4], hL: [-4, 56], hR: [-14, 64] }),
+    kazeS: s({ hip: [8, 37], ln: -12, ln2: -8, hd: 8, tw: -72, pt: -62, fL: [64, 7], aim: 'fL', ay: 0.45, fR: [-10, 4], hL: [14, 62], hR: [2, 56] }),
+    goW: s({ hip: [2, 50], ln: 6, tw: 60, pt: 50, fR: [14, 42], fL: [2, 12], hL: [12, 62], hR: [-4, 60] }), goS: s({ hip: [6, 40], ln: 18, tw: 40, pt: 30, fR: [56, 40], aim: 'fR', ay: 0.25, fL: [4, 4], hL: [10, 54], hR: [-4, 48] }),
     senS: s({ hip: [8, 46], ln: -30, ln2: -34, hd: 22, tw: -94, pt: -84, fL: [71, 69], aim: 'fL', fR: [3, 4], hL: [-2, 54], hR: [-14, 60] }),
     kasW: s({ hip: [2, 44], ln: -10, tw: -80, pt: -70, fL: [10, 38], fR: [-4, 4], hL: [6, 58], hR: [-6, 56] }), kasS: s({ hip: [6, 44], ln: -38, ln2: -40, hd: 26, tw: -96, pt: -88, fL: [75, 50], aim: 'fL', fR: [-4, 4], hL: [-8, 52], hR: [-20, 56] }),
     diW: s({ hip: [-5, 39], ln: -4, tw: -100, pt: -70, hR: [-18, 62], hL: [16, 60], fL: [14, 4], fR: [-16, 4], eR: 0.2 }),
@@ -116,7 +117,7 @@ const R = (function () {
     TAT: { k: [[0, 'idle'], [0.5, 'tf2W'], [1, 'tatS', 'i'], [2, 'tatS'], [2.5, 'jump'], [3, 'idle']], spin: 1 },
     ATAT: { k: [[0, 'jump'], [1, 'tatS', 'i'], [2, 'tatS'], [3, 'jump']], spin: 1 },
     DL: { f: m => [[0, 'idle'], [Math.max(2, m.rise ? m.rise[0] - 8 : 3), 'dlW', 'o'], [m.rise ? m.rise[0] : 6, 'dlW'], [m.hits[m.hits.length - 1].s - 5, 'dlF'], [m.hits[m.hits.length - 1].s, 'dlS', 'i'], [m.lastAct + 2, 'dlS'], [m.lastAct + 10, 'fall']], yaw: m => [m.rise ? m.rise[0] : 6, m.hits[m.hits.length - 1].s - 1, 360] },
-    JIN: A('idle', 'jinW', 'jinS'), KAZE: Q('jinS', 'kazeS'), GORAI: A('jinS', 'goW', 'goS'), SENKA: A('jinS', 'kasW', 'senS'), KASAI: A('kazeS', 'kasW', 'kasS'),
+    JIN: A('idle', 'jinW', 'jinS'), KAZE: Q('jinS', 'kazeS'), GORAI: { k: [[0, 'jinS'], [0.55, 'goW', 'o'], [1, 'goS', 'i'], [2, 'goS'], [2.5, 'crouch'], [3, 'idle']] }, SENKA: A('jinS', 'kasW', 'senS'), KASAI: A('kazeS', 'kasW', 'kasS'),
     SA1: { f: m => { const k = [[0, 'dlW'], [4, 'kasW'], [6, 'tf3S', 'i'], [9, 'tf3S'], [11, 'dlW']], st = ['jhkS', 'sa1S', 'jmkS', 'sa1S']; for (let i = 1; i < m.hits.length - 1; i++) { const h = m.hits[i]; k.push([h.s - 2, 'dlF']); k.push([h.s, st[(i - 1) % 4], 'i']); k.push([h.s + 1, st[(i - 1) % 4]]); } const l = m.hits[m.hits.length - 1]; k.push([l.s - 3, 'dlF']); k.push([l.s, 'dlS', 'i']); k.push([l.s + 6, 'dlS']); k.push([l.s + 16, 'fall']); return k; }, yaw: m => [11, m.hits[m.hits.length - 1].s - 1, 1800] },
     SA2: { f: m => { const k = [[0, 'jinW']], st = ['jinS', 'tf3S', 'mkS', 'jinS'], n = 4; for (let i = 0; i < n; i++) { const h = m.hits[i]; if (i) k.push([h.s - 3, i & 1 ? 'mkW' : 'jinW']); k.push([h.s, st[i], 'i']); k.push([Math.min(h.e, h.s + 2), st[i]]); } k.push([m.rise[0] - 2, 'tf2W']); k.push([m.rise[0] + 2, 'tatS', 'i']); const l = m.hits[m.hits.length - 1]; k.push([l.s + 8, 'tatS']); k.push([l.s + 22, 'fall']); return k; }, yaw: m => [m.rise[0] - 1, m.hits[m.hits.length - 1].s + 8, 2160] },
     SA3: { f: m => { const k = [[0, 'mpW']], st = ['mpS', 'cbS', 'hpS', 'cbS']; for (let i = 0; i < m.hits.length - 1; i++) { const h = m.hits[i]; if (i) k.push([h.s - 4, i & 1 ? 'cbW' : 'hpW', 'o']); k.push([h.s, st[i % 4], 'i']); k.push([h.s + 2, st[i % 4]]); } const l = m.hits[m.hits.length - 1]; k.push([l.s - 5, 'srW', 'o']); k.push([l.s, 'srS', 'i']); k.push([l.s + 40, 'srS']); k.push([l.s + 60, 'srF']); return k; }, yaw: m => [m.hits[m.hits.length - 1].s, m.hits[m.hits.length - 1].s + 36, 720] }
@@ -152,7 +153,7 @@ const R = (function () {
       case 'getup': { const u = p.sf / SIM.GETUP; po = u < 0.4 ? mix(P('kd'), P('situp'), sm(u / 0.4)) : u < 0.7 ? mix(P('situp'), P('crouch'), sm((u - 0.4) / 0.3)) : mix(P('crouch'), P('idle'), sm((u - 0.7) / 0.3)); break; }
       case 'tech': po = mix(P('hitHi'), P('idle'), sm(p.sf / 22)); break;
       case 'win': po = mix(P('idle'), P('win'), sm(p.sf / 16)); break;
-      case 'throwing': po = p.back ? kf([[0, 'grabS'], [8, 'thPull'], [18, 'bthRoll', 'i'], [27, 'bthToss'], [34, 'situp'], [44, 'idle']], p.sf) : kf([[0, 'grabS'], [7, 'thPull', 'o'], [14, 'thKnee', 'i'], [19, 'thPull'], [26, 'thSlam', 'i'], [34, 'thSlam'], [44, 'idle']], p.sf); break;
+      case 'throwing': po = p.back ? kf([[0, 'grabS'], [8, 'thPull'], [18, 'bthRoll', 'i'], [27, 'bthToss'], [34, 'situp'], [44, 'idle']], p.sf) : kf([[0, 'grabS'], [6, 'thPull', 'o'], [11, 'thKnee', 'i'], [15, 'thPull'], [20, 'thKnee', 'i'], [24, 'thPull'], [30, 'thKick', 'i'], [37, 'thKick'], [44, 'idle']], p.sf); break;
       case 'thrown': { po = norm(P('thrown'), ST); const t = o.sf; po.rot = t < 14 ? -8 : -Math.min(150, 8 + (t - 14) * 14); break; }
       case 'atk': {
         const m = C.mv[p.mv], an = anOf(p.mv), f = p.mf, base = m.isAir ? 'jump' : m.crouch ? 'crouch' : 'idle';
