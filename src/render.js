@@ -37,6 +37,7 @@ const R = (function () {
     parry: { l: 0, t: -2, h: 0, af: [64, 62], ab: [58, 70], lf: [28, -34], lb: [-24, -22], yaw: 30 },
     crumA: { l: 26, t: 44, h: 34, af: [30, 30], ab: [20, 30], lf: [40, -70], lb: [-10, -60] }, crumB: { l: 44, t: 60, h: 40, af: [50, 20], ab: [40, 20], lf: [70, -120], lb: [20, -110] },
     splat: { l: -10, t: -14, h: -30, af: [-70, 20], ab: [-100, 20], lf: [14, -10], lb: [-10, -14] },
+    mkS: { l: -20, t: -6, h: 4, lf: [90, -2], lb: [-10, -16], af: [46, 84], ab: [-24, 92], yaw: -34 },
     jabW: { t: 6, af: [40, 125] }, jabS: { l: 8, t: 16, af: [90, 2], ab: [20, 120], lf: [35, -38], lb: [-26, -14], yaw: -12 },
     strW: { l: 2, t: 0, af: [60, 70], ab: [-25, 125], yaw: 24 }, strS: { l: 14, t: 26, h: 6, af: [20, 120], ab: [92, 2], lf: [42, -48], lb: [-36, -6], yaw: -40 },
     lkW: { l: -4, t: 4, lf: [70, -95], lb: [-12, -18] }, lkS: { l: -12, t: 2, lf: [70, -4], lb: [-10, -16], af: [40, 90], ab: [-10, 100] },
@@ -232,7 +233,7 @@ const R = (function () {
     let tx = 0, tw = 440, ty = 72;
     if (s) {
       const a = s.p[0], b = s.p[1], ax = a.x / F, bx = b.x / F;
-      tx = (ax + bx) / 2; tw = Math.max(330, Math.min(520, Math.abs(ax - bx) + 190)); ty = 68 + Math.max(a.y, b.y) / F * 0.42;
+      tx = (ax + bx) / 2; tw = Math.max(300, Math.min(480, Math.abs(ax - bx) + 200)); ty = 68 + Math.max(a.y, b.y) / F * 0.42;
       if (superFx && superFx.t < 40) { const p = s.p[superFx.who]; tx = p.x / F; tw = 300 - (superFx.lv || 1) * 14; ty = 62; }
       if (s.phase === 'ko' && s.pt < 150 && s.rw >= 0) { const l = s.p[1 - s.rw]; tx = l.x / F; tw = 250; ty = 44 + l.y / F * 0.6; }
       if (s.slow > 0 && s.phase === 'fight') { tw = Math.min(tw, 300); }

@@ -142,7 +142,7 @@ const AI = (function () {
     const out = m => { let r = m & SIM.MASK; if (m & FW) r |= p.face > 0 ? B.R : B.L; if (m & BK) r |= p.face > 0 ? B.L : B.R; return r; };
     if (s.phase !== 'fight') { ai.q.length = 0; return 0; }
     if (ai.q.length) { if (p.st === 'hit' || p.st === 'ahit' || p.st === 'kd' || p.st === 'thrown' || p.st === 'block') ai.q.length = 0; else return out(ai.q.shift()); }
-    const dist = Math.abs(o.x - p.x) / F, r = n => ((R.hsh(s.frame * 31 + p.x + o.x * 7 + o.hp * 13 + n * 977) * 100) | 0);
+    const dist = Math.abs(o.x - p.x) / F / 0.7, r = n => ((R.hsh(s.frame * 31 + p.x + o.x * 7 + o.hp * 13 + n * 977) * 100) | 0);
     const om = o.st === 'atk' ? SIM.CH[o.ch].mv[o.mv] : null, grounded = p.y <= 0 && p.st === 'idle';
     const push = parts => { ai.q = seq(parts); return out(ai.q.shift()); };
     const kaito = true, drive = !p.bo && p.dr >= 2000, lowHit = om && om.hits[0] && om.hits[0].g === 'l', hiHit = (om && om.hits[0] && om.hits[0].g === 'h' && !om.isAir);
