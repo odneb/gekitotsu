@@ -57,6 +57,12 @@ t('run > down+SP = run Tatsumaki',[w,[2,M|H],[12,0],[2,D|SP],[90,0]],'(run)>QTAT
 t('run > back+SP = run Dragonlash',[w,[2,M|H],[12,0],[2,Lf|SP],[90,0]],'(run)>QDL',{far:1});
 t('cancel a special-cancellable normal into run',[w,[2,A|M],[8,A],[2,M|H],[30,0]],'5MP>(run)');
 t('H+SP = SA1',[w,[2,H|SP],[120,0]],'SA1');
+t('official: forward+H+SP = SA1',[w,[2,R|H|SP],[120,0]],'SA1');
+t('official: Jinrai > forward+SP = Senka',[w,[2,D|SP],[22,0],[3,R|SP],[60,0]],'JIN_M>SENKA');
+t('official: cancellable normal > Parry button = Drive Rush cancel',[w,[2,A|M],[6,0],[3,B.PA],[30,0]],r=>/^5MP>\(drush\)/.test(r.seen));
+t('official: cancellable normal > forward+Parry = Drive Rush cancel',[w,[2,A|M],[6,0],[3,R|B.PA],[30,0]],r=>/^5MP>\(drush\)/.test(r.seen));
+t('official: standing SP+down outside Quick Dash is Jinrai, not Tatsumaki',[w,[2,D|SP],[60,0]],'JIN_M');
+t('official: rapid cancel assist combo = down+Assist+L mashed after a light',[w,[2,D|L],[8,D]].concat(Array.from({length:12},()=>[[2,D|A|L],[8,D|A]]).flat()),r=>r.seen.includes('5LP')&&r.seen.includes('JIN_L>KAZE'));
 t('back+H+SP = SA2',[w,[2,Lf|H|SP],[160,0]],'SA2');
 t('down+H+SP = SA3',[w,[2,D|H|SP],[200,0]],'SA3');
 t('L+M = forward throw',[w,[2,L|M],[60,0]],'throw>(throwing)');
