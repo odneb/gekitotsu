@@ -40,7 +40,7 @@ function fit(){const fs=document.fullscreenElement===c,W=fs?innerWidth:b.clientW
 addEventListener('resize',fit);document.addEventListener('fullscreenchange',fit);fit();setTimeout(fit,50);})();
 </script>
 <script>
-window.GK_BUILD='1110-1848 UTC';
+window.GK_BUILD='1110-1853 UTC';
 // ===================================================================
 // GEKITOTSU deterministic simulation core. Integer math only, no RNG,
 // no wall-clock, no floats. state = step(state, inputP1, inputP2).
@@ -888,6 +888,13 @@ const R = (function () {
       MC[k] = { rows: rows, on: on, pk: pk, end: end };
     }
   })();
+  // how the opponent reels: captured from the defender in the same SF6 clips (light, medium, heavy punch, heavy kick, low, crouching)
+  const REACT_RAW = { L: 'OQ1IRQOJRM^<OIRPIUOSdI`RRIVNVhGeQOHUOQCJPQOJSNQEKPRMITNP>JQQNJSNR@IQQOITNT<HQPPITOS=HRQOITNQ6J_POIU', M: 'NR<IRQOKQNVNK`QPHUOSVJaQRHVOX0LLQQKSOR\\I^QSGYNR9L^RQGYOQ4K_ROGWOQ;MHRKHSORAHQPOISOQDHUQNITOQGGURMIT', H: 'OQ?IQRMJSNWcJASLHVLZ`MRUGITNZeIRQOHVM^cCYQOHVLRcLcTPGXNZZMaSQFYMWfMdROFZNS3KbRMGWOQAHfPPIUOQ@H_RNJS', K: 'NW3EhROJQNW4JGW@RENRgFRX@GXPVd8`Y>^CMOj:_VCNIOSKGRROJSOTZQYUINLMXgQYVFNJNXlP\\VFQINUhQYTJMLNUROZSLMK', LOW: 'OQ;N9NVHVPR:HaP?DZQN0GcS?EWPQCIaPMDXPRVF^XFLONRYJ[F_D`LS_@f@dBbNQeGbSQD]NQCJ]PTC]OSDIcRRDZOSGHeNSFX', CR: 'NS>HRQOISOXRHeQQOIOPRIcQQHXNQ2K^RMGUOQCGQQNITOQAHTPOJTOR@FiQOITOS<HSQOITOS=FjQOITOQ;GcQOIUOQ=HRRMHU' };
+  const RC = {}, react = ['', ''];
+  for (const k in REACT_RAW) { const s = REACT_RAW[k], rows = []; for (let i = 0; i + 9 <= s.length; i += 9) { const row = []; for (let c = 0; c < 9; c++) row.push((s.charCodeAt(i + c) - 78) * 6); rows.push(row); }
+    for (let c = 0; c < 9; c++) for (let i = 1; i < rows.length - 1; i++) { const a = rows[i - 1][c], b = rows[i][c], d = rows[i + 1][c]; if (Math.abs(wrapA(a - d)) < 55 && Math.abs(wrapA(b - a)) > 70 && Math.abs(wrapA(b - d)) > 70) rows[i][c] = a + wrapA(d - a) / 2; }
+    for (const row of rows) for (const c of [5, 7]) if (row[c + 1] > 8) { row[c] += (row[c + 1] - 8) / 2; row[c + 1] = 8; }
+    RC[k] = { rows: rows }; }
   function mcRow(mc, x) {
     x = Math.max(0, Math.min(mc.rows.length - 1, x)); const i = Math.floor(x), u = x - i, a = mc.rows[i], b = mc.rows[Math.min(mc.rows.length - 1, i + 1)], v = c => a[c] + wrapA(b[c] - a[c]) * u;
     const T = v(0); return { l: T * 0.4, t: T * 0.6, h: 0, af: [v(1), v(2)], ab: [v(3), v(4)], lf: [v(5), v(6)], lb: [v(7), v(8)], yaw: 0, rot: 0 };
@@ -898,7 +905,7 @@ const R = (function () {
   }
 
   // pose for a fighter from sim state -> {pose, grounded, extraYaw}
-  function fighterPose(p, o, sFrame) {
+  function fighterPose(p, o, sFrame, idx) {
     const C = SIM.CH[p.ch]; let po, ground = p.y <= 0, spin = 0, dy = 0, dx = 0, strike = null;
     switch (p.st) {
       case 'idle':
@@ -914,7 +921,7 @@ const R = (function () {
       case 'parry': po = P('parry'); break; case 'prec': po = mix(P('parry'), P('idle'), sm(p.sf / 11)); break;
       case 'dashb': po = mix(P('dashb'), P('idle'), sm((p.sf - 14) / 8)); dy = Math.max(0, Math.sin(Math.min(1, p.sf / 14) * Math.PI) * 10); ground = dy <= 0; break;
       case 'block': po = P(p.cb ? 'blockC' : 'blockS'); break;
-      case 'hit': { if (p.crum === 1) { po = mix(P('crumA'), P('crumB'), sm(p.sf / 60)); break; } if (p.crum === 2) { po = P('splat'); break; } const h = P(p.cb ? 'hitCr' : p.hitHi ? 'hitHi' : 'hitLo'); po = mix(h, P(p.cb ? 'crouch' : 'idle'), sm(1 - p.stun / 8)); break; }
+      case 'hit': { if (p.crum === 1) { po = mix(P('crumA'), P('crumB'), sm(p.sf / 60)); break; } if (p.crum === 2) { po = P('splat'); break; } if (RC[react[idx]] && !p.crum) { const rr = RC[react[idx]]; po = mix(mcRow(rr, (p.sf / Math.max(1, p.sf + p.stun)) * (rr.rows.length - 1)), P(p.cb ? 'crouch' : 'idle'), sm(1 - p.stun / 3)); break; } const h = P(p.cb ? 'hitCr' : p.hitHi ? 'hitHi' : 'hitLo'); po = mix(h, P(p.cb ? 'crouch' : 'idle'), sm(1 - p.stun / 8)); break; }
       case 'ahit': po = P('ahit'); po.rot = -40 - Math.max(0, Math.min(75, (700 - p.vy) / 18)); ground = false; break;
       case 'kd': po = P('kd'); ground = false; dy = -44; break;
       case 'getup': { const u = p.sf / SIM.GETUP; po = u < 0.5 ? mix(P('kd'), P('crouch'), sm(u * 2)) : mix(P('crouch'), P('idle'), sm(u * 2 - 1)); if (u < 0.5) { ground = false; dy = -44 * (1 - sm(u * 2)); } break; }
@@ -1063,6 +1070,7 @@ const R = (function () {
   function events(ev, s) {
     for (const e of ev) {
       const x = (e.x || 0) / F, y = (e.y || 0) / F;
+      if (e.t === 'hit' && !e.thr) { const vi = 1 - e.who, v = s.p[vi], am0 = s.p[e.who].st === 'atk' ? SIM.CH[s.p[e.who].ch].mv[s.p[e.who].mv] : null; react[vi] = v.cb ? 'CR' : e.wrong === 'l' || (am0 && am0.hits[0] && am0.hits[0].g === 'l') ? 'LOW' : !am0 || am0.hsp <= 9 ? 'L' : am0.hsp <= 11 ? 'M' : /Kick/.test(am0.n || '') ? 'K' : 'H'; }
       if (e.t === 'hit') { fx.push({ k: 'spark', x, y, lvl: e.lvl, t: 0, ko: e.ko }); if (e.di) { fx.push({ k: 'paint', x, y, t: 0, big: 1 }); fx.push({ k: 'paint', x: x + 7, y: y + 12, t: -3, big: 1 }); fx.push({ k: 'word', x, y: y + 58, t: 0, s: e.crum ? 'CRUMPLE!!' : 'DRIVE IMPACT!', c: '#ff5ad2', z: 16, life: 70 }); shake = 20; flash = 4; } const am = s.p[e.who].st === 'atk' ? SIM.CH[s.p[e.who].ch].mv[s.p[e.who].mv] : null; if (am && am.sup && e.lvl === 2) { fx.push({ k: 'kanji', t: 0, s: ['', '\u65ac', '\u7834', '\u6ec5'][am.sa], c: ['', '#33e0ff', '#ffd21e', '#ff3355'][am.sa] }); shake = 20; flash = 5; } if (e.wrong) fx.push({ k: 'word', x, y: y + 30, t: 0, s: e.wrong === 'h' ? 'OVERHEAD!' : 'LOW!', c: e.wrong === 'h' ? '#ff8a1e' : '#33a0ff' });  shake = Math.max(shake, e.ko ? 22 : [3, 7, 11][e.lvl]); if (e.lvl >= 2 || e.ko) flash = e.ko ? 6 : 2; combo[e.who] = { n: e.combo, d: e.total || e.dmg, t: 0, ch: e.ch }; }
       else if (e.t === 'block') { fx.push({ k: 'guard', x, y, t: 0 }); shake = Math.max(shake, 2); }
       else if (e.t === 'parry') fx.push({ k: 'guard', x, y, t: 0, big: 1 });
@@ -1104,7 +1112,7 @@ const R = (function () {
       const dim = s.freeze > 0; stage.visible = !dim; scene.background.setHex(dim ? 0x05030c : 0x0b0a24);
       for (let i = 0; i < 2; i++) {
         const p = s.p[i], o = s.p[1 - i], r = rigs[i]; r.G.visible = true;
-        const fp = fighterPose(p, o, s.frame);
+        const fp = fighterPose(p, o, s.frame, i);
         let jx = 0; if (p.hs > 0 && (p.st === 'hit' || p.st === 'ahit' || p.st === 'block')) jx = ((p.hs & 1) ? 1 : -1) * Math.min(3, p.hs * 0.5);
         const fl = (p.hs > 0 && (p.st === 'hit' || p.st === 'ahit')) ? Math.min(0.9, p.hs * 0.14) : 0;
         const m = p.st === 'atk' ? SIM.CH[p.ch].mv[p.mv] : null; let tint = [0, 0, 0];
