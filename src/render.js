@@ -11,7 +11,7 @@ const R = (function () {
   // ----------------------------------------------------------- skeleton + hand-keyed animation
   // A pose is a set of targets in the fighter's side plane (x forward, y up, optional z toward camera):
   // hip position, spine lean, chest/pelvis twist, and where each hand and foot is. Limbs are solved by IK.
-  const TH = 22, SHN = 22, SP1 = 13, SP2 = 16, UA = 14.5, FA = 14, SW = 10.5, HW = 5.5;
+  const TH = 22, SHN = 22, SP1 = 13, SP2 = 15, UA = 14.5, FA = 14, SW = 12.5, HW = 6;
   const NUM = ['ln', 'ln2', 'tw', 'pt', 'hd', 'eL', 'eR', 'kL', 'kR', 'yaw', 'rot', 'ay'], VEC = ['hip', 'hL', 'hR', 'fL', 'fR'];
   const ST = { hip: [0, 42, 0], ln: 5, ln2: 9, tw: -50, pt: -35, hd: 0, hL: [21, 67, 0], hR: [8, 60, 0], fL: [14, 4, 0], fR: [-14, 4, 0], eL: -1, eR: -1, kL: 0, kR: 0, yaw: 0, rot: 0, ay: 0.5, aim: null, aw: 0 };
   function norm(o, b) { const r = {}; for (const k of NUM) r[k] = o[k] != null ? o[k] : b[k]; for (const k of VEC) { const v = o[k] || b[k]; r[k] = [v[0], v[1], v[2] || 0]; } if (o.ln != null && o.ln2 == null) r.ln2 = o.ln + 4; r.aim = o.aim || null; r.aw = o.aim ? 1 : 0; r.up = o.up || 0; return r; }
@@ -278,27 +278,76 @@ const R = (function () {
     for (const k in rig.mats) rig.mats[k].emissive.setRGB(flashK + tint[0], flashK + tint[1], flashK + tint[2]);
   }
 
+  // Chunky vinyl-figure fighters: big head, barrel body, fat limbs, oversized fists and boots, thick ink outline.
+  const TOY = [
+    { skin: 0xe8b282, hair: 0x2a2e3b, side: 0x7f828a, beard: 0xa39c8e, tache: 0x1f2027, brow: 0x1f2027, top: 0x6f6d3a, top2: 0x5b5930, shirt: 0x6c5847, belt: 0x34261d, buckle: 0xaab0b6, pants: 0x6d5c4d, cuff: 0x7d6b5a, boot: 0x2c1f18, sole: 0x1a120e, btn: 0x3a3320 },
+    { skin: 0xe6ab78, hair: 0x6d472b, side: 0x8a5d3a, beard: 0x4b2d1b, tache: 0x4b2d1b, brow: 0x3b2415, top: 0xf0e7d3, top2: 0xd9cfb8, shirt: 0xf0e7d3, belt: 0x3f362e, buckle: 0x5a5046, pants: 0x3f362e, cuff: 0x574b40, boot: 0x271d17, sole: 0x17110d, btn: 0xb9b4a8, strap: 0xa3936c, strap2: 0x6d5f47 }
+  ];
+  const TOYALT = [{ top: 0x2f4a6e, top2: 0x263c5a, shirt: 0x8a7a66, pants: 0x3b3f4a, cuff: 0x4a4f5c }, { top: 0xc9d8e6, top2: 0xb0c2d3, shirt: 0xc9d8e6, pants: 0x4a2f2a, belt: 0x4a2f2a, cuff: 0x5e3d36, strap: 0xc7a14a }];
   function buildRig(ch, alt) {
-    if (MDL) return buildRigM(ch, alt);
-    const lk = Object.assign({}, LOOK[ch], alt ? ALT[ch] : {}), mats = {};
-    const mat = k => mats[k] || (mats[k] = new THREE.MeshLambertMaterial({ color: lk[k], flatShading: true }));
-    const ol = new THREE.MeshBasicMaterial({ color: 0x0a0810, side: THREE.BackSide });
+    const lk = Object.assign({}, TOY[ch], alt ? TOYALT[ch] : {}), mats = {};
+    const ramp = new THREE.DataTexture(new Uint8Array([120, 120, 120, 255, 190, 190, 190, 255, 255, 255, 255, 255]), 3, 1, THREE.RGBAFormat); ramp.minFilter = ramp.magFilter = THREE.NearestFilter; ramp.needsUpdate = true;
+    const mat = k => mats[k] || (mats[k] = new THREE.MeshToonMaterial({ color: lk[k], gradientMap: ramp }));
+    const ink = new THREE.MeshBasicMaterial({ color: 0x0c0810, side: THREE.BackSide }), inkN = new THREE.MeshBasicMaterial({ color: 0x0c0810, side: THREE.BackSide });
+    inkN.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', 'vec3 transformed = position + normal * 1.7;'); };
     const G = new THREE.Group(), M = new THREE.Group(), R = new THREE.Group(); G.add(M); M.add(R); R.rotation.order = 'ZYX';
-    function fin(g, k, par, w, h, d) { const m = new THREE.Mesh(g, mat(k)); (par || R).add(m); const o = new THREE.Mesh(g, ol); o.scale.set((w + 2) / w, (h + 2) / h, (d + 2) / d); o.position.y = -1; m.add(o); return m; }
-    // geometry runs from y=0 (joint) to y=len (next joint)
-    function box(k, w, h, d, tw, par) { const g = new THREE.BoxGeometry(w, h, d); g.translate(0, h / 2, 0); if (tw) { const p = g.attributes.position; for (let i = 0; i < p.count; i++) if (p.getY(i) > h / 2) { p.setX(i, p.getX(i) * tw); p.setZ(i, p.getZ(i) * tw); } g.computeVertexNormals(); } return fin(g, k, par, w, h, d); }
-    function cyl(k, r0, r1, len) { const g = new THREE.CylinderGeometry(r1, r0, len, 7); g.translate(0, len / 2, 0); return fin(g, k, null, r0 * 2, len, r0 * 2); }
-    const sk = ch === 0 ? 'skin' : 'skin', b = {};
-    b.pel = box('pants', 12, 9, 16, 1.05); box('belt', 13.5, 3.2, 17.5, 1, b.pel).position.y = 6.5;
-    b.abd = box('top', 10.5, SP1, 15, 1.16);
-    b.chest = box('top', 12, SP2, 18.5, 1.3); box(ch === 0 ? 'skin' : 'trim', 1.2, 10, 5.5, 1.25, b.chest).position.set(6.4, 4.5, 0);
-    b.head = box('skin', 11, 12, 10.5, 1.06); box('skin', 5.5, 3, 5.5, 1, b.head).position.y = -2.5;
-    box('hair', 12.2, 4.8, 11.6, 1, b.head).position.set(-0.3, 9.4, 0); box('hair', 4.4, 10, 11.6, 1, b.head).position.set(-4.6, 4, 0); box('hair', 2, 1.6, 7, 1, b.head).position.set(5.6, 6.8, 0);
-    if (ch === 0) { box('band', 12.6, 2.6, 12, 1, b.head).position.set(0, 7.6, 0); const t1 = box('band', 9, 2, 1.6, 1, b.head); t1.position.set(-10, 6.5, 2); t1.rotation.z = 1.2; const t2 = box('band', 8, 2, 1.6, 1, b.head); t2.position.set(-9, 4.5, -2); t2.rotation.z = 1.0; }
-    else { box('hair', 7, 5, 8, 1, b.head).position.set(2.5, 12, 0); }
+    const add = (g, k, par, noInk) => { const m = new THREE.Mesh(g, mat(k)); (par || R).add(m); if (!noInk) m.add(new THREE.Mesh(g, inkN)); return m; };
+    // rounded shapes get a smooth ink shell pushed out along their normals; boxes get a scaled shell
+    const sph = (k, r, sx, sy, sz, par, x, y, z, noInk) => { const m = add(new THREE.IcosahedronGeometry(r, 2), k, par, noInk); m.scale.set(sx, sy, sz); m.position.set(x || 0, y || 0, z || 0); return m; };
+    const cyl = (k, r0, r1, len, par, noInk) => { const g = new THREE.CylinderGeometry(r1, r0, len, 12); g.translate(0, len / 2, 0); return add(g, k, par, noInk); };
+    const cap = (k, r, t0, t1, par) => add(new THREE.SphereGeometry(r, 16, 10, 0, Math.PI * 2, Math.PI * t0, Math.PI * (t1 - t0)), k, par);
+    const box = (k, w, h, d, par, x, y, z, noInk) => { const g = new THREE.BoxGeometry(w, h, d), m = new THREE.Mesh(g, mat(k)); (par || R).add(m); m.position.set(x || 0, y || 0, z || 0); if (!noInk) { const o = new THREE.Mesh(g, ink); o.scale.set((w + 1.8) / w, (h + 1.8) / h, (d + 1.8) / d); m.add(o); } return m; };
+    const b = {}, DX = 0.72;   // body depth as a fraction of its width
+    // ---- hips and legs
+    b.pel = cyl('pants', 11.2, 11.6, 9); b.pel.scale.set(DX, 1, 1);
+    // ---- torso (local x = chest forward, y = up the spine, z = across the shoulders)
+    b.abd = cyl(ch === 0 ? 'top' : 'pants', 11.6, 12.2, SP1 - 2); b.abd.scale.set(DX, 1, 1);
+    b.chest = cyl('top', 12.2, 11.2, SP2); b.chest.scale.set(DX, 1, 1); sph('top', 11.2, 1, 0.42, 1, b.chest, 0, SP2, 0);
+    if (ch === 0) {
+      const skirt = cyl('top', 13.2, 12, 8, b.pel); skirt.position.y = 2.5;                                   // jacket hem over the hips
+      box('shirt', 2, SP2 + 4, 8.5, b.chest, 12.2, SP2 / 2 - 2, 0, 1); box('top2', 2.4, SP2 - 1, 3, b.chest, 12.4, SP2 / 2 + 1.5, 5.4).rotation.x = 0.18; box('top2', 2.4, SP2 - 1, 3, b.chest, 12.4, SP2 / 2 + 1.5, -5.4).rotation.x = -0.18;
+      for (let i = 0; i < 3; i++) sph('btn', 1.15, 1, 1, 1, b.chest, 12.9, 9 - i * 5.2, 8.4, 1);
+      const bl = cyl('belt', 12.3, 12.3, 2.6, b.abd, 1); bl.position.y = 0.5; box('buckle', 1.6, 3.4, 4.6, b.abd, 12.9, 1.8, 0);
+    } else {
+      const wb = cyl('belt', 12.5, 12.5, 3, b.abd, 1); wb.position.y = SP1 - 5; sph('btn', 1.1, 1, 1, 1, b.abd, 12.7, SP1 - 3.5, 0, 1);
+      for (const z of [-5.6, 5.6]) { box('strap', 1.4, SP2 + 3, 3, b.chest, 12.3, SP2 / 2 - 1.5, z); box('strap2', 1.6, SP2 + 3, 0.9, b.chest, 12.4, SP2 / 2 - 1.5, z, 1); box('strap', 1.4, SP2 + 3, 3, b.chest, -12.3, SP2 / 2 - 1.5, z); box('buckle', 1.8, 3, 3.6, b.chest, 12.9, -2.5, z); }
+      sph('btn', 1, 1, 1, 1, b.chest, 12.6, 9, 0, 1); sph('btn', 1, 1, 1, 1, b.chest, 12.6, 4, 0, 1); box('top2', 1.2, 3, 9, b.chest, 12, SP2 - 1, 0, 1);
+    }
+    // ---- head (local x = face forward, y = up, z = toward the near ear)
+    const hd = b.head = new THREE.Group(); R.add(hd); const HY = 11.5;
+    sph('skin', 12.5, 0.96, 0.93, 1, hd, 0, HY, 0);
+    for (const z of [-1, 1]) { sph('skin', 4.2, 0.6, 1, 0.6, hd, -2.5, HY - 2, z * 12.9); }
+    for (const z of [-4.7, 4.7]) sph('tache', 1.75, 0.55, 1.5, 0.95, hd, 10.9, HY + 1.2, z, 1);                // eyes
+    const brow = (z, tilt, th) => { const m = box('brow', 1.5, th, 5.6, hd, 11, HY + 5.4, z, 1); m.rotation.x = tilt; m.rotation.y = z > 0 ? -0.35 : 0.35; return m; };
+    if (ch === 0) {
+      brow(4.9, -0.2, 1.7); brow(-4.9, 0.2, 1.7);
+      const bd = cap('beard', 12.75, 0.5, 1, hd); bd.position.set(0.25, HY - 0.2, 0); bd.scale.set(0.97, 0.94, 1.01);                  // stubble
+      sph('skin', 4.6, 0.5, 0.7, 1, hd, 10, HY - 5.6, 0, 1);                                                                       // clean patch round the mouth
+      const m1 = box('tache', 1.7, 2.3, 5.4, hd, 11.5, HY - 3.1, 2.4, 1); m1.rotation.x = 0.32; const m2 = box('tache', 1.7, 2.3, 5.4, hd, 11.5, HY - 3.1, -2.4, 1); m2.rotation.x = -0.32;
+      box('side', 0.8, 0.7, 3, hd, 11.9, HY - 6.2, 0, 1);
+      const hc = cap('hair', 13.1, 0, 0.36, hd); hc.position.set(-1.6, HY - 0.2, 0); hc.scale.set(0.98, 0.98, 1.01);
+      for (const z of [-1, 1]) sph('side', 3.4, 1.4, 1, 0.3, hd, -1.5, HY + 4.2, z * 11.6, 1);
+      sph('hair', 6.4, 1.55, 0.72, 1.35, hd, 2.5, HY + 12.6, 0); sph('hair', 3.4, 1.3, 0.9, 1.1, hd, 10.8, HY + 14.3, -1.5).rotation.z = 0.5;
+    } else {
+      brow(4.9, 0.36, 2.4); brow(-4.9, -0.36, 2.4);
+      const bd = cap('beard', 13.2, 0.46, 1, hd); bd.position.set(0.5, HY - 0.6, 0); bd.scale.set(1, 1.02, 1.03);
+      sph('beard', 8.6, 0.95, 0.8, 1.25, hd, 4.8, HY - 10.6, 0);
+      box('beard', 1.8, 2.6, 9.6, hd, 11.6, HY - 3.2, 0, 1);
+      sph('skin', 3.6, 0.45, 0.6, 1.15, hd, 11.2, HY - 5.6, 0, 1); const f1 = box('brow', 0.9, 0.8, 2.3, hd, 12.5, HY - 5.2, 1, 1); f1.rotation.x = -0.45; const f2 = box('brow', 0.9, 0.8, 2.3, hd, 12.5, HY - 5.2, -1, 1); f2.rotation.x = 0.45;
+      for (let i = 0; i < 2; i++) box('side', 0.7, 0.55, 6.5 - i * 1.5, hd, 11.2 - i * 0.5, HY + 7.8 + i * 1.5, 0, 1);
+      sph('tache', 0.7, 1, 1, 1, hd, 10.3, HY - 1.2, 7.2, 1);
+      const hc = cap('hair', 13.1, 0, 0.37, hd); hc.position.set(-1.6, HY - 0.2, 0); hc.scale.set(0.98, 0.98, 1.01);
+      for (const z of [-1, 1]) sph('side', 3.4, 1.4, 1, 0.3, hd, -1.5, HY + 4.2, z * 11.6, 1);
+      const q = sph('hair', 6.6, 1.05, 1.5, 1.15, hd, 4.5, HY + 14.5, 0); q.rotation.z = -0.38; sph('hair', 4, 1, 1.25, 1, hd, 9, HY + 19.5, 0.5).rotation.z = -0.6;
+    }
+    // ---- arms and legs
     for (const n of ['L', 'R']) {
-      b['sh' + n] = box(ch === 0 ? 'top' : 'skin', 9, 8, 9, 0.9); b['ua' + n] = cyl('skin', 4.4, 3.7, UA); b['fa' + n] = cyl(ch === 0 ? 'skin' : 'trim', 3.6, 4.3, FA); b['fi' + n] = box('glove', 8, 8, 8, 0.95);
-      b['th' + n] = cyl('pants', 6.6, 5.1, TH); b['sn' + n] = cyl('pants', 5.1, 5.6, SHN); b['ft' + n] = box('shoe', 6.2, 13.5, 7, 0.85);
+      b['sh' + n] = sph('top', 6.3, 1, 1, 1, R); b['ua' + n] = cyl('top', 5.6, 5.1, UA);
+      b['fa' + n] = cyl(ch === 0 ? 'top' : 'skin', 4.9, 5.4, FA); const cf = cyl(ch === 0 ? 'top2' : 'top', 6, 6, 3.4, b['fa' + n]); cf.position.y = ch === 0 ? FA - 4 : -1.2;
+      b['fi' + n] = sph('skin', 6.4, 1, 1.05, 1.05, R);
+      b['th' + n] = cyl('pants', 7.6, 6.6, TH); b['sn' + n] = cyl('pants', 6.6, 7, SHN); const pc = cyl('cuff', 7.5, 7.5, 5, b['sn' + n]); pc.position.y = SHN - 6;
+      const ft = b['ft' + n] = new THREE.Group(); R.add(ft);                                                   // local y = toward the toe, local -x = up
+      sph('boot', 6.2, 0.8, 1.55, 1.02, ft, -0.6, 7.5, 0); sph('boot', 5.6, 1, 1, 1, ft, -1.6, 3.4, 0); box('sole', 1.6, 16.5, 9.6, ft, 3.2, 7.6, 0);
     }
     return { G, M, R, b, mats };
   }
@@ -338,16 +387,16 @@ const R = (function () {
     place(b.pel, sub([hip[0] - d0[0] * 5, hip[1] - d0[1] * 5, 0]), sub([hip[0] + d0[0] * 4, hip[1] + d0[1] * 4, 0]), 0, pax);
     place(b.abd, sub([hip[0] + d0[0] * 2, hip[1] + d0[1] * 2, 0]), sub(cb), SP1 - 2, mid);
     place(b.chest, sub(cb), sub(nk), SP2, cax);
-    const ha = a2 * 0.45 + po.hd * D, hz = [cax[0] * 0.3, 0, 0.7 + cax[2] * 0.3];
-    place(b.head, sub([nk[0], nk[1] + 1.5, 0]), sub([nk[0] + Math.sin(ha) * 10, nk[1] + 1.5 + Math.cos(ha) * 10, 0]), 0, hz);
+    const ha = a2 * 0.45 + po.hd * D, back = Math.max(0, Math.min(1, (Math.abs(po.tw) - 100) / 50)), hz = [-0.5 + back * 0.9 + cax[0] * 0.12, 0, 0.82];
+    place(b.head, sub([nk[0], nk[1] - 3.5, 0]), sub([nk[0] + Math.sin(ha) * 10, nk[1] - 3.5 + Math.cos(ha) * 10, 0]), 0, hz);
     for (const n of ['L', 'R']) { const l = lim[n], sd = n === 'L' ? -1 : 1;
-      place(b['sh' + n], sub(l.sh), sub(l.el), 0, cax, -4); place(b['ua' + n], sub(l.sh), sub(l.el), UA, Zc); place(b['fa' + n], sub(l.el), sub(l.wr), FA, Zc);
-      const fd = [l.wr[0] - l.el[0], l.wr[1] - l.el[1], l.wr[2] - l.el[2]]; place(b['fi' + n], sub(l.wr), sub([l.wr[0] + fd[0], l.wr[1] + fd[1], l.wr[2] + fd[2]]), 0, Zc, -1.2);
+      place(b['sh' + n], sub(l.sh), sub(l.el), 0, cax, 0); place(b['ua' + n], sub(l.sh), sub(l.el), UA, Zc); place(b['fa' + n], sub(l.el), sub(l.wr), FA, Zc);
+      const fd = [l.wr[0] - l.el[0], l.wr[1] - l.el[1], l.wr[2] - l.el[2]]; place(b['fi' + n], sub(l.wr), sub([l.wr[0] + fd[0], l.wr[1] + fd[1], l.wr[2] + fd[2]]), 0, Zc, 2.5);
       place(b['th' + n], sub(l.hs), sub(l.kn), TH, Zc); place(b['sn' + n], sub(l.kn), sub(l.an), SHN, Zc);
       // foot: flat on the floor, turning to follow the shin once it leaves the ground
       const sx = l.an[0] - l.kn[0], sy2 = l.an[1] - l.kn[1], sl = Math.hypot(sx, sy2) || 1, k = fp.air ? 1 : Math.max(0, Math.min(1, (l.an[1] - 5) / 8));
       const fx0 = sd > 0 && !fp.air ? 0.8 : 1, tx = fx0 * (1 - k) + (-sy2 / sl * 0.85 + sx / sl * 0.35) * k, ty = (sx / sl * 0.85 + sy2 / sl * 0.35) * k, tz = (sd > 0 ? 0.6 : -0.15) * (1 - k);
-      const a0 = [l.an[0], l.an[1] - 2.2, l.an[2]]; place(b['ft' + n], sub(a0), sub([a0[0] + tx, a0[1] + ty, a0[2] + tz]), 0, [0, 0, 1], -3.5);
+      const a0 = [l.an[0], l.an[1] - 0.4, l.an[2]]; place(b['ft' + n], sub(a0), sub([a0[0] + tx, a0[1] + ty, a0[2] + tz]), 0, [0, 0, 1], -4.5);
     }
     rig.R.position.set(hip[0], hip[1], 0); rig.R.rotation.set(0, (po.yaw + fp.yaw) * D, -po.rot * D); rig.M.scale.x = face;
     for (const k in rig.mats) { const m = rig.mats[k]; m.emissive.setRGB(flashK + tint[0], flashK + tint[1], flashK + tint[2]); }
