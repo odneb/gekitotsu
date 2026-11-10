@@ -67,15 +67,18 @@ const R = (function () {
     mpS: { l: 8, t: 14, h: 4, af: [70, 20], ab: [28, 112], lf: [38, -42], lb: [-30, -10], yaw: -50 },
     cupS: { l: -2, t: -6, h: -14, ab: [176, 4], af: [10, 80], lf: [22, -22], lb: [-14, -12], yaw: -30 },
     clkS: { l: -8, t: 12, h: 0, lf: [66, -2], lb: [50, -130], af: [50, 80], ab: [10, 100], yaw: -6 },
-    cmkS: { l: -36, t: -24, h: 14, lf: [84, -2], lb: [74, -142], af: [20, 60], ab: [-64, 40], yaw: -10 },
+    cmkS: { l: -40, t: -26, h: 16, lf: [84, -2], lb: [74, -142], af: [-20, 50], ab: [-86, 14], yaw: -10 },
     swS: { l: -40, t: -16, h: 10, lb: [74, -2], lf: [82, -142], af: [-40, 20], ab: [20, 90], yaw: -70 },
     cjabS: { l: 10, t: 22, lf: [85, -120], lb: [25, -115], af: [88, 4], ab: [30, 110], yaw: -10 },
     jlkS: { l: 8, t: 12, lf: [96, -110], lb: [-10, -40], af: [40, 70], ab: [-20, 60] },
     jhkS: { l: -30, t: -6, lb: [96, -2], lf: [40, -100], af: [120, 20], ab: [-60, 10], yaw: -40 },
+    dlW: { l: 38, t: 34, h: 12, lf: [82, -112], lb: [34, -112], af: [30, 60], ab: [64, 40] },
+    dlF: { l: 26, t: 30, h: 6, lf: [96, -120], lb: [60, -110], af: [140, 40], ab: [-50, 50], yaw: 20 },
+    dlS: { l: -22, t: -12, h: 4, lf: [58, -4], lb: [104, -124], af: [150, 30], ab: [-40, 30], yaw: -30 },
     runA: { l: 40, t: 22, h: 12, af: [-50, 90], ab: [70, 90], lf: [84, -70], lb: [-44, -40] },
     runB: { l: 40, t: 22, h: 12, af: [70, 90], ab: [-50, 90], lf: [-44, -40], lb: [84, -70] }
   });
-  const STR = { jabS: 'af', mpS: 'af', strS: 'ab', cjabS: 'af', cupS: 'ab', lkS: 'lf', mkS: 'lf', hkS: 'lb', clkS: 'lf', cmkS: 'lf', swS: 'lb', axS: 'lf', jlkS: 'lf', jhkS: 'lb', jhpS: 'ab', srS: 'ab', diS: 'ab', grabS: 'af' };
+  const STR = { dlS: 'lf', jabS: 'af', mpS: 'af', strS: 'ab', cjabS: 'af', cupS: 'ab', lkS: 'lf', mkS: 'lf', hkS: 'lb', clkS: 'lf', cmkS: 'lf', swS: 'lb', axS: 'lf', jlkS: 'lf', jhkS: 'lb', jhpS: 'ab', srS: 'ab', diS: 'ab', grabS: 'af' };
   function P(n) { const o = PO[n] || PO.idle, b = base; return { l: o.l ?? b.l, t: o.t ?? b.t, h: o.h ?? b.h, af: o.af || b.af, ab: o.ab || b.ab, lf: o.lf || b.lf, lb: o.lb || b.lb, yaw: o.yaw ?? 0, rot: o.rot ?? 0 }; }
   function mix(a, b, k) { const m = (x, y) => x + (y - x) * k, m2 = (x, y) => [m(x[0], y[0]), m(x[1], y[1])]; return { l: m(a.l, b.l), t: m(a.t, b.t), h: m(a.h, b.h), af: m2(a.af, b.af), ab: m2(a.ab, b.ab), lf: m2(a.lf, b.lf), lb: m2(a.lb, b.lb), yaw: m(a.yaw, b.yaw), rot: m(a.rot, b.rot) }; }
   const sm = k => k <= 0 ? 0 : k >= 1 ? 1 : k * k * (3 - 2 * k);
