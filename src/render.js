@@ -59,6 +59,23 @@ const R = (function () {
     hmW: { l: -10, t: -18, h: -10, af: [195, 20], ab: [190, 25], lf: [20, -25], lb: [-20, -20] }, hmS: { l: 30, t: 38, h: 20, af: [48, 6], ab: [42, 8], lf: [50, -60], lb: [-38, -10] },
     dkS: { l: -30, t: -5, lf: [48, -2], lb: [85, -125], af: [150, 30], ab: [-50, 30] }
   };
+  Object.assign(PO, {
+    lkS: { l: -12, t: -2, lf: [55, -2], lb: [-8, -14], af: [40, 90], ab: [-10, 100], yaw: -20 },
+    mkS: { l: -30, t: -12, h: 6, lf: [112, -2], lb: [-6, -10], af: [40, 90], ab: [-30, 80], yaw: -30 },
+    hkS: { l: -40, t: -14, h: 10, lb: [96, -2], lf: [2, -8], af: [30, 60], ab: [-40, 40], yaw: -75 },
+    strS: { l: 22, t: 30, h: 8, af: [20, 120], ab: [90, 2], lf: [55, -50], lb: [-48, -4], yaw: -40 },
+    mpS: { l: 8, t: 14, h: 4, af: [70, 20], ab: [28, 112], lf: [38, -42], lb: [-30, -10], yaw: -50 },
+    cupS: { l: -2, t: -6, h: -14, ab: [176, 4], af: [10, 80], lf: [22, -22], lb: [-14, -12], yaw: -30 },
+    clkS: { l: -8, t: 12, h: 0, lf: [66, -2], lb: [50, -130], af: [50, 80], ab: [10, 100], yaw: -6 },
+    cmkS: { l: -36, t: -24, h: 14, lf: [84, -2], lb: [74, -142], af: [20, 60], ab: [-64, 40], yaw: -10 },
+    swS: { l: -40, t: -16, h: 10, lb: [74, -2], lf: [82, -142], af: [-40, 20], ab: [20, 90], yaw: -70 },
+    cjabS: { l: 10, t: 22, lf: [85, -120], lb: [25, -115], af: [88, 4], ab: [30, 110], yaw: -10 },
+    jlkS: { l: 8, t: 12, lf: [96, -110], lb: [-10, -40], af: [40, 70], ab: [-20, 60] },
+    jhkS: { l: -30, t: -6, lb: [96, -2], lf: [40, -100], af: [120, 20], ab: [-60, 10], yaw: -40 },
+    runA: { l: 40, t: 22, h: 12, af: [-50, 90], ab: [70, 90], lf: [84, -70], lb: [-44, -40] },
+    runB: { l: 40, t: 22, h: 12, af: [70, 90], ab: [-50, 90], lf: [-44, -40], lb: [84, -70] }
+  });
+  const STR = { jabS: 'af', mpS: 'af', strS: 'ab', cjabS: 'af', cupS: 'ab', lkS: 'lf', mkS: 'lf', hkS: 'lb', clkS: 'lf', cmkS: 'lf', swS: 'lb', axS: 'lf', jlkS: 'lf', jhkS: 'lb', jhpS: 'ab', srS: 'ab', diS: 'ab', grabS: 'af' };
   function P(n) { const o = PO[n] || PO.idle, b = base; return { l: o.l ?? b.l, t: o.t ?? b.t, h: o.h ?? b.h, af: o.af || b.af, ab: o.ab || b.ab, lf: o.lf || b.lf, lb: o.lb || b.lb, yaw: o.yaw ?? 0, rot: o.rot ?? 0 }; }
   function mix(a, b, k) { const m = (x, y) => x + (y - x) * k, m2 = (x, y) => [m(x[0], y[0]), m(x[1], y[1])]; return { l: m(a.l, b.l), t: m(a.t, b.t), h: m(a.h, b.h), af: m2(a.af, b.af), ab: m2(a.ab, b.ab), lf: m2(a.lf, b.lf), lb: m2(a.lb, b.lb), yaw: m(a.yaw, b.yaw), rot: m(a.rot, b.rot) }; }
   const sm = k => k <= 0 ? 0 : k >= 1 ? 1 : k * k * (3 - 2 * k);
@@ -66,7 +83,7 @@ const R = (function () {
 
   // pose for a fighter from sim state -> {pose, grounded, extraYaw}
   function fighterPose(p, o, sFrame) {
-    const C = SIM.CH[p.ch]; let po, ground = p.y <= 0, spin = 0, dy = 0, dx = 0;
+    const C = SIM.CH[p.ch]; let po, ground = p.y <= 0, spin = 0, dy = 0, dx = 0, strike = null;
     switch (p.st) {
       case 'idle':
         if (p.sub === 'crouch') po = mix(P('idle'), P('crouch'), sm(Math.min(1, (p.subf + 1) / 4)));
@@ -76,7 +93,7 @@ const R = (function () {
       case 'prejump': case 'land': po = P('prejump'); break;
       case 'jump': po = mix(P('jump'), P('fall'), sm((500 - p.vy) / 1200)); break;
       case 'dashf': po = mix(P('dashf'), P('idle'), sm((p.sf - 11) / 6)); break;
-      case 'run': po = mix(P('dashf'), P('walkA'), (Math.sin(p.sf * 0.9) + 1) * 0.3); break;
+      case 'run': po = mix(P('runA'), P('runB'), (Math.sin(p.sf * 0.75) + 1) / 2); break;
       case 'drush': po = mix(P('dashf'), P('idle'), sm((p.sf - 26) / 8)); break;
       case 'parry': po = P('parry'); break; case 'prec': po = mix(P('parry'), P('idle'), sm(p.sf / 11)); break;
       case 'dashb': po = mix(P('dashb'), P('idle'), sm((p.sf - 14) / 8)); dy = Math.max(0, Math.sin(Math.min(1, p.sf / 14) * Math.PI) * 10); ground = dy <= 0; break;
@@ -101,12 +118,20 @@ const R = (function () {
           else po = mix(P(a.s), P(bn), sm((f - end) / (rec - end)));
         }
         if (a.spin && f >= a.spin[0]) spin = Math.min(1, (f - a.spin[0]) / (a.spin[1] - a.spin[0])) * a.spin[2];
+        // the striking limb is aimed at, and stretched to, the far end of the real hitbox
+        let hh = null; for (const h of m.hits) if (h.hb && f >= h.s - 4 && f <= h.e + 5) { hh = h; break; }
+        if (hh && !m.sup && !spin && hh.hb[2] <= 62) {
+          let nm = a.s; if (a.k) { nm = a.k[a.k.length - 1][1]; for (const kk of a.k) if (kk[0] >= hh.s) { nm = kk[1]; break; } }
+          const lim = STR[nm];
+          if (lim) { const w0 = f < hh.s ? Math.max(0, 1 - (hh.s - f) / 4) : f <= hh.e ? 1 : Math.max(0, 1 - (f - hh.e) / 5), up = nm === 'srS' || nm === 'cupS';
+            strike = { lim: lim, w: w0 * w0 * (3 - 2 * w0), tx: up ? hh.hb[0] + hh.hb[2] * 0.55 : hh.hb[0] + hh.hb[2] - 2, ty: up ? hh.hb[1] + hh.hb[3] - 6 : hh.hb[1] + hh.hb[3] / 2 }; }
+        }
         if (m.thr) po = keyed([[0, 'idle'], [3, 'grabW'], [5, 'grabS'], [8, 'grabS'], [m.t, 'idle']], f);
         break;
       }
       default: po = P('idle');
     }
-    return { po: po, ground: ground, spin: spin, dy: dy };
+    return { po: po, ground: ground, spin: spin, dy: dy, strike: strike };
   }
 
   // ----------------------------------------------------------- rig
@@ -138,16 +163,25 @@ const R = (function () {
     return { G, spin, pel, tor, head, limbs, mats, all };
   }
   function applyPose(rig, fp, face, flashK, tint) {
-    const po = fp.po, L = po.l, T = po.t;
-    rig.spin.rotation.z = -po.rot * D; rig.pel.rotation.z = -L * D; rig.tor.rotation.z = -T * D; rig.head.rotation.z = (L + T - po.h) * D;
-    // lead limbs sit on the far side from the camera, whichever way we face
-    const lead = face > 0 ? 'N' : 'P', rear = face > 0 ? 'P' : 'N';
-    const A = (n, a) => { rig.limbs[n][0].rotation.z = (a[0] + L + T) * D; rig.limbs[n][1].rotation.z = a[1] * D; };
-    const Lg = (n, a) => { rig.limbs[n][0].rotation.z = (a[0] + L) * D; rig.limbs[n][1].rotation.z = a[1] * D; };
-    A('a' + lead, po.af); A('a' + rear, po.ab); Lg('l' + lead, po.lf); Lg('l' + rear, po.lb);
+    let po = fp.po; const L = po.l, T = po.t, st = fp.strike && fp.strike.w > 0 ? fp.strike : null;
     const fy = a => -24 * Math.cos(a[0] * D) - 24 * Math.cos((a[0] + a[1]) * D) - 3.5;
     let hip = 52;
     if (fp.ground) hip = -Math.min(fy(po.lf), fy(po.lb)) + 3;
+    const sc = { af: 1, ab: 1, lf: 1, lb: 1 };
+    if (st) {
+      const leg = st.lim[0] === 'l';
+      if (leg && fp.ground) { const sup = st.lim === 'lf' ? po.lb : po.lf; hip += ((-fy(sup) + 3) - hip) * st.w; }
+      const c = Math.max(0.55, Math.cos((26 + po.yaw) * D)), hy = hip + fp.dy;
+      const bx = leg ? -3 * Math.sin(L * D) : 6 * Math.sin(L * D) + 23 * Math.sin((L + T) * D), by = leg ? hy - 3 * Math.cos(L * D) : hy + 6 * Math.cos(L * D) + 23 * Math.cos((L + T) * D);
+      const vx = st.tx / c - bx, vy = st.ty - by, dist = Math.sqrt(vx * vx + vy * vy), ang = Math.atan2(vx, -vy) / D, k = Math.max(0.75, Math.min(2.1, dist / (leg ? 52 : 36)));
+      const a = po[st.lim], o = {}; o[st.lim] = [a[0] + (ang - a[0]) * st.w, a[1] * (1 - st.w)]; po = Object.assign({}, po, o); sc[st.lim] = 1 + (k - 1) * st.w;
+    }
+    rig.spin.rotation.z = -po.rot * D; rig.pel.rotation.z = -L * D; rig.tor.rotation.z = -T * D; rig.head.rotation.z = (L + T - po.h) * D;
+    // lead limbs sit on the far side from the camera, whichever way we face
+    const lead = face > 0 ? 'N' : 'P', rear = face > 0 ? 'P' : 'N';
+    const A = (n, a, s) => { rig.limbs[n][0].rotation.z = (a[0] + L + T) * D; rig.limbs[n][1].rotation.z = a[1] * D; rig.limbs[n][0].scale.y = s; };
+    const Lg = (n, a, s) => { rig.limbs[n][0].rotation.z = (a[0] + L) * D; rig.limbs[n][1].rotation.z = a[1] * D; rig.limbs[n][0].scale.y = s; };
+    A('a' + lead, po.af, sc.af); A('a' + rear, po.ab, sc.ab); Lg('l' + lead, po.lf, sc.lf); Lg('l' + rear, po.lb, sc.lb);
     rig.spin.position.y = hip + fp.dy;
     const yaw = (26 + po.yaw + fp.spin) * D;
     rig.G.rotation.y = face > 0 ? -yaw : Math.PI + yaw;
@@ -217,7 +251,7 @@ const R = (function () {
       else if (e.t === 'jump' || e.t === 'land' || e.t === 'dash' || e.t === 'run') { const p = s.p[e.who]; fx.push({ k: 'dust', x: p.x / F, y: 0, t: 0 }); }
       else if (e.t === 'tech' || e.t === 'clash') fx.push({ k: 'guard', x, y, t: 0, big: 1 });
       else if (e.t === 'pend') fx.push({ k: 'ring', x, y, t: 0 });
-      else if (e.t === 'super') superFx = { who: e.who, t: 0, lv: e.lv, name: SIM.CH[s.p[e.who].ch].mv['SA' + e.lv].n };
+      else if (e.t === 'super') superFx = { who: e.who, t: 0, lv: e.lv, name: (e.ca ? 'Critical Art  ' : '') + SIM.CH[s.p[e.who].ch].mv['SA' + e.lv].n };
       else if (e.t === 'ex') fx.push({ k: 'exflash', who: e.who, t: 0 });
       else if (e.t === 'round') msg = { big: s.round >= s.cfg.rounds * 2 - 1 && s.p[0].wins === s.p[1].wins && s.round > 1 ? 'FINAL ROUND' : 'ROUND ' + s.round, jp: '第' + '一二三四五'[s.round - 1] + '回戦', t: 0, dur: 80, col: '#ffd21e' };
       else if (e.t === 'fight') msg = { big: 'FIGHT!', jp: '始め！', t: 0, dur: 50, col: '#ff3355', slam: 1 };

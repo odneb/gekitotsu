@@ -95,7 +95,7 @@ const SIM = (function () {
     N('DL_H', { n: 'Dragonlash Kick', sp: 1, su: 28, ac: 5, rc: 21, d: 120, ha: 3, ba: 1, hb: [4, 16, 54, 66], kb: 460, lvl: 1, hsp: 13, mv: [[8, 27, 300]], lowInv: [18, 36], ss: 2, dd: 300, sg: 80, an: { k: dlA.k(28).concat([[53, 'idle']]) } });
     const dl2 = (k, st, bs, o) => N(k, Object.assign({ n: 'Dragonlash Kick', sp: 1, su: 9, t: o && o.od ? 48 : 47, mv: [[3, 12, 560]], lowInv: [9, 26], dd: 300, sg: 120, can: C_SU,
       hits: [{ s: 8, e: 12, hb: [4, 16, 54, 66], d: 50, stun: 22, kb: 60, air: [120, 470], lvl: 1, hsp: 9, bstun: 18 }, { s: 15, e: 22, hb: [4, 6, 60, 90], d: 70, stun: st, kb: 420, air: [200, 820], lvl: 2, hsp: 13, bstun: bs }], an: { k: dlA.k(9).concat([[22, 'axS'], [47, 'idle']]) } }, o || {}));
-    dl2('DL_OD', 34, 24, { od: 1 }); dl2('QDL', 34, 24);
+    dl2('DL_OD', 34, 24, { od: 1 }); dl2('QDL', 34, 24, { thru: 1 });
     // Jinrai Kick and its follow-ups
     const fu = { S4: 'KAZE', S2: 'GORAI', S5: 'SENKA', L: 'KAZE', M: 'GORAI', H: 'SENKA' }, fuO = { S4: 'KAZE_OD', S2: 'GORAI_OD', S5: 'SENKA_OD', L: 'KAZE_OD', M: 'GORAI_OD', H: 'SENKA_OD' }, ka = { S4: 'KASAI', S2: 'KASAI', S5: 'KASAI', L: 'KASAI', M: 'KASAI', H: 'KASAI' };
     const jb = [8, 40, 62, 22], jA = (su, t) => ({ k: [[0, 'idle'], [Math.max(2, su - 6), 'lkW'], [su - 1, 'hkS'], [su + 6, 'hkS'], [t, 'idle']] });
@@ -109,7 +109,7 @@ const SIM = (function () {
     N('KAZE_OD', { n: 'Kazekama Shin Kick', sp: 1, su: 6, ac: 3, rc: 20, d: 50, g: 'l', ha: 3, ba: -5, hb: [6, 0, 62, 14], kb: 300, lvl: 1, hsp: 11, dd: 300, sg: 40, can: C_SU, mv: [[0, 5, 300]], crouch: 1, fu: { w: [10, 27], to: ka }, tint: 1, an: { w: 'clkW', s: 'cmkS' } });
     N('GORAI_OD', { n: 'Gorai Axe Kick', sp: 1, su: 17, ac: 3, rc: 24, d: 100, g: 'h', ha: -3, ba: -7, hb: [8, 30, 52, 60], kb: 300, air: [150, -1400], gb: 1, lvl: 1, hsp: 13, dd: 250, sg: 50, can: C_SU, mv: [[0, 12, 260]], fu: { w: [23, 42], to: ka }, tint: 1, an: { w: 'axW', s: 'axS' } });
     N('SENKA_OD', { n: 'Senka Snap Kick', sp: 1, su: 10, ac: 6, rc: 18, d: 80, ba: -4, hb: [8, 50, 66, 30], launch: [200, 800], air: [200, 800], lvl: 1, hsp: 13, dd: 700, sg: 60, can: C_SU, mv: [[0, 8, 300]], fu: { w: [21, 32], to: ka }, tint: 1, an: { w: 'hkW', s: 'hkS' } });
-    N('KASAI', { n: 'Kasai Thrust Kick', sp: 1, su: 15, ac: 3, rc: 29, d: 50, ba: -12, hb: [8, 30, 70, 40], launch: [240, 800], air: [240, 800], lvl: 2, hsp: 14, dd: 500, sg: 60, cx: 1, can: C_SU, mv: [[2, 14, 520]], tint: 1, an: { w: 'lkW', s: 'mkS' } });
+    N('KASAI', { n: 'Kasai Thrust Kick', sp: 1, su: 15, ac: 3, rc: 29, d: 50, ba: -12, hb: [8, 30, 70, 40], launch: [240, 800], air: [240, 800], lvl: 2, hsp: 14, dd: 500, sg: 60, cx: 2, can: C_SU, mv: [[2, 14, 520]], tint: 1, an: { w: 'lkW', s: 'mkS' } });
     // Super Arts
     N('SA1', { n: 'Dragonlash Flame', sup: 1, sa: 1, su: 7, ac: 3, rc: 41, d: 200, frz: 40, inv: [0, 8], minScale: 30, ba: -24, hb: [2, 10, 64, 80], launch: [320, 1050], air: [320, 1050], lvl: 2, hsp: 18, dd: 250, mv: [[2, 8, 760]], an: { k: [[0, 'jhkW'], [6, 'axS'], [20, 'axS'], [50, 'idle']], spin: [0, 8, 360] } });
     const big = [-4, 0, 84, 104], rq = (s, d) => ({ s: s, e: s + 1, hb: big, d: d, stun: 34, kb: 0, air: [0, 250], lvl: 1, hsp: 6, bstun: 20, req: 2, lk: 1 });
@@ -140,7 +140,7 @@ const SIM = (function () {
     return { ch: ch, x: (i ? 80 : -80) * F, y: 0, vx: 0, vy: 0, pv: 0, face: i ? -1 : 1, hp: CH[ch].hp, sa: 0, dr: DMAX, bo: 0, drT: 0, st: 'idle', sub: 'stand', sf: 0, subf: 0,
       mv: '', mf: 0, hitMask: 0, contact: 0, hitOK: 0, hs: 0, stun: 0, buf: b, prev: 0, age: [99, 99, 99, 99, 99, 99, 99], d66: 99, d44: 99, combo: 0, comboDmg: 0, jug: 0,
       wbUsed: 0, gbUsed: 0, wbPend: 0, gbPend: 0, jd: 0, rec: 0, cb: 0, hitHi: 1, tinv: 0, wins: 0, back: 0, red: CH[ch].hp, redT: 0, air2: 0, noTech: 0,
-      rq: 99, part: 0, jg: 0, cxSeq: -1, fuq: '', fum: 0, pd: [0, 0, 0, 0, 0, 0, 0], mseq: 0, cs: 0, lastSeq: -1, acq: 0, rcn: 0, sshift: 0, drs: 0, pok: 0, roll: 0, hard: 0, arm: 0, armHit: 0, drb: 0, mod: 0, ac: '', aci: 0, crum: 0, pp: 0, plock: 0, half: 0 };
+      ca: 0, rq: 99, part: 0, jg: 0, cxSeq: -1, fuq: '', fum: 0, pd: [0, 0, 0, 0, 0, 0, 0], mseq: 0, cs: 0, lastSeq: -1, acq: 0, rcn: 0, sshift: 0, drs: 0, pok: 0, roll: 0, hard: 0, arm: 0, armHit: 0, drb: 0, mod: 0, ac: '', aci: 0, crum: 0, pp: 0, plock: 0, half: 0 };
   }
   function newMatch(cfg) {
     const s = { frame: 0, slow: 0, phase: 'intro', pt: 0, round: 1, time: 99 * 60, freeze: 0, frzWho: 0, proj: [], ev: [], winner: -1, rw: -1, koType: '', cfg: { training: !!cfg.training, chars: cfg.chars.slice(), rounds: cfg.rounds || 2 }, p: [] };
@@ -207,10 +207,10 @@ const SIM = (function () {
     const m = CH[p.ch].mv[key], fromDr = p.st === 'drush';
     p.st = 'atk'; p.mv = key; p.mseq++; p.mf = 0; p.sf = 0; p.hitMask = 0; p.contact = 0; p.hitOK = 0; p.arm = m.arm || 0; p.armHit = 0;
     p.drb = fromDr && !m.sp && !m.sup && !m.thr ? 1 : 0; if (fromDr) p.pv = p.face * 480;
-    p.mod = opt && opt.mod ? 1 : 0; p.fuq = ''; p.part = 0; if (!(opt && opt.auto)) { p.ac = ''; p.aci = 0; }
+    p.mod = opt && opt.mod ? 1 : 0; p.fuq = ''; p.part = 0; p.ca = (m.sa === 3 && p.hp * 4 <= CH[p.ch].hp) ? 1 : 0; if (!(opt && opt.auto)) { p.ac = ''; p.aci = 0; }
     if (!m.isAir) p.vx = 0;
     if (m.sa) p.sa -= m.sa * 1000; else if (m.sp) p.sa = Math.min(3000, p.sa + 10);
-    if (m.frz) { s.freeze = m.frz; s.frzWho = i; s.ev.push({ t: 'super', who: i, lv: m.sa }); }
+    if (m.frz) { s.freeze = m.frz; s.frzWho = i; s.ev.push({ t: 'super', who: i, lv: m.sa, ca: p.ca }); }
     else if (m.od) s.ev.push({ t: 'ex', who: i });
     else if (m.di) s.ev.push({ t: 'di', who: i });
     if (m.sp || m.sup) s.ev.push({ t: 'special', who: i, k: key });
@@ -454,7 +454,8 @@ const SIM = (function () {
   }
   function pushboxes(s) {
     const a = s.p[0], b = s.p[1], lim = STAGE - PW;
-    const skip = a.st === 'thrown' || b.st === 'thrown' || a.st === 'throwing' || b.st === 'throwing';
+    const thru = (p, q) => p.st === 'atk' && CH[p.ch].mv[p.mv].thru && q.st === 'ahit';
+    const skip = a.st === 'thrown' || b.st === 'thrown' || a.st === 'throwing' || b.st === 'throwing' || thru(a, b) || thru(b, a);
     if (!skip && a.y < b.y + 70 * F && b.y < a.y + 70 * F) {
       let dx = b.x - a.x; const ov = 2 * PW - Math.abs(dx);
       if (ov > 0) {
@@ -529,7 +530,8 @@ const SIM = (function () {
     const special = !!(m.sp || m.sup), drb = !isProj && a.drb ? 4 : 0;
     let hsp = h.hsp; if (!isProj) a.drb = 0;
     if (how === 'parry') {
-      const perfect = d.sf <= 2 && d.plock === 0;
+      const bk = (dinp & (side > 0 ? 8 : 4)) !== 0, cr = (dinp & 2) !== 0;
+      const perfect = d.sf <= 2 && d.plock === 0 && (isProj || (bk && !(h.g === 'l' && !cr) && !(h.g === 'h' && cr && !m.isAir)));
       d.dr = Math.min(DMAX, d.dr + (isProj ? 500 : 1000)); d.drT = 20; d.pok = 1; d.plock = Math.max(1, h.bstun - 3); d.hs = 8; if (!isProj) { a.hs = 8; a.contact = 1; }
       if (perfect) { s.freeze = isProj ? 8 : 20; s.frzWho = di; toIdle(d); d.hs = 0; d.tinv = 4; a.pp = 70; if (!isProj) a.hs = 14; s.ev.push({ t: 'pparry', x: cx, y: cy, who: di }); }
       else s.ev.push({ t: 'parry', x: cx, y: cy, who: di });
@@ -553,8 +555,8 @@ const SIM = (function () {
     }
     const inCombo = d.combo > 0 && (d.st === 'hit' || d.st === 'ahit');
     if (inCombo) d.combo++; else { d.combo = 1; d.comboDmg = 0; d.jug = 0; d.wbUsed = 0; d.gbUsed = 0; d.half = d.pp > 0 ? 1 : 0; }
-    const seq = isProj ? -2 - ai : a.mseq; if (!inCombo) { d.sshift = m.ss || 0; d.drs = 0; d.cs = 1; d.lastSeq = seq; } else if (seq !== d.lastSeq) { d.cs++; d.lastSeq = seq; } if (drb) d.drs = 1; if (m.cx && seq !== d.cxSeq) { d.cxSeq = seq; d.sshift++; } let pct = SCALE[Math.min(d.cs - 1 + (d.cs > 1 ? d.sshift : 0), 9)]; if (d.drs && d.cs > 1) pct = tr(pct * 85 / 100); if (m.minScale && pct < m.minScale) pct = m.minScale;
-    let dmg = tr(h.d * pct / 100); if (kind) dmg = tr(dmg * 120 / 100); if (mod) dmg = tr(dmg * 80 / 100); if (a.part && m.sup && !isProj) dmg = tr(dmg * 6 / 10); if (d.half) dmg = tr(dmg / 2); if (a.bo) dmg = tr(dmg * 90 / 100); if (dmg < 1) dmg = 1;
+    const seq = isProj ? -2 - ai : a.mseq; if (!inCombo) { d.sshift = m.ss || 0; d.drs = 0; d.cs = 1; d.lastSeq = seq; } else if (seq !== d.lastSeq) { d.cs++; d.lastSeq = seq; } if (drb) d.drs = 1; if (m.cx === 1 && seq !== d.cxSeq) { d.cxSeq = seq; d.sshift++; } let pct = SCALE[Math.min(d.cs - 1 + (d.cs > 1 ? d.sshift : 0), 9)]; if (d.drs && d.cs > 1) pct = tr(pct * 85 / 100); if (m.cx === 2 && seq !== d.cxSeq) { d.cxSeq = seq; d.sshift++; } if (m.minScale && pct < m.minScale) pct = m.minScale;
+    let dmg = tr((h.d + (a.ca && m.sa === 3 && h.launch ? 50 : 0)) * pct / 100); if (kind) dmg = tr(dmg * 120 / 100); if (mod) dmg = tr(dmg * 80 / 100); if (a.part && m.sup && !isProj) dmg = tr(dmg * 6 / 10); if (d.half) dmg = tr(dmg / 2); if (a.bo) dmg = tr(dmg * 90 / 100); if (dmg < 1) dmg = 1;
     d.hp = Math.max(s.cfg.training ? 1 : 0, d.hp - dmg); d.comboDmg += dmg; d.redT = 50;
     const ko = d.hp <= 0, wasAir = d.y > 0 || d.st === 'ahit';
     let launch = (isProj && last && h.launchLast) ? h.launchLast : h.launch;

@@ -64,7 +64,8 @@ t('Drive Impact has two hits of armor',[w,[2,B.DI,0],[6,0,0],[2,0,L],[8,0,0],[2,
 t('Drive Reversal = Impact while blocking',[w,[2,0,H],[40,Lf,0],[2,Lf|B.DI,0],[50,0]],r=>r.seen.includes('DREV'),{pre:s=>{}});
 t('Drive Parry (hold)',[w,[20,B.PA],[40,0]],'(parry)>(prec)',{far:1});
 t('Drive Parry blocks without guard direction',[w,[2,0,H],[30,B.PA,0],[30,0]],r=>r.ev.includes('parry')||r.ev.includes('pparry'));
-t('Perfect Parry = parry within 2 frames of the hit',[w,[2,0,H],[9,0,0],[6,B.PA,0],[60,0]],r=>r.ev.includes('pparry'));
+t('Perfect Parry = parry within 2 frames of the hit, holding guard',[w,[2,0,H],[9,0,0],[6,B.PA|Lf,0],[60,0]],r=>r.ev.includes('pparry'));
+t('Perfect Parry needs the guard direction',[w,[2,0,H],[9,0,0],[6,B.PA,0],[60,0]],r=>r.ev.includes('parry')&&!r.ev.includes('pparry'));
 t('late parry is a normal parry',[w,[2,0,H],[5,0,0],[20,B.PA,0],[40,0]],r=>r.ev.includes('parry')&&!r.ev.includes('pparry'));
 t('no parry in the air',[w,[3,U],[10,0],[20,B.PA],[40,0]],r=>!r.ev.includes('parryOn'));
 t('parry > forward,forward = Drive Rush',[w,[6,B.PA],[2,B.PA|R],[2,B.PA],[2,B.PA|R],[50,0]],'(parry)>(drush)',{far:1});
