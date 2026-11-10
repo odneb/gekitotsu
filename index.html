@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>body{margin:0}[hidden]{display:none!important}</style></head><body>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta http-equiv="Cache-Control" content="no-cache"><style>body{margin:0}[hidden]{display:none!important}</style></head><body>
 <title>GEKITOTSU</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Press+Start+2P&display=swap">
@@ -40,6 +40,7 @@ function fit(){const fs=document.fullscreenElement===c,W=fs?innerWidth:b.clientW
 addEventListener('resize',fit);document.addEventListener('fullscreenchange',fit);fit();setTimeout(fit,50);})();
 </script>
 <script>
+window.GK_BUILD='1110-1845 UTC';
 // ===================================================================
 // GEKITOTSU deterministic simulation core. Integer math only, no RNG,
 // no wall-clock, no floats. state = step(state, inputP1, inputP2).
@@ -1720,7 +1721,7 @@ const NET = (function () {
     title: {
       tick() { if (mn.ok || mn.start || click || INP.merged() & INP.ATK) { AUD.init(); AUD.play('ok'); if (inv) selInit('online'); else go('menu'); } },
       draw() { const b = 1 + Math.max(0, 1 - st / 14) * 1.5; RC(0, 54, 480, 112, 'rgba(10,6,18,0.55)'); RC(0, 54, 480, 2, '#ff3355'); RC(0, 164, 480, 2, '#ff3355'); R.g.save(); R.g.translate(240, 100); R.g.scale(b, b); T('激突', 0, -42, 64, '#ff3355', 'center', 1, '#ffd21e'); R.g.restore(); T('GEKITOTSU', 240, 132, 24, '#fff', 'center'); T('IRON FIST COLLISION', 240, 170, 8, '#ffd21e', 'center');
-        if ((st >> 5) & 1) T(inv ? 'INVITED TO ROOM ' + inv.toUpperCase() + ' - PRESS START' : 'PRESS START', 240, 204, 8, '#fff', 'center'); T('60 FPS FIXED STEP · ZERO RNG · ROLLBACK NETCODE', 240, 236, 8, '#8d7fa0', 'center', 1); T(INP.padBlocked ? 'THIS VIEWER BLOCKS CONTROLLERS: KEYBOARD ONLY HERE. PADS WORK IN THE HOSTED BUILD.' : INP.padCount() ? INP.padCount() + ' CONTROLLER' + (INP.padCount() > 1 ? 'S' : '') + ' READY' : 'PLUG IN A PAD AND PRESS ANY BUTTON, OR USE THE KEYBOARD', 240, 250, 8, INP.padBlocked ? '#ffd21e' : INP.padCount() ? '#7fffa0' : '#8d7fa0', 'center', 1); }
+        if ((st >> 5) & 1) T(inv ? 'INVITED TO ROOM ' + inv.toUpperCase() + ' - PRESS START' : 'PRESS START', 240, 204, 8, '#fff', 'center'); T('60 FPS FIXED STEP · ZERO RNG · ROLLBACK NETCODE', 240, 236, 8, '#8d7fa0', 'center', 1); T('BUILD ' + (window.GK_BUILD || 'dev'), 474, 4, 8, '#8d7fa0', 'right', 1); T(INP.padBlocked ? 'THIS VIEWER BLOCKS CONTROLLERS: KEYBOARD ONLY HERE. PADS WORK IN THE HOSTED BUILD.' : INP.padCount() ? INP.padCount() + ' CONTROLLER' + (INP.padCount() > 1 ? 'S' : '') + ' READY' : 'PLUG IN A PAD AND PRESS ANY BUTTON, OR USE THE KEYBOARD', 240, 250, 8, INP.padBlocked ? '#ffd21e' : INP.padCount() ? '#7fffa0' : '#8d7fa0', 'center', 1); }
     },
     menu: {
       tick() { if (mn.back) { go('title'); return; } if (!nav(MENU.length)) return; const k = MENU[cur][0];
