@@ -207,7 +207,7 @@
     cmd: {
       tick() { if (mn.left || mn.right || (click && click.y < 44)) { cmd.ch ^= 1; AUD.play('move'); } if (mn.back || mn.ok || mn.start || (click && click.y >= 44)) { AUD.play('back'); if (cmd.from === 'fight') scene = 'fight'; else go('menu', 1), cur = 4; } },
       draw() { const C = CH[cmd.ch]; panel(16, 12, 448, 240, '◀  ' + C.name + ' ' + C.jp + '  COMMAND LIST  ▶'); let y = 34; C.cmd.forEach(m => { T(m[0].toUpperCase(), 28, y, 8, '#ffd21e'); T(m[1], 452, y - 2, 8, '#33e0ff', 'right', 1); T(m[2], 28, y + 10, 8, '#bfb0cc', 'left', 1); y += 22; });
-        y = 216; T('SP = SPECIAL BUTTON. HOLD ASSIST + SP FOR THE OVERDRIVE VERSION (2 DRIVE BARS). ASSIST + L / M / H REPEATED = ASSIST COMBO.', 28, y, 8, '#8d7fa0', 'left', 1); T('NORMALS: L, M, H WITH ↓ FOR LOWS. →+M STEP KICK, ←+H ROUNDHOUSE, →+H OVERHEAD, ↘+H SWEEP. M > H TARGET COMBO.', 28, y + 10, 8, '#8d7fa0', 'left', 1); T('DRIVE: IMPACT (ARMOR) · PARRY (HOLD) · RUSH = →→ FROM PARRY OR FROM A CANCELLABLE NORMAL (3 BARS) · REVERSAL = IMPACT WHILE BLOCKING.', 28, y + 20, 8, '#8d7fa0', 'left', 1); }
+        y = 216; T('NORMALS: L = PUNCH, ↓L = LOW KICK, M = KICK (M M M TRIPLE FLASH), ↓M = LOW POKE, H = ROUNDHOUSE, ↓H = UPPERCUT, ↘H = SWEEP.', 28, y, 8, '#8d7fa0', 'left', 1); T('ASSIST + L / M / H = ALTERNATE NORMALS (LIGHT KICK, MEDIUM PUNCH, HEAVY PUNCH). ASSIST + SP = OVERDRIVE (2 DRIVE BARS).', 28, y + 10, 8, '#8d7fa0', 'left', 1); T('DRIVE: IMPACT (ARMOR) · PARRY (HOLD) · RUSH = →→ FROM PARRY, OR FROM A CANCELLABLE NORMAL (3 BARS) · REVERSAL = IMPACT WHILE BLOCKING.', 28, y + 20, 8, '#8d7fa0', 'left', 1); }
     },
     options: {
       tick() { const n = 6; if (mn.back) { saveOpt(); go('menu', 1); cur = 5; return; } const d = mn.right ? 1 : mn.left ? -1 : 0;
@@ -224,7 +224,7 @@
         const pads = INP.devs.filter(d => d.id.indexOf('pad') === 0), m = INP.merged(); let x = 80; T('TEST', x, 206, 8, '#8d7fa0'); x += 40; T(DIRG[SIM.npad(m, 1)] || '\u00b7', x, 203, 12, '#fff', 'left', 1); x += 22; [['L', 16], ['M', 32], ['H', 64], ['SP', 128], ['AS', 256], ['PA', 1024], ['DI', 512]].forEach(b => { T(b[0], x, 206, 8, m & b[1] ? '#ff3355' : '#3a2a4a'); x += b[0].length * 8 + 6; });
         const raw = []; pads.forEach(d => d.raw.forEach((v, i) => { if (v) raw.push(PADN[i] && d.std ? PADN[i] : '#' + i); })); T(raw.join(' ').slice(0, 26), 404, 206, 8, '#7fdcff', 'right');
         T(INP.padBlocked ? 'CONTROLLERS ARE BLOCKED IN THIS VIEWER - USE THE HOSTED BUILD' : pads.length ? pads.map(d => d.name + (d.std ? ' \u00b7 STANDARD LAYOUT' : ' \u00b7 CUSTOM LAYOUT') + ' \u00b7 ' + d.nb + ' BUTTONS').join('   ') : 'NO CONTROLLER SEEN YET - PRESS ANY BUTTON ON IT', 240, 222, 8, pads.length ? '#7fffa0' : '#ffd21e', 'center', 1);
-        T('DIRECTIONS READ FROM D-PAD, LEFT STICK AND HAT AUTOMATICALLY', 240, 234, 8, '#8d7fa0', 'center', 1); foot('KEYBOARD: WASD, J K L = LIGHT MEDIUM HEAVY, I = SPECIAL, SPACE = ASSIST, U = PARRY, O = IMPACT, H = THROW'); }
+        T('DIRECTIONS READ FROM D-PAD, LEFT STICK AND HAT AUTOMATICALLY', 240, 234, 8, '#8d7fa0', 'center', 1); foot('KEYBOARD: WASD, J K L = LIGHT MEDIUM HEAVY, I = SPECIAL, SPACE = ASSIST, U = PARRY, O = IMPACT, H = THROW, K+L = RUN'); }
     }
   };
 

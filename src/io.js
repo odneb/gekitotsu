@@ -118,7 +118,7 @@ const AUD = (function () {
     for (const e of ev) {
       if (e.t === 'hit') play(e.ko ? 'ko' : 'hit' + e.lvl); else if (e.t === 'block') play('block'); else if (e.t === 'whiff') play('whiff' + e.lvl);
       else if (e.t === 'fire') play(e.big ? 'superFire' : 'fire'); else if (e.t === 'super') play('super'); else if (e.t === 'ex' || e.t === 'di' || e.t === 'rush') play('ex'); else if (e.t === 'parry' || e.t === 'armor') play('block'); else if (e.t === 'pparry' || e.t === 'splat' || e.t === 'burnout') play('tech'); else if (e.t === 'diclash') play('ko');
-      else if (e.t === 'wbounce' || e.t === 'gbounce') play('wb'); else if (e.t === 'kd') play('kd'); else if (e.t === 'jump' || e.t === 'rise') play('jump'); else if (e.t === 'land') play('land'); else if (e.t === 'dash') play('dash');
+      else if (e.t === 'wbounce' || e.t === 'gbounce') play('wb'); else if (e.t === 'kd') play('kd'); else if (e.t === 'jump' || e.t === 'rise') play('jump'); else if (e.t === 'run') play('dash'); else if (e.t === 'land') play('land'); else if (e.t === 'dash') play('dash');
       else if (e.t === 'grab') play('grab'); else if (e.t === 'tech' || e.t === 'clash') play('tech'); else if (e.t === 'round') play('round'); else if (e.t === 'fight') play('fight'); else if (e.t === 'winpose') play('win');
     }
   }
@@ -135,8 +135,8 @@ const AI = (function () {
   const D = B.D, U = B.U, L = B.LT, M = B.MD, H = B.HV, SP = B.SP, AS = B.AS, DI = B.DI, PA = B.PA;
   function make(level) { return { q: [], level: level, hold: 0, cool: 0 }; }
   function seq(parts) { const o = []; for (const p of parts) for (let i = 0; i < (p[1] || 1); i++) o.push(p[0]); return o; }
-  const auto = b => [[AS | b, 2], [AS, 9], [AS | b, 2], [AS, 11], [AS | b, 2], [AS, 24]];
-  const drc = [[D | M, 2], [0, 3], [FW, 2], [0, 2], [FW, 2], [0, 13], [M, 2], [0, 10], [H, 2], [0, 10], [FW | SP, 2], [0, 20]];
+  const auto = b => { const o = []; for (let k = 0; k < 9; k++) o.push([AS | b, 2], [AS, 8]); return o; };
+  const drc = [[D | M, 2], [0, 3], [FW, 2], [0, 2], [FW, 2], [0, 18], [AS | M, 2], [AS, 9], [AS | M, 2], [AS, 12], [FW | SP, 2], [0, 20]];
   function think(ai, s, me) {
     const p = s.p[me], o = s.p[1 - me], lv = ai.level;
     const out = m => { let r = m & SIM.MASK; if (m & FW) r |= p.face > 0 ? B.R : B.L; if (m & BK) r |= p.face > 0 ? B.L : B.R; return r; };
@@ -145,7 +145,7 @@ const AI = (function () {
     const dist = Math.abs(o.x - p.x) / F, r = n => ((R.hsh(s.frame * 31 + p.x + o.x * 7 + o.hp * 13 + n * 977) * 100) | 0);
     const om = o.st === 'atk' ? SIM.CH[o.ch].mv[o.mv] : null, grounded = p.y <= 0 && p.st === 'idle';
     const push = parts => { ai.q = seq(parts); return out(ai.q.shift()); };
-    const kaito = p.ch === 0, drive = !p.bo && p.dr >= 2000, lowHit = om && om.hits[0] && om.hits[0].g === 'l', hiHit = (om && om.hits[0] && om.hits[0].g === 'h' && !om.isAir);
+    const kaito = true, drive = !p.bo && p.dr >= 2000, lowHit = om && om.hits[0] && om.hits[0].g === 'l', hiHit = (om && om.hits[0] && om.hits[0].g === 'h' && !om.isAir);
     const myProj = s.proj.some(q => q.o === me), incoming = s.proj.some(q => q.o !== me && Math.abs(q.x - p.x) < 160 * F && (q.x - p.x) * q.dir < 0);
     if (p.st === 'block') { if (lv >= 3 && drive && p.dr >= 3000 && r(9) < 6) return out(DI); return out(BK | (lowHit ? D : 0)); }
     if (p.st === 'kd' || p.st === 'ahit') return out(r(10) < 40 ? BK : 0);
@@ -157,7 +157,7 @@ const AI = (function () {
       if (incoming && !om && drive && lv >= 2 && r(12) < 30) return push([[PA, 16]]);
       if (r(3) < [0, 35, 65, 92][lv]) return out(BK | (lowHit && !hiHit && o.y <= 0 ? D : 0));
     }
-    if (!grounded) { if (p.st === 'jump' && p.vy < 100 && dist < 90 && r(4) < 60 + lv * 10) return out(H); if (p.st === 'drush' && p.sf >= 10 && dist < 80) return push([[M, 2], [0, 10], [H, 2], [0, 10], [FW | SP, 2], [0, 12]]); return out(ai.hold); }
+    if (!grounded) { if (p.st === 'jump' && p.vy < 100 && dist < 90 && r(4) < 60 + lv * 10) return out(H); if (p.st === 'drush' && p.sf >= 10 && dist < 80) return push([[AS | M, 2], [AS, 9], [AS | M, 2], [AS, 12], [FW | SP, 2], [0, 12]]); return out(ai.hold); }
     if (o.y > 20 * F && o.vy < 300 && dist < 105 && o.st !== 'ahit' && r(5) < [0, 20, 50, 85][lv]) return push(r(6) < 70 ? [[FW | SP, 2], [0, 6]] : [[D | H, 2], [0, 6]]);
     const open = (om && !om.isAir && o.mf > om.lastAct + 1 && om.t - o.mf > 9) || (o.st === 'land' && o.rec > 6) || o.st === 'prec' || (o.st === 'hit' && o.crum && o.stun > 30);
     if (open && dist < 78 && r(7) < [0, 40, 78, 98][lv]) return push(p.sa >= 2000 || lv < 2 ? auto(M) : auto(H));
@@ -180,9 +180,9 @@ const AI = (function () {
       if (dist < 104 && k < 54) return push([[D | FW | H, 2], [D, 14]]);
       if (!p.bo && dist < 130 && k < 60 && lv >= 2) return out(DI);
       if (k < 68 && dist > 110 && dist < 190) return push([[U | FW, 3], [0, 27], [H, 2], [0, 12]].concat(auto(M)));
-      if (!kaito && k < 74 && dist < 170) return push([[SP, 2], [0, 16]]);
+      if (k < 72 && dist < 190 && lv >= 2) { const x = [M, H, L][r(15) % 3]; return push([[M | H, 2], [0, 13], [x, 2], [0, x === L ? 16 : 24]].concat(x === L ? [[L | M, 2], [0, 10]] : [])); }
       if (kaito && k < 74 && dist > 150 && !myProj) return push([[SP, 2], [0, 22]]);
-      if (kaito && k < 78 && dist < 150) return push([[D | SP, 2], [0, 22]]);
+      if (k < 80 && dist < 150) return push([[D | SP, 2], [0, 22], [[BK | SP, D | SP, SP][r(14) % 3], 3], [0, 26]]);
       if (k < 92) { ai.hold = FW; return out(FW); }
       ai.hold = BK; return out(BK);
     }
@@ -191,7 +191,7 @@ const AI = (function () {
     if (k < 42) return push(auto(M));
     if (k < 52) return push(auto(H));
     if (k < 64) return out(L | M);
-    if (k < 72) return push([[FW | H, 2], [0, 22]]);
+    if (k < 72) return push([[D | SP, 2], [0, 22], [[BK | SP, D | SP, SP][r(16) % 3], 3], [0, 26]]);
     if (k < 80 && lv >= 2 && p.dr >= 4000 && !p.bo) return push(drc);
     if (k < 88) return push([[BK], [0], [BK, 2], [0, 16]]);
     ai.hold = BK | D; return out(BK | D);
