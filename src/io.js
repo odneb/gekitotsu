@@ -25,7 +25,7 @@ const INP = (function () {
     for (const a of ACTS) if (b(pad[a[0]])) m |= a[1];
     return { m: m, ok: b(0), back: b(1), start: b(9), sel: b(8), raw: gp.buttons.map(x => x.pressed) };
   }
-  let padBlocked = false, devs = [], prevMenu = {}, rep = { k: '', t: 0 }, capture = null, prevRaw = {};
+  let padBlocked = false, devs = [], prevMenu = {}, rep = { k: '', t: 0 }, capture = null, prevRaw = {}, swallow = false;
   const menu = { up: 0, down: 0, left: 0, right: 0, ok: 0, back: 0, start: 0, sel: 0, dev: '' };
   function poll() {
     devs = [];
@@ -35,12 +35,14 @@ const INP = (function () {
     let gps = []; if (!padBlocked && navigator.getGamepads) { try { gps = navigator.getGamepads() || []; } catch (e) { padBlocked = true; } }
     for (const gp of gps) {
       if (!gp || !gp.connected) continue; const st = padState(gp), id = 'pad' + gp.index;
-      if (capture) { const pr = prevRaw[id] || []; for (let i = 0; i < st.raw.length; i++) if (st.raw[i] && !pr[i] && (i < 12 || i > 15)) { const c = capture; capture = null; c(i); break; } }
+      if (capture) { const pr = prevRaw[id] || []; for (let i = 0; i < st.raw.length; i++) if (st.raw[i] && !pr[i] && (i < 12 || i > 15)) { const c = capture; capture = null; swallow = true; c(i); break; } }
       prevRaw[id] = st.raw;
       devs.push({ id: id, name: (gp.id || 'GAMEPAD').replace(/\(.*?\)/g, '').trim().slice(0, 30).toUpperCase(), std: gp.mapping === 'standard', nb: gp.buttons.length, raw: st.raw, m: st.m, ok: st.ok, back: st.back, start: st.start, sel: st.sel });
     }
     const cur = { up: 0, down: 0, left: 0, right: 0, ok: 0, back: 0, start: 0, sel: 0 }; let who = {};
     for (const d of devs) { const set = (k, v) => { if (v) { cur[k] = 1; who[k] = d.id; } }; set('up', d.m & B.U); set('down', d.m & B.D); set('left', d.m & B.L); set('right', d.m & B.R); set('ok', d.ok); set('back', d.back); set('start', d.start); set('sel', d.sel); }
+    // a press that was just captured as a binding must not also drive the menu; stay quiet until every pad button is released
+    if (capture || swallow) { let held = false; for (const d of devs) if (d.raw && d.raw.some((v, i) => v && (i < 12 || i > 15))) held = true; if (!held && !capture) swallow = false; else { for (const k in cur) menu[k] = 0; prevMenu = cur; rep.k = ''; return; } }
     for (const k in cur) { menu[k] = cur[k] && !prevMenu[k] ? 1 : 0; if (menu[k]) menu.dev = who[k]; }
     const dk = cur.up ? 'up' : cur.down ? 'down' : cur.left ? 'left' : cur.right ? 'right' : '';
     if (dk && dk === rep.k) { rep.t++; if (rep.t > 22 && rep.t % 6 === 0) menu[dk] = 1; } else { rep.k = dk; rep.t = 0; }
