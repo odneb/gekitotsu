@@ -453,7 +453,7 @@ const R = (function () {
     // rain-wet flagstones with the sun lying across them
     const floor = tex(64, 64, (c) => { c.fillStyle = '#1d161c'; c.fillRect(0, 0, 64, 64); for (let y = 0; y < 4; y++) for (let x = 0; x < 2; x++) { const o = (y % 2) * 16; c.fillStyle = ['#2c2229', '#31262d', '#281e25', '#352830'][(x + y * 3) % 4]; c.fillRect(x * 32 + o - 16, y * 16, 31, 15); c.fillRect(x * 32 + o + 48, y * 16, 31, 15); } for (let i = 0; i < 46; i++) { c.fillStyle = hsh(i * 5) > 0.6 ? 'rgba(230,90,70,0.16)' : 'rgba(255,220,190,0.07)'; c.fillRect(hsh(i) * 64 | 0, hsh(i + 9) * 64 | 0, 2 + (hsh(i + 3) * 4 | 0), 1); } }, [22, 6]);
     const far = new THREE.Mesh(new THREE.PlaneGeometry(3200, 800), new THREE.MeshBasicMaterial({ color: 0x1c131a })); far.rotation.x = -Math.PI / 2; far.position.set(0, -0.6, -690); st.add(far);
-    const fl = new THREE.Mesh(new THREE.PlaneGeometry(1500, 380), new THREE.MeshPhongMaterial({ map: floor, shininess: 46, specular: 0x9a6a66 })); fl.rotation.x = -Math.PI / 2; fl.position.set(0, 0, -110); st.add(fl);
+    const fl = new THREE.Mesh(new THREE.PlaneGeometry(1500, 380), new THREE.MeshLambertMaterial({ map: floor })); fl.rotation.x = -Math.PI / 2; fl.position.set(0, 0, -110); st.add(fl);
     const glare = tex(32, 64, (c) => { for (let y = 0; y < 64; y++) { const a = Math.pow(1 - y / 64, 1.4) * 0.75; for (let x = 0; x < 32; x++) { const e = 1 - Math.abs(x - 15.5) / 16; if (hsh(x * 7 + y * 131) < e * 1.5) { c.fillStyle = 'rgba(214,52,44,' + (a * (0.5 + 0.5 * e)).toFixed(3) + ')'; c.fillRect(x, y, 1, 1); } } } });
     const gl = new THREE.Mesh(new THREE.PlaneGeometry(330, 380), new THREE.MeshBasicMaterial({ map: glare, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); gl.rotation.x = -Math.PI / 2; gl.position.set(0, 0.3, -110); st.add(gl);
     const edge = new THREE.Mesh(new THREE.BoxGeometry(1500, 30, 6), new THREE.MeshBasicMaterial({ color: 0x120c11 })); edge.position.set(0, -15, 80); st.add(edge);
@@ -531,10 +531,10 @@ const R = (function () {
     const fl = A.flash > 0 ? (A.flash > 6 || A.flash === 3 ? 1 : 0.25) : 0; if (A.flash > 0) A.flash--;
     WIND = -(c.wind + 0.25 * Math.sin(tick * 0.013) + 0.15 * Math.sin(tick * 0.041));
     ambL.color.setRGB(c.amb[0], c.amb[1], c.amb[2]); ambL.intensity = c.ambI + fl * 0.9; keyL.color.setRGB(c.key[0], c.key[1], c.key[2]); keyL.intensity = c.keyI + fl * 0.5;
-    const shim = 1 + 0.06 * Math.sin(tick * 0.21) + 0.04 * Math.sin(tick * 0.057); rimL.color.setRGB(c.rim[0], c.rim[1], c.rim[2]); rimL.intensity = c.rimI * shim * 0.42; sunL.color.setRGB(c.rim[0], c.rim[1], c.rim[2]); sunL.intensity = c.rimI * shim * 1.25 + fl; for (const h of hitL) h.intensity *= 0.8;
+    const shim = 1 + 0.06 * Math.sin(tick * 0.21) + 0.04 * Math.sin(tick * 0.057); rimL.color.setRGB(c.rim[0], c.rim[1], c.rim[2]); rimL.intensity = c.rimI * shim; sunL.color.setRGB(c.rim[0], c.rim[1], c.rim[2]); sunL.intensity = 0; for (const h of hitL) h.intensity *= 0.8;
     { const q = s && s.proj && s.proj.find(x => x); if (q) { projL.position.set(q.x / F, q.y / F, 24); projL.color.set(CSSA[q.ch]); projL.intensity = 1.5 + 0.3 * Math.sin(tick * 0.9); } else projL.intensity = 0; }
     scene.fog.color.setRGB(c.fog[0], c.fog[1], c.fog[2]); scene.fog.near = c.fogN;
-    const fx = stage.userData.fx; if (fx) { if (fx.sky) fx.sky.material.color.setRGB(Math.min(1, c.sky[0] + fl), Math.min(1, c.sky[1] + fl), Math.min(1, c.sky[2] + fl)); if (fx.glare) { fx.glare.material.color.setRGB(c.glare[0], c.glare[1], c.glare[2]); fx.glare.material.opacity = c.glareO * 0.6 * (0.85 + 0.15 * Math.sin(tick * 0.09)); } }
+    const fx = stage.userData.fx; if (fx) { if (fx.sky) fx.sky.material.color.setRGB(Math.min(1, c.sky[0] + fl), Math.min(1, c.sky[1] + fl), Math.min(1, c.sky[2] + fl)); if (fx.glare) { fx.glare.material.color.setRGB(c.glare[0], c.glare[1], c.glare[2]); fx.glare.material.opacity = c.glareO * (0.85 + 0.15 * Math.sin(tick * 0.09)); } }
     if (A.night) { A.night.material.opacity = Math.max(0, Math.min(1, c.night)); A.night.visible = c.night > 0.01; }
     for (let i = 0; i < A.rays.length; i++) { const m = A.rays[i]; m.material.color.setRGB(c.rim[0], c.rim[1], c.rim[2]); m.material.opacity = c.rays * 0.085 * (0.6 + 0.4 * Math.sin(tick * 0.02 + i * 1.7)); m.rotation.z = (i - 3) * 0.3 + 0.07 + 0.03 * Math.sin(tick * 0.008 + i); m.visible = stage.visible; }
     for (let i = 0; i < A.mist.length; i++) { const m = A.mist[i]; m.material.color.setRGB(Math.min(1, c.fog[0] * 2.2 + 0.1), Math.min(1, c.fog[1] * 2.2 + 0.1), Math.min(1, c.fog[2] * 2.2 + 0.1)); m.material.opacity = c.mist * (i ? 0.9 : 0.55); m.material.map.offset.x -= WIND * (i ? 0.0005 : 0.0011); m.position.x = camX; m.visible = stage.visible; }
@@ -561,8 +561,8 @@ const R = (function () {
   function init(c3, c2) {
     ren = new THREE.WebGLRenderer({ canvas: c3, antialias: false, alpha: false, powerPreference: 'high-performance' }); ren.setPixelRatio(1); ren.setSize(VW, VH, false);
     scene = new THREE.Scene(); scene.background = new THREE.Color(0x16111b); scene.fog = new THREE.Fog(0x4a2030, 560, 1500);
-    cam = new THREE.PerspectiveCamera(46, 16 / 9, 5, 3200);
-    ambL = new THREE.AmbientLight(0xa88a94, 0.6); scene.add(ambL); keyL = new THREE.DirectionalLight(0xffe8d0, 0.62); keyL.position.set(-0.4, 0.9, 1.2); scene.add(keyL); rimL = new THREE.DirectionalLight(0xff3a2a, 0.45); rimL.position.set(0.15, 0.5, -1); scene.add(rimL);
+    cam = new THREE.PerspectiveCamera(28, 16 / 9, 10, 3000);
+    ambL = new THREE.AmbientLight(0xa88a94, 0.6); scene.add(ambL); keyL = new THREE.DirectionalLight(0xffe8d0, 0.62); keyL.position.set(-0.4, 0.9, 1.2); scene.add(keyL); rimL = new THREE.DirectionalLight(0xff3a2a, 0.95); rimL.position.set(0.15, 0.5, -1); scene.add(rimL);
     sunL = new THREE.PointLight(0xff3a2a, 1.1, 0, 1); sunL.position.set(0, 215, -430); scene.add(sunL); projL = new THREE.PointLight(0xffffff, 0, 280, 1.4); scene.add(projL);
     for (let i = 0; i < 2; i++) { const h = new THREE.PointLight(0xffffff, 0, 320, 1.3); scene.add(h); hitL.push(h); }
     for (const l of [ambL, keyL, rimL, sunL, projL, hitL[0], hitL[1]]) l.layers.enable(1);
@@ -610,12 +610,12 @@ const R = (function () {
   // ----------------------------------------------------------- 3D frame
   function draw3d(s, menuPan) {
     tick++; atmStep(s);
-    const L = stage.userData.lamps; for (let i = 0; i < L.length; i++) { const fk = Math.sin(tick * 0.13 + i * 2) + 0.5 * Math.sin(tick * 0.37 + i); L[i].material.color.setHSL(0.07, 1, 0.55 + 0.06 * fk); if (stage.userData.lampL) stage.userData.lampL[i].intensity = 0.9 + 0.3 * fk; }
+    const L = stage.userData.lamps; for (let i = 0; i < L.length; i++) { const fk = Math.sin(tick * 0.13 + i * 2) + 0.5 * Math.sin(tick * 0.37 + i); L[i].material.color.setHSL(0.07, 1, 0.55 + 0.06 * fk); if (stage.userData.lampL) stage.userData.lampL[i].intensity = 0; }
     const LV = stage.userData.leaves; for (let i = 0; i < LV.length; i++) { const m = LV[i], u = m.userData; u.y -= u.v; u.x += WIND * (0.9 + u.v); if (u.y < 0) { u.y = 250 + (i % 7) * 6; u.x = camX + ((i * 137) % 900) - 380; } m.position.set(u.x + Math.sin(tick * 0.03 + u.p) * 14, u.y, u.z); m.rotation.set(tick * 0.04 + u.p, tick * 0.05 * u.v, tick * 0.03 + u.p); }
     let tx = 0, tw = 440, ty = 72;
     if (s) {
       const a = s.p[0], b = s.p[1], ax = a.x / F, bx = b.x / F;
-      tx = (ax + bx) / 2; tw = Math.max(250, Math.min(470, Math.abs(ax - bx) + 170)); ty = 68 + Math.max(a.y, b.y) / F * 0.42;
+      tx = (ax + bx) / 2; tw = Math.max(300, Math.min(480, Math.abs(ax - bx) + 200)); ty = 68 + Math.max(a.y, b.y) / F * 0.42;
       if (superFx && superFx.t < 40) { const p = s.p[superFx.who]; tx = p.x / F; tw = 300 - (superFx.lv || 1) * 14; ty = 62; }
       if (s.phase === 'ko' && s.pt < 150 && s.rw >= 0) { const l = s.p[1 - s.rw]; tx = l.x / F; tw = 250; ty = 44 + l.y / F * 0.6; }
       if (s.slow > 0 && s.phase === 'fight') { tw = Math.min(tw, 300); }
@@ -652,7 +652,7 @@ const R = (function () {
       if (menuPan) { camX = 0; camW = menuPan.w || 340; camY = menuPan.y || 34; const px = menuPan.x || 75; for (let i = 0; i < 2; i++) { const fake = { ch: menuPan.chars[i], st: menuPan.pose && menuPan.pose[i] ? 'win' : 'idle', sub: 'stand', sf: 30, subf: 0, y: 0, vy: 0 }; const fp = fighterPose(fake, fake, tick); applyPose(rigs[i], fp, i ? -1 : 1, 0, [0, 0, 0]); rigs[i].G.position.set(i ? px : -px, 0, i ? -2 : 2); trailStep(rigs[i], i ? -1 : 1); shadows[i].position.x = i ? px : -px; shadows[i].scale.set(1, 1, 1); } }
     }
     let sx = 0, sy = 0; if (shake > 0) { sx = ((shake * 7919) % 5 - 2) * Math.min(3, shake * 0.35); sy = ((shake * 104729) % 5 - 2) * Math.min(3, shake * 0.35); shake--; }
-    const dist = camW * 0.71; cam.position.set(camX + sx, camY - 8 + sy, dist); cam.lookAt(camX + sx, camY - 17 + sy, 0);
+    const dist = camW / 0.8866; cam.position.set(camX + sx, camY + 14 + sy, dist); cam.lookAt(camX + sx, camY + sy, 0);
     ren.render(scene, cam);
     // second pass: the fighters again, flipped through the floor and faded, so the wet stone carries their reflections
     if (rigs.length && rigs[0].G.visible && rigs[0].allM) {
