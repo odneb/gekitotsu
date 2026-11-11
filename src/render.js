@@ -11,7 +11,7 @@ const R = (function () {
   // ----------------------------------------------------------- skeleton + hand-keyed animation
   // A pose is a set of targets in the fighter's side plane (x forward, y up, optional z toward camera):
   // hip position, spine lean, chest/pelvis twist, and where each hand and foot is. Limbs are solved by IK.
-  const TH = 23, SHN = 23, SP1 = 14, SP2 = 17, UA = 17, FA = 19, SW = 8.6, HW = 4.2;
+  const TH = 23, SHN = 23, SP1 = 14, SP2 = 17, UA = 17, FA = 19, SW = 8.6, HW = 4.2, DIMS = { TH, SHN, SP1, SP2, UA, FA, SW, HW };
   const NUM = ['ln', 'ln2', 'tw', 'pt', 'hd', 'eL', 'eR', 'kL', 'kR', 'yaw', 'rot', 'ay'], VEC = ['hip', 'hL', 'hR', 'fL', 'fR'];
   const ST = { hip: [0, 37, 0], ln: 24, ln2: 36, tw: -48, pt: -32, hd: -14, hL: [25, 27, 0], hR: [9, 23, 0], fL: [17, 4, 0], fR: [-16, 4, 0], eL: -0.7, eR: -0.7, kL: 0.25, kR: 0.25, yaw: 0, rot: 0, ay: 0.5, aim: null, aw: 0 };
   function norm(o, b) { const r = {}; for (const k of NUM) r[k] = o[k] != null ? o[k] : b[k]; for (const k of VEC) { const v = o[k] || b[k]; r[k] = [v[0], v[1], v[2] || 0]; } if (o.ln != null && o.ln2 == null) r.ln2 = o.ln + 4; r.aim = o.aim || null; r.aw = o.aim ? 1 : 0; r.up = o.up || 0; return r; }
@@ -110,7 +110,7 @@ const R = (function () {
     diW: s({ hip: [-5, 39], ln: -4, tw: -100, pt: -70, hR: [-18, 62], hL: [16, 60], fL: [14, 4], fR: [-16, 4], eR: 0.2 }),
     diS: s({ hip: [11, 34], ln: 20, ln2: 26, hd: -34, tw: 120, pt: 60, hR: [50, 56], aim: 'hR', hL: [-8, 56], fL: [22, 4], fR: [-16, 8], eL: 0.2 }),
     diR: s({ hip: [8, 40], ln: 8, hd: -50, tw: 172, pt: 95, hR: [22, 64], hL: [4, 70], fL: [21, 4], fR: [-14, 6], eR: 0.4, eL: 0.4 }),
-    model: s({ hip: [0, 49.5], ln: 0, ln2: 0, tw: 0, pt: 0, hd: 11.5, hL: [1, 41, -10], hR: [1, 41, 10], eL: -0.6, eR: -0.6, fL: [1, 4, -4], fR: [1, 4, 4], kL: 0, kR: 0 }),
+    model: s({ hip: [0, 50.6], ln: 1, ln2: -2, tw: 0, pt: 0, hd: 5, hL: [2, 49.5, -15], hR: [2, 49.5, 15], eL: -0.6, eR: -0.6, fL: [1, 4, -4], fR: [1, 4, 4], kL: 0, kR: 0 }),
     homeW: c({ hip: [-5, 21], ln: 58, ln2: 66, hd: -44, tw: -60, hL: [-20, 30], hR: [-26, 22], fL: [16, 4], fR: [-14, 4], eL: 0.5, eR: 0.5 }),
     homeT: j({ hip: [-2, 46], ln: 50, ln2: 60, hd: -40, hL: [-14, 44], hR: [-20, 38], fL: [10, 30], fR: [-4, 26] }),
     homeS: j({ hip: [0, 44], ln: 8, ln2: 10, hd: -30, tw: -64, pt: -30, hR: [6, 96], aim: 'hR', up: 1, hL: [-6, 30], fL: [3, 0], fR: [-5, -6], eL: 0.2, eR: 0 }),
@@ -381,89 +381,144 @@ const R = (function () {
   }
   const _tv = new THREE.Vector3(), _tr = new THREE.Vector3();
   if (typeof window !== 'undefined') window.__rigs = () => rigs;
-  // ----------------------------------------------------------- the masked one (defined-pixel build)
-  // Built to the character sheet: a red skull-cap with a knot of long ribbons, an ivory shield mask with a centre ridge, a high dark
-  // collar, red vest and upper arms over a dark chest with crossed straps, dark bracers, a long split coat that hangs to the knee in
-  // front and trails behind, balloon trousers gathered below the knee into slim boots. Every part is a faceted prism or plate, flat-shaded
-  // in two tones and opaque, so at game resolution each plane lands as a clean block of pixels. Sizes are in the same units as the skeleton
-  // (the figure is about 95 tall): shoulders 22 across, waist 9.5, trouser legs 15 across at the knee, boots 5, head 12 from crown to chin.
-  const LOOKK = { body: 0x46353c, body2: 0x33262d, belt: 0x5a3432, belt2: 0x7a4a40, red: 0xd0282f, red2: 0x9a1b26, red3: 0xe8493c, mask: 0xf5dfcf, mask2: 0xd6b6a6, eye: 0x1c0d13, acc: 0xff4a36, acc2: 0xff9a78, ink: 0x2c1119 };
+  // ----------------------------------------------------------- the masked one
+  // Modelled to the character sheet as lofted forms: every limb and the torso is a stack of cross-sections (width, depth, how far
+  // forward it sits), so the silhouette carries real anatomy: chest forward of the waist, a pointed shoulder cap, forearms that
+  // taper to a narrow wrist, trousers that swell to the knee and snap in to a cuff, slim boots. Flat two-tone shading on those
+  // facets is what keeps it reading as pixel art at game resolution. Cloth is drawn as continuous ribbons with their own outline
+  // (wide in the middle, torn to points), each following a curve it is always trying to return to.
+  // Units: the figure is about 95 tall, 8 heads. Shoulders 22 across, waist 9.4, arms 30 plus an 8.5 hand, legs 51.
+  const LOOKK = { body: 0x2b2a2f, body2: 0x1d1c21, belt: 0x3a2a2c, belt2: 0x533a36, red: 0x8a1f27, red2: 0x61151d, red3: 0xa2352f, mask: 0xd8d0c2, mask2: 0xb4a498, eye: 0x1c0d13, acc: 0xff4a36, acc2: 0xff9a78, ink: 0x2c1119 };
   const LOOKKALT = { red: 0x3466d0, red2: 0x23468f, red3: 0x6c9cf2, acc: 0x5a8cff, acc2: 0x9fc0ff, ink: 0x141c38 };
   function buildRigK(ch, alt) {
-    const lk = Object.assign({}, LOOKK, alt ? LOOKKALT : {}), mats = {}, lit = {};
-    const ramp = new THREE.DataTexture(new Uint8Array([124, 124, 124, 255, 255, 255, 255, 255]), 2, 1, THREE.RGBAFormat); ramp.minFilter = ramp.magFilter = THREE.NearestFilter; ramp.needsUpdate = true;
-    const mat = k => (k === 'eye' || k === 'acc') ? (lit[k] || (lit[k] = new THREE.MeshBasicMaterial({ color: lk[k], transparent: true, opacity: 1 }))) : mats[k] || (mats[k] = new THREE.MeshToonMaterial({ color: lk[k], gradientMap: ramp, flatShading: true, transparent: true, opacity: 1 }));
-    const inkN = new THREE.MeshBasicMaterial({ color: lk.ink, side: THREE.BackSide, transparent: true, opacity: 1 });
-    inkN.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', 'vec3 transformed = position + normal * 0.6;'); };
+    const lk = Object.assign({}, LOOKK, alt ? LOOKKALT : {}), mats = {}, lit = {}, TAU = Math.PI * 2;
+    const dim = { TH: 23.5, SHN: 23.5, SP1: 12, SP2: 14.5, UA: 14, FA: 13, SW: 8.3, HW: 3.8 }, TH = dim.TH, SHN = dim.SHN, SP1 = dim.SP1, SP2 = dim.SP2, UA = dim.UA, FA = dim.FA;
+    const ramp = new THREE.DataTexture(new Uint8Array([128, 128, 128, 255, 255, 255, 255, 255]), 2, 1, THREE.RGBAFormat); ramp.minFilter = ramp.magFilter = THREE.NearestFilter; ramp.needsUpdate = true;
+    // keys starting c_ are cloth: same colours, drawn from both sides
+    const mat = k => k === 'eye' ? (lit[k] || (lit[k] = new THREE.MeshBasicMaterial({ color: lk[k], transparent: true, opacity: 1 }))) : mats[k] || (mats[k] = new THREE.MeshToonMaterial({ color: lk[k.replace('c_', '')], gradientMap: ramp, flatShading: true, transparent: true, opacity: 1, side: k[1] === '_' ? THREE.DoubleSide : THREE.FrontSide }));
+    const inkN = new THREE.MeshBasicMaterial({ color: lk.ink });
     const G = new THREE.Group(), M = new THREE.Group(), R = new THREE.Group(), T = new THREE.Group(); G.add(M); M.add(R); R.rotation.order = 'ZYX';
     const grp = par => { const g = new THREE.Group(); (par || R).add(g); return g; };
-    const put = (g, k, par, x, y, z, ink) => { const m = new THREE.Mesh(g, mat(k)); par.add(m); m.position.set(x || 0, y || 0, z || 0); if (ink) m.add(new THREE.Mesh(g, inkN)); return m; };
-    const box = (k, w, h, d, par, x, y, z, ink) => put(new THREE.BoxGeometry(w, h, d), k, par, x, y, z, ink);
-    // a tapered prism standing on its base: r0 at the bottom, r1 at the top, flats facing front, back and sides
-    const pri = (k, r0, r1, len, seg, par, ink, y) => { const g = new THREE.CylinderGeometry(r1, r0, len, seg); g.rotateY(Math.PI / seg); g.translate(0, len / 2, 0); return put(g, k, par, 0, y || 0, 0, ink); };
-    const ico = (k, r, d, par, x, y, z, ink) => put(new THREE.IcosahedronGeometry(r, d), k, par, x, y, z, ink);
-    // a flat plate cut to an outline given as [side, up] points; it faces forward and its thickness runs back from x = 0
-    const plate = (k, pts, th, par, ink) => { const sh = new THREE.Shape(); pts.forEach((q, i) => i ? sh.lineTo(q[0], q[1]) : sh.moveTo(q[0], q[1])); const g = new THREE.ExtrudeGeometry(sh, { depth: th, bevelEnabled: false }); g.rotateY(-Math.PI / 2); return put(g, k, par, 0, 0, 0, ink); };
+    const put = (g, k, par, x, y, z) => { const m = new THREE.Mesh(g, mat(k)); par.add(m); m.position.set(x || 0, y || 0, z || 0); return m; };
+    const box = (k, w, h, d, par, x, y, z) => put(new THREE.BoxGeometry(w, h, d), k, par, x, y, z);
+    const ico = (k, r, d, par, x, y, z) => put(new THREE.IcosahedronGeometry(r, d), k, par, x, y, z);
+    const plate = (k, pts, th, par) => { const sh = new THREE.Shape(); pts.forEach((q, i) => i ? sh.lineTo(q[0], q[1]) : sh.moveTo(q[0], q[1])); const g = new THREE.ExtrudeGeometry(sh, { depth: th, bevelEnabled: false }); g.rotateY(-Math.PI / 2); return put(g, k, par, 0, 0, 0); };
+    const tri = (bins, k, a, b, c) => { (bins[k] || (bins[k] = [])).push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]); };
+    const bake = (bins, par) => { const g = grp(par); for (const k in bins) { const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(bins[k]), 3)); geo.computeVertexNormals(); g.add(new THREE.Mesh(geo, mat(k))); } return g; };
+    // a cross-section is [height, half-width (side to side), half-depth (front to back), forward offset, colour of the band above it, squareness]
+    const ringPt = (s, a) => { const cx = Math.cos(a), cz = Math.sin(a), e = s[5] || 2.3, f = Math.pow(Math.pow(Math.abs(cx), e) + Math.pow(Math.abs(cz), e), -1 / e); return [(s[3] || 0) + cx * f * s[2], s[0], cz * f * s[1]]; };
+    const loft = (secs, N, par, key, pick) => { const bins = {}, Rg = secs.map(q => { const r = []; for (let k = 0; k < N; k++) r.push(ringPt(q, (k + 0.5) / N * TAU)); return r; }), L = Rg.length;
+      for (let i = 0; i < L - 1; i++) for (let k = 0; k < N; k++) { const k2 = (k + 1) % N, a = Rg[i][k], b2 = Rg[i][k2], c = Rg[i + 1][k2], d = Rg[i + 1][k], kk = (pick && pick(i, (k + 1) / N * TAU)) || secs[i][4] || key; tri(bins, kk, a, d, b2); tri(bins, kk, b2, d, c); }
+      const c0 = [secs[0][3] || 0, secs[0][0], 0], c1 = [secs[L - 1][3] || 0, secs[L - 1][0], 0], k0 = secs[0][4] || key, k1 = secs[L - 2][4] || key;
+      for (let k = 0; k < N; k++) { const k2 = (k + 1) % N; tri(bins, k0, c0, Rg[0][k], Rg[0][k2]); tri(bins, k1, c1, Rg[L - 1][k2], Rg[L - 1][k]); }
+      return bake(bins, par); };
+    const secAt = (secs, y) => { let i = 0; while (i < secs.length - 2 && secs[i + 1][0] < y) i++; const a = secs[i], c = secs[i + 1], u = Math.max(0, Math.min(1, (y - a[0]) / ((c[0] - a[0]) || 1))); return [y, a[1] + (c[1] - a[1]) * u, a[2] + (c[2] - a[2]) * u, (a[3] || 0) + ((c[3] || 0) - (a[3] || 0)) * u, 0, a[5] || 2.3]; };
+    // a band of cloth lying on the surface of a lofted form, from one [height, side] point to another, on the front (+1) or the back (-1)
+    const sash = (secs, p0, p1, hw, sign, key, par, rows) => { const bins = {}, pt = (y, z) => { const q = secAt(secs, y), zz = Math.max(-q[1] * 0.985, Math.min(q[1] * 0.985, z)), e = q[5]; return [q[3] + sign * (q[2] * Math.pow(Math.max(0, 1 - Math.pow(Math.abs(zz / q[1]), e)), 1 / e) + 0.4), y, zz]; }; let pl, pr;
+      for (let j = 0; j <= (rows || 9); j++) { const u = j / (rows || 9), y = p0[0] + (p1[0] - p0[0]) * u, z = p0[1] + (p1[1] - p0[1]) * u, l = pt(y, z - hw), r = pt(y, z + hw); if (j) { tri(bins, key, pl, l, pr); tri(bins, key, pr, l, r); } pl = l; pr = r; }
+      return bake(bins, par); };
     const b = {}, trails = [];
-    const trail = (par, off, n, len, grav, back, zh, sz, mk) => { const t = { par: par, off: new THREE.Vector3(off[0], off[1], off[2]), pts: [], segs: [], len: len, grav: grav, back: back, zh: zh, sz: sz, init: 0 }; for (let i = 0; i <= n; i++) t.pts.push(new THREE.Vector3()); for (let i = 0; i < n; i++) { const m = mk(i, n); T.add(m); t.segs.push(m); } trails.push(t); };
-    // a blade of cloth: one clean taper from its full width to a point, each length narrowing into the next so the edge never steps.
-    // wide = which way the flat of it faces: 0 toward the camera side, 1 toward front and back
-    const blade = (par, off, n, len, grav, back, w0, k1, k2, wide, pw, sz) => trail(par, off, n, len, grav, back, wide ? [1, 0, 0] : [0, 0, 1], sz || 0, (i, nn) => { const m = new THREE.Group(), wa = w0 * Math.pow(1 - i / nn, pw || 0.75), wb = Math.max(0.12, w0 * Math.pow(1 - (i + 1) / nn, pw || 0.75));
-      const g = new THREE.CylinderGeometry(wb / 1.414, wa / 1.414, len + 0.5, 4); g.rotateY(Math.PI / 4); g.translate(0, (len + 0.5) / 2, 0); const c = put(g, i / nn > 0.55 ? (k2 || k1) : k1, m); c.scale.z = Math.max(0.22, Math.min(0.5, 1.5 / wa)); return m; });
-    // hips and the top of the trousers, wrapped by the skirt of the coat with the front left open
-    b.pel = grp(); box('red', 10.6, 6.4, 19.4, b.pel, -0.2, 1.2, 0, 1); box('body', 1.4, 6.6, 4.4, b.pel, 4.9, 1.2, 0);
-    // waist: red, with the belt sitting high on it
-    b.abd = grp(); const ab = pri('red', 5.4, 5.5, SP1 - 2, 8, b.abd, 1); ab.scale.set(0.6, 1, 1); box('body', 0.9, SP1 - 2, 3.2, b.abd, 3.05, (SP1 - 2) / 2, 0);
-    box('belt', 7.4, 3.3, 11.2, b.abd, 0, 8.4, 0, 1); const bs = box('belt2', 7.7, 1.1, 11.5, b.abd, 0, 8.9, 0); bs.rotation.x = 0.09; box('belt2', 1.5, 2.6, 2.8, b.abd, 3.9, 8.3, 0.8);
-    // chest: red vest, a dark panel down the front that narrows to the belt, straps crossing over it and again across the back
-    b.chest = grp(); const cg = pri('red', 5.5, 8, SP2, 8, b.chest, 1); cg.scale.set(0.58, 1, 1);
-    const bib = plate('body', [[-4.3, SP2 - 0.4], [4.3, SP2 - 0.4], [1.9, 0.2], [-1.9, 0.2]], 0.9, b.chest); bib.position.set(3.75, 0, 0); bib.rotation.z = -0.082;
-    for (const k of [-1, 1]) { const st = box('red', 0.9, 19, 3, b.chest, 4.35, 8.7, 0); st.rotation.set(k * 0.47, 0, -0.082); const sb = box('red2', 0.9, 19.5, 3.2, b.chest, -4.25, 8.7, 0); sb.rotation.set(k * 0.5, 0, 0.082);
-      const yk = box('red', 6.4, 2.6, 8.6, b.chest, -0.2, SP2 - 1.5, k * 4.9, 1); yk.rotation.x = -k * 0.3; }
-    // the collar: a wide base on the shoulders and a tall funnel standing round the neck
-    const c1 = pri('body', 7.6, 6, 3.6, 8, b.chest, 1, SP2 - 2); c1.scale.set(0.8, 1, 1); const c2 = pri('body', 4.9, 5.5, 5.8, 8, b.chest, 1, SP2 + 1.2); c2.scale.set(0.86, 1, 1); c2.rotation.z = -0.12; const c3 = pri('body2', 4.6, 4.6, 0.7, 8, b.chest, 0, SP2 + 6.6); c3.scale.set(0.86, 1, 1); c3.rotation.z = -0.12; c3.position.x = 0.7;
-    // head: dark neck and jaw, red cap with the knot at the back, a disc over each ear, and the mask standing proud of the face
-    const hd = b.head = grp(); pri('body', 2.5, 2.7, 7, 6, hd, 0, -3.6);
-    const sk = grp(hd); sk.position.set(0.9, 9.2, 0); sk.rotation.z = -0.2;
-    const jaw = pri('body', 2.9, 3.9, 5.4, 6, sk, 1, -4.8); jaw.position.x = -0.5; jaw.scale.set(1, 1, 0.9);
-    const cap = ico('red', 4.45, 1, sk, -0.3, 1.4, 0, 1); cap.scale.set(1.02, 1, 0.88); const band = pri('red2', 4.3, 4.3, 1.1, 8, sk, 0, -1.3); band.position.x = -0.5; band.scale.set(1.02, 1, 0.9);
-    ico('red2', 1.85, 0, sk, -4.2, 3.4, 0, 1);
-    for (const z of [-1, 1]) { const e = put(new THREE.CylinderGeometry(1.6, 1.6, 0.9, 8), 'body2', sk, -0.7, -0.5, z * 3.75, 1); e.rotation.x = Math.PI / 2; const d = put(new THREE.CylinderGeometry(0.6, 0.6, 0.5, 6), 'body', sk, -0.7, -0.5, z * 4.3); d.rotation.x = Math.PI / 2; }
-    // mask: a shield in two halves meeting on a ridge, square across the brow, sides straight to the cheek, then running to a point below the chin
-    for (const z of [-1, 1]) { const h = plate(z > 0 ? 'mask' : 'mask2', z > 0 ? [[0, 4.9], [3.35, 4.7], [3.5, -0.5], [0, -6.6]] : [[0, 4.9], [0, -6.6], [-3.5, -0.5], [-3.35, 4.7]], 1.2, sk, 1); h.position.set(4.9, 0, 0); h.rotation.y = -z * 0.26;
-      const e = box('eye', 0.5, 1.2, 2.1, h, 0.12, 0.7, z * 1.8); e.rotation.x = z * 0.42; }
-    // ribbons from the knot: long, thin, each a single taper (the first three are also what reach out on a grab)
-    blade(sk, [-4.9, 3.8, 0.8], 9, 4.7, 0.03, 2.3, 2.9, 'red', 'red2'); blade(sk, [-4.9, 3.2, -0.8], 8, 4.6, 0.07, 2.0, 2.6, 'red', 'red2'); blade(sk, [-4.7, 4.3, 0], 10, 4.4, 0.0, 2.6, 2.4, 'red3', 'red'); blade(sk, [-4.7, 2.8, 0.4], 7, 4.6, 0.12, 1.7, 2.3, 'red2', 'red2');
-    // the coat below the belt: a panel over each hip and one each side of the front opening, hanging to the knee; longer tails behind
-    for (const z of [-1, 1]) { blade(b.pel, [0.2, -1.6, z * 10.3], 4, 6.4, 0.5, 0.12, 9.4, 'red', 'red2', 0, 0.6, z * 0.6); blade(b.pel, [5.6, -1.6, z * 4.9], 4, 6.2, 0.5, -0.22, 6.6, 'red', 'red', 1, 0.6, z * 0.5);
-      blade(b.pel, [-5.8, -1.6, z * 3.6], 5, 6.2, 0.3, 0.7, 7.2, 'red2', 'red2', 1, 0.7, z * 0.5); }
-    blade(b.pel, [-5.6, -1, 1.5], 6, 6.3, 0.1, 1.5, 6, 'red', 'red2', 0, 0.8); blade(b.pel, [-5.4, -0.6, -1.7], 5, 6.4, 0.15, 1.25, 5.2, 'red2', 'red2', 0, 0.8);
+    // a ribbon: n lengths, each trying to sit at angle a0 + curl*i (0 = straight back, 90 = up, -90 = down). hw(u) gives [edge, edge] half-widths
+    // along it. flat: 0 = its face is toward the side camera, 1 = toward front and back. cross adds a second, narrower face the other way
+    const strip = (par, off, o) => { const n = o.n + 1, t = { strip: 1, par: par, off: new THREE.Vector3(off[0], off[1], off[2]), pts: [], n: n, len: o.len, a0: o.a0, curl: o.curl || 0, st: o.st || 0.16, grav: o.grav || 0, wav: o.wav == null ? 0.2 : o.wav, ws: o.ws || 0.06, wk: o.wk == null ? 0.5 : o.wk, sz: o.sz || 0, ph: trails.length * 1.7, axis: o.flat ? 1 : 0, init: 0, wL: [], wR: [] };
+      for (let i = 0; i < n; i++) { t.pts.push(new THREE.Vector3()); const w = o.hw(i / (n - 1), i); t.wL.push(w[0]); t.wR.push(w[1]); }
+      const mk = () => { const geo = new THREE.BufferGeometry(), pos = new Float32Array(n * 6), idx = []; for (let i = 0; i < n - 1; i++) idx.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 1, i * 2 + 3, i * 2 + 2); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); const nrm = new Float32Array(n * 6); for (let i = 0; i < n * 2; i++) nrm[i * 3 + 2] = 1; geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3)); geo.setIndex(idx); const m = new THREE.Mesh(geo, mat('c_' + o.key)); m.frustumCulled = false; m.layers.enable(1); T.add(m); return { geo: geo, pos: pos }; };
+      t.a = mk(); if (o.cross) { t.b = mk(); t.w2 = t.wL.map((w, i) => Math.min(o.cross, (w + t.wR[i]) * 0.5)); }
+      trails.push(t); return t; };
+    const lerpK = (keys, u) => { let i = 0; while (i < keys.length - 2 && keys[i + 1][0] < u) i++; const a = keys[i], c = keys[i + 1], k = Math.max(0, Math.min(1, (u - a[0]) / ((c[0] - a[0]) || 1))); return a[1] + (c[1] - a[1]) * k; };
+
+    // ---- torso (dark), from the hips up. The chest sits forward of the waist and the back is nearly straight
+    const PEL = [[-5.2, 7.4, 4.5, -0.2], [-1, 8.6, 5, -0.1], [2.2, 7, 4.4, 0], [4.6, 5.1, 3.5, 0.1]];
+    b.pel = grp(); loft(PEL, 10, b.pel, 'body');
+    const ABD = [[-0.6, 5.1, 3.5, 0.1], [3, 4.7, 3.15, 0.15], [6.5, 4.75, 3.2, 0.3], [SP1 - 2, 5, 3.35, 0.45], [SP1 - 1.2, 5.05, 3.4, 0.5]];
+    b.abd = grp(); loft(ABD, 10, b.abd, 'body');
+    const belt = loft([[5.4, 5.25, 3.7, 0.25, 'belt'], [8.6, 5.45, 3.85, 0.4, 'belt'], [8.6, 5.45, 3.85, 0.4]], 10, b.abd, 'belt'); const bs = loft([[6.5, 5.5, 3.95, 0.3, 'belt2'], [7.5, 5.6, 4.0, 0.35]], 10, b.abd, 'belt2'); bs.rotation.x = 0.07; box('belt2', 1.3, 2.7, 2.6, b.abd, 4.2, 7, 1.2); box('belt', 0.9, 4, 1.5, b.abd, 4.3, 4.6, 1.7);
+    const CH = [[0, 5.05, 3.4, 0.5], [3, 5.6, 4.0, 1.0], [6.8, 6.5, 4.8, 1.7], [10.2, 7.1, 4.9, 1.6], [12.7, 7.3, 4.2, 0.9], [14.1, 6.0, 3.4, 0.3], [15, 3.6, 2.8, 0.1]];
+    b.chest = grp(); loft(CH, 12, b.chest, 'body');
+    // the two sashes: over each shoulder, crossing on the chest and again on the back, then running under the belt
+    for (const k of [-1, 1]) { sash(CH, [13.9, k * 5.3], [0.2, -k * 2.9], 1.9, 1, 'c_red', b.chest, 10); sash(CH, [13.9, k * 5.3], [0.2, -k * 2.9], 2, -1, 'c_red2', b.chest, 10); sash(ABD, [SP1 - 1.2, -k * 2.9], [8.5, -k * 3.3], 1.9, 1, 'c_red', b.abd, 3); sash(ABD, [SP1 - 1.2, -k * 2.9], [8.5, -k * 3.3], 2, -1, 'c_red2', b.abd, 3);
+      const cp = box('red', 4.6, 1.1, 3.6, b.chest, 0.4, 13.9, k * 5.3); cp.rotation.x = -k * 0.5; }
+    // collar: seated wide on the shoulders, drawn in, then standing open round the neck
+    const COL = [[SP2 - 2.4, 6.9, 4.5, 0.2], [SP2 - 0.6, 5.5, 4.2, 0.2], [SP2 + 1.4, 3.9, 3.5, 0.3], [SP2 + 4.2, 4.0, 3.8, 0.55], [SP2 + 6.0, 4.5, 4.3, 0.8], [SP2 + 6.0, 3.7, 3.5, 0.8, 'body2'], [SP2 + 4.6, 2.6, 2.6, 0.6, 'body2']];
+    const col = loft(COL, 10, b.chest, 'body'); col.rotation.z = -0.07;
+    // ---- head
+    const hd = b.head = grp(); loft([[-4, 2.1, 2.2, 0], [1, 1.8, 1.9, 0.3], [6.5, 1.85, 2.0, 1.0]], 8, hd, 'body');
+    const sk = grp(hd); sk.position.set(1.5, 11.6, 0); sk.rotation.z = -0.08;
+    loft([[-6.3, 1.9, 2.0, 0.2], [-4.2, 2.9, 3.1, 0.6], [-1.6, 3.5, 4.0, 0.2], [0.6, 3.7, 4.3, -0.1]], 10, sk, 'body');   // jaw and the back of the neck
+    const cap = ico('red', 4.5, 2, sk, -0.2, 1.3, 0); cap.scale.set(1.03, 0.98, 0.86); const band = loft([[-1.5, 3.85, 4.5, -0.2, 'red2'], [-0.5, 3.95, 4.6, -0.2]], 12, sk, 'red2');
+    const bun = ico('red2', 1.75, 1, sk, -4.3, 3.2, 0); bun.scale.set(1, 1, 1.05);
+    for (const z of [-1, 1]) { const e = put(new THREE.CylinderGeometry(1.55, 1.55, 0.9, 10), 'body2', sk, -0.6, -0.9, z * 3.7); e.rotation.x = Math.PI / 2; const d = put(new THREE.CylinderGeometry(0.6, 0.6, 0.5, 6), 'body', sk, -0.6, -0.9, z * 4.25); d.rotation.x = Math.PI / 2; }
+    // mask: two halves meeting on a ridge, square across the brow, straight to the cheek, then a long point below the chin
+    for (const z of [-1, 1]) { const h = plate(z > 0 ? 'mask' : 'mask2', z > 0 ? [[0, 4.7], [3.3, 4.5], [3.45, -0.7], [0, -6.9]] : [[0, 4.7], [0, -6.9], [-3.45, -0.7], [-3.3, 4.5]], 1.1, sk); h.position.set(5.0, 0.2, 0); h.rotation.y = -z * 0.27; h.rotation.z = 0.05;
+      const e = box('eye', 0.5, 1.15, 2.1, h, 0.12, 0.6, z * 1.75); e.rotation.x = z * 0.45; }
+    // ribbons from the knot: rise back off the head, then arc over and fall; thin at the root, a little wider through the middle, pointed
+    const rib = (u) => { const w = 0.42 + 0.62 * Math.sin(Math.PI * Math.min(1, u * 1.25)) * (1 - u * 0.5); return [u > 0.97 ? 0.05 : w, u > 0.97 ? 0.05 : w]; };
+    strip(sk, [-5.4, 3.5, 0.6], { n: 16, len: 2.9, a0: 34, curl: -5.4, st: 0.2, wav: 0.42, ws: 0.07, wk: 0.35, hw: rib, key: 'red' });
+    strip(sk, [-5.4, 3.0, -0.6], { n: 14, len: 2.9, a0: 8, curl: -5.6, st: 0.2, wav: 0.46, ws: 0.06, wk: 0.35, hw: rib, key: 'red2' });
+    strip(sk, [-5.2, 3.9, 0], { n: 13, len: 2.8, a0: 58, curl: -8.5, st: 0.22, wav: 0.38, ws: 0.08, wk: 0.3, hw: rib, key: 'red3' });
+    // ---- the coat below the belt. In front, a panel over each thigh to the knee, straight inner edge, torn hem.
+    const hang = (W) => (u, i) => { const w = W * lerpK([[0, 0.8], [0.3, 1], [0.72, 0.86], [1, 0.02]], u), bite = i % 3 === 2 && u > 0.5 && u < 0.97 ? 0.55 : 1; return [w * bite, w]; };
+    for (const z of [-1, 1]) strip(b.abd, [4.0, 5.6, z * 3.2], { n: 9, len: 3.3, a0: -101, curl: 0.2, st: 0.3, grav: 0.02, wav: 0.07, wk: 0.25, hw: hang(3.0), key: 'red', flat: 1, cross: 1.4, sz: z * 0.42 });
+    // behind, the long tails: broad through the middle, swept back and down to torn points, the nearer one longest
+    const tail = (W, pk) => (u, i) => { const w = W * lerpK([[0, 0.42], [0.22, 0.9], [pk, 1], [0.78, 0.62], [1, 0.02]], u), bite = (i % 3 === 1 && u > 0.38 && u < 0.96) ? 0.5 : 1; return [w * 0.85, w * bite]; };
+    strip(b.abd, [-3.3, 5.9, 2.2], { n: 14, len: 3.5, a0: -34, curl: -1.7, st: 0.17, grav: 0.01, wav: 0.14, ws: 0.05, wk: 0.5, hw: tail(4.3, 0.45), key: 'red', cross: 1.6, sz: 0.3 });
+    strip(b.abd, [-3.2, 5.7, -2.2], { n: 12, len: 3.4, a0: -50, curl: -1.6, st: 0.18, grav: 0.012, wav: 0.13, ws: 0.055, wk: 0.45, hw: tail(3.7, 0.4), key: 'red2', cross: 1.5, sz: -0.3 });
+    strip(b.abd, [-3.4, 6.2, 0], { n: 11, len: 3.3, a0: -22, curl: -1.4, st: 0.16, grav: 0.008, wav: 0.18, ws: 0.06, wk: 0.55, hw: tail(2.5, 0.4), key: 'red3', sz: 0 });
+    // the loose ends of the sashes, hanging from behind each shoulder
+    for (const z of [-1, 1]) strip(b.chest, [-3.9, 10.5, z * 3.6], { n: 12, len: 3.3, a0: -78, curl: 1.1, st: 0.2, grav: 0.02, wav: 0.15, wk: 0.5, hw: u => { const w = 1.25 * lerpK([[0, 0.9], [0.6, 1], [1, 0.03]], u); return [w, w]; }, key: z > 0 ? 'red' : 'red2', cross: 0.8, sz: z * 0.12 });
     for (const n of ['L', 'R']) { const sd = n === 'L' ? -1 : 1;
-      // arm: red to the elbow, a dark bracer that tapers to a narrow wrist with a red band, a slim hand
-      b['sh' + n] = ico('red', 3.45, 0, R, 0, 0, 0, 1);
-      b['ua' + n] = pri('red', 3.0, 3.1, UA / 2, 6, R, 1); b['ua' + n + 'b'] = pri('red', 3.1, 2.4, UA / 2, 6, R, 1); pri('red2', 2.55, 2.45, 1.2, 6, b['ua' + n + 'b'], 0, UA / 2 - 1.3);
-      b['fa' + n] = pri('body2', 2.5, 2.7, FA / 2, 6, R, 1); const fb = b['fa' + n + 'b'] = pri('body2', 2.7, 2.0, FA / 2, 6, R, 1); pri('red', 2.35, 2.25, 1.4, 6, fb, 0, FA / 2 - 2.3);
-      const hnd = b['fi' + n] = grp(); box('body2', 2.2, 3.4, 3.3, hnd, 0, 1.7, 0, 1); const fg = pri('body2', 2.1, 0.8, 4.8, 4, hnd, 1, 3.2); fg.scale.set(0.56, 1, 0.82); const tb = box('body2', 1.1, 2.6, 1.1, hnd, -0.3, 2.3, 2 * sd); tb.rotation.x = -0.5 * sd;
-      // trousers: widening from the hip to their fullest at the knee, then drawn in sharply to a cuff a third of the way down the shin; slim boot below
-      b['th' + n] = pri('body', 4.7, 5.9, TH / 2, 8, R, 1); b['th' + n + 'b'] = pri('body', 5.9, 7.3, TH / 2, 8, R, 1);
-      const sn = b['sn' + n] = grp(); pri('body', 7.4, 7.0, 3.4, 8, sn, 1, 0); pri('body', 7.0, 3.1, 3.5, 8, sn, 1, 3.4); pri('belt', 3.3, 3.3, 1.2, 8, sn, 0, 6.9); pri('body2', 2.8, 2.6, SHN / 2 - 8.1, 6, sn, 1, 8.1);
-      const sb = b['sn' + n + 'b'] = pri('body2', 2.6, 2.2, SHN / 2, 6, R, 1); pri('red', 2.75, 2.65, 1.6, 6, sb, 0, SHN / 2 - 3.2);
-      // shoe: long and low with a red strap over the instep and a red toe
-      const ft = b['ft' + n] = grp(); box('body2', 3, 9.6, 4.1, ft, 0.9, 3.4, 0, 1); box('body2', 2.2, 2.6, 3.3, ft, 1.3, 9.2, 0, 1); box('red', 1.1, 3.2, 4.4, ft, -0.7, 4.4, 0); box('red2', 1.3, 2.4, 3.6, ft, 0.5, 8.6, 0);
+      // ---- arm: a pointed shoulder cap, red to the elbow, then a dark bracer with a flared top tapering to a narrow wrist with a red band
+      b['sh' + n] = ico('red', 2.6, 1, R, 0, 0, 0);
+      const dk = (i, a) => null;
+      b['ua' + n] = loft([[-0.8, 2.3, 2.4, 0, 'red'], [1.4, 2.95, 2.95, 0, 'red'], [4.2, 2.75, 2.7, 0.1, 'red'], [5, 2.45, 2.45, 0.1, 'red2'], [UA / 2, 2.35, 2.35, 0.1]], 10, R, 'red');
+      b['ua' + n + 'b'] = loft([[0, 2.35, 2.35, 0.1, 'red2'], [2.6, 2.3, 2.35, 0.15, 'red2'], [5.4, 2.0, 2.05, 0.05, 'red2'], [UA / 2, 1.85, 1.9, 0]], 10, R, 'red2'); ico('red2', 1.9, 1, b['ua' + n + 'b'], 0, UA / 2, 0);
+      b['fa' + n] = loft([[0, 1.85, 1.9, 0, 'red2'], [1.1, 1.9, 1.95, 0, 'body2'], [1.3, 2.3, 2.4, 0, 'body2'], [4, 2.2, 2.3, 0, 'body2'], [FA / 2, 1.95, 2.05, 0]], 10, R, 'body2');
+      b['fa' + n + 'b'] = loft([[0, 1.95, 2.05, 0, 'body2'], [3.2, 1.6, 1.75, 0, 'body2'], [4.2, 1.4, 1.55, 0, 'red'], [4.2, 1.7, 1.85, 0, 'red'], [5.5, 1.65, 1.8, 0, 'red'], [5.5, 1.35, 1.45, 0, 'body2'], [FA / 2, 1.3, 1.4, 0]], 10, R, 'body2');
+      // hand: a narrow palm seen edge-on from the front, fingers together in two long wedges, the thumb lying forward
+      const hnd = b['fi' + n] = grp(); loft([[-0.3, 0.9, 1.4, 0], [1.6, 0.95, 1.95, 0.1], [3.9, 0.85, 2.0, 0.15], [4.3, 0.7, 1.8, 0.15]], 8, hnd, 'body2');
+      for (const f of [-1, 1]) { const fg = loft([[0, 0.6, 0.85, 0], [2.2, 0.55, 0.75, 0], [4.3 - (f > 0 ? 0 : 0.5), 0.3, 0.3, 0]], 6, hnd, 'body2'); fg.position.set(0.15 + f * 0.95, 4.1, 0); fg.rotation.z = -f * 0.06 - 0.04; fg.rotation.x = sd * 0.06; }
+      const tb = loft([[0, 0.5, 0.6, 0], [1.6, 0.5, 0.55, 0], [3, 0.25, 0.3, 0]], 6, hnd, 'body2'); tb.position.set(-1.5, 1.3, sd * 0.3); tb.rotation.z = 0.55;
+      // ---- leg: trousers swelling from the hip to their fullest just below the knee, drawn in hard to a cuff, slim boot under it
+      b['th' + n] = loft([[-0.8, 4.6, 4.7, 0], [1.5, 4.9, 5.0, 0], [6, 5.6, 5.5, 0.1], [TH / 2, 6.3, 6.0, 0.2]], 10, R, 'body');
+      b['th' + n + 'b'] = loft([[0, 6.3, 6.0, 0.2], [6, 6.95, 6.5, 0.3], [TH / 2, 7.3, 6.8, 0.35]], 10, R, 'body'); ico('body', 6.7, 1, b['th' + n + 'b'], 0.3, TH / 2, 0);
+      b['sn' + n] = loft([[0, 7.3, 6.8, 0.35, 'body'], [2.4, 7.4, 7.0, 0.3, 'body'], [4.6, 6.7, 6.3, 0.2, 'body'], [6.3, 4.6, 4.4, 0.1, 'body'], [7.1, 3.2, 3.15, 0, 'belt'], [8.2, 3.2, 3.15, 0, 'belt'], [8.2, 2.7, 2.75, 0, 'body2'], [SHN / 2, 2.55, 2.65, 0]], 10, R, 'body');
+      b['sn' + n + 'b'] = loft([[0, 2.55, 2.65, 0, 'body2'], [5, 2.25, 2.45, 0, 'body2'], [8.2, 2.05, 2.3, 0, 'red'], [8.2, 2.35, 2.6, 0, 'red'], [9.9, 2.3, 2.6, 0, 'red'], [9.9, 2.0, 2.35, 0, 'body2'], [SHN / 2, 2.0, 2.4, 0]], 10, R, 'body2');
+      // shoe: long and low, heel back of the ankle, a red strap over the instep (local y runs toe-ward, x is down)
+      const ft = b['ft' + n] = grp(); const shoe = loft([[-2.6, 1.6, 1.5, 0.75, 'body2'], [-0.6, 2.0, 2.2, 0.05, 'body2'], [2.4, 2.1, 2.1, 0.15, 'red'], [2.4, 2.3, 2.3, 0.15, 'red'], [4.2, 2.3, 2.0, 0.45, 'red'], [4.2, 2.1, 1.75, 0.5, 'body2'], [7.4, 1.9, 1.25, 1.0, 'body2'], [9.8, 1.1, 0.6, 1.65]], 8, ft, 'body2'); shoe.position.set(1.2, 3, 0);
     }
-    // a few embers instead of the others' pool and spray
-    const NP = 14, pg = new THREE.BufferGeometry(), pp = new Float32Array(NP * 3); pg.setAttribute('position', new THREE.BufferAttribute(pp, 3));
+    // a few embers
+    const NP = 12, pg = new THREE.BufferGeometry(), pp = new Float32Array(NP * 3); pg.setAttribute('position', new THREE.BufferAttribute(pp, 3));
     const pts = new THREE.Points(pg, new THREE.PointsMaterial({ color: lk.acc, size: 2, sizeAttenuation: false, transparent: true, opacity: 0.9, depthWrite: false })); pts.frustumCulled = false; T.add(pts);
     const sparks = []; for (let i = 0; i < NP; i++) { sparks.push({ life: 0, vx: 0, vy: 0 }); pp[i * 3 + 1] = -99; }
     const allM = Object.values(mats).concat(Object.values(lit), [inkN]); for (const m of allM) { m.userData.o = m.opacity; m.userData.c = m.color.getHex(); }
-    G.traverse(o => o.layers.enable(1)); for (const t of trails) for (const sg of t.segs) sg.traverse(o => o.layers.enable(1));
-    return { G, M, R, T, b, mats, lit, lk, ink: inkN, ch, allM, trails, pts, pp, sparks, solid: 1, seed: ch * 977 + 13, acc: lk.acc, emit: [b.chest, b.pel, b.head] };
+    G.traverse(o => o.layers.enable(1));
+    return { G, M, R, T, b, mats, lit, lk, ink: inkN, ch, dim, allM, trails, pts, pp, sparks, solid: 1, seed: ch * 977 + 13, acc: lk.acc, emit: [b.chest, b.pel] };
+  }
+  // a ribbon made as one continuous strip: every point leans toward its own resting angle off the one before it, ripples, and goes with the wind
+  function stripStep(rig, t, a, face, gr, ti) {
+    const P = t.pts, n = t.n;
+    if (!t.init || P[0].distanceToSquared(a) > 4900) { for (let i = 0; i < n; i++) { const ang = (t.a0 + t.curl * i) * D; P[i].set(i ? P[i - 1].x - face * Math.cos(ang) * t.len : a.x, Math.max(1.2, i ? P[i - 1].y + Math.sin(ang) * t.len : a.y), a.z + t.sz * i); } t.init = 1; }
+    P[0].copy(a);
+    if (gr) { const sgn = ti === 1 ? -1 : 1, rad = (gr.wrap ? 9 - gr.sq * 4 : 0);
+      for (let i = 1; i < n; i++) { const u = i / (n - 1), k = Math.min(1, u * 1.35), p = P[i]; let x = a.x + (gr.x - a.x) * k, y = a.y + (gr.y - a.y) * k + Math.sin(Math.min(1, k) * Math.PI) * 13 * sgn * (ti === 2 ? 0.4 : 1), z = a.z;
+        if (gr.wrap && u > 0.6) { const an = (u - 0.6) * 15 * sgn + tick * 0.22 * sgn + ti * 2; x = gr.x + Math.cos(an) * rad; y = gr.y - 6 + (u - 0.6) * 44 - ti * 5 + Math.sin(an) * 3; z = a.z + Math.sin(an) * rad; }
+        _tr.set(x, y, z); p.lerp(_tr, 0.5); }
+    } else for (let i = 1; i < n; i++) { const p = P[i], q = P[i - 1], u = i / (n - 1), ang = (t.a0 + t.curl * i) * D + t.wav * Math.sin(tick * t.ws - i * 0.55 + t.ph) * (0.3 + 0.7 * u);
+      _tr.set(q.x - face * Math.cos(ang) * t.len, q.y + Math.sin(ang) * t.len, a.z + t.sz * i); p.lerp(_tr, t.st); p.x += WIND * t.wk * u; p.y -= t.grav;
+      _tr.subVectors(p, q); const L = _tr.length() || 1; p.copy(q).addScaledVector(_tr, t.len / L); if (p.y < 1.2) p.y = 1.2; }
+    for (let pass = 0; pass < (t.b ? 2 : 1); pass++) { const pos = pass ? t.b.pos : t.a.pos, ax = pass ? 1 - t.axis : t.axis;
+      for (let i = 0; i < n; i++) { const p = P[i], p0 = P[i ? i - 1 : 0], p1 = P[i < n - 1 ? i + 1 : i], tx = p1.x - p0.x, ty = p1.y - p0.y, tz = p1.z - p0.z; let nx, ny, nz;
+        if (ax) { nx = 0; ny = tz; nz = -ty; if (Math.abs(ty) < 0.3 * Math.abs(tx)) { ny = 0; nz = 1; } } else { nx = -ty * face; ny = tx * face; nz = 0; }
+        const l = Math.hypot(nx, ny, nz) || 1, wl = pass ? t.w2[i] : t.wL[i], wr = pass ? t.w2[i] : t.wR[i], o = i * 6; nx /= l; ny /= l; nz /= l;
+        pos[o] = p.x + nx * wl; pos[o + 1] = p.y + ny * wl; pos[o + 2] = p.z + nz * wl; pos[o + 3] = p.x - nx * wr; pos[o + 4] = p.y - ny * wr; pos[o + 5] = p.z - nz * wr; }
+      (pass ? t.b : t.a).geo.attributes.position.needsUpdate = true; }
   }
   const Z001 = [0, 0, 1];
   function trailStep(rig, face) {
     if (!rig.trails) return; rig.G.updateMatrixWorld(true); const gx = rig.G.position.x, gy = rig.G.position.y;
     for (let ti = 0; ti < rig.trails.length; ti++) { const t = rig.trails[ti];
       const a = t.par.localToWorld(_tv.copy(t.off)), n = t.pts.length, gr = rig.grab && ti < 3 ? rig.grab : null;
+      if (t.strip) { stripStep(rig, t, a, face, gr, ti); continue; }
       if (!t.init || t.pts[0].distanceToSquared(a) > 4900) { for (let i = 0; i < n; i++) t.pts[i].set(a.x - face * t.len * i * 0.7, a.y + t.len * i * 0.1, a.z); t.init = 1; }
       t.pts[0].copy(a);
       if (gr) { const sgn = ti === 1 ? -1 : 1, rad = (gr.wrap ? 9 - gr.sq * 4 : 0);
@@ -503,6 +558,7 @@ const R = (function () {
   }
   function applyPose(rig, fp, face, flashK, tint) {
     if (rig.sk) return applyPoseM(rig, fp, face, flashK, tint);
+    const dm = rig.dim || DIMS, SP1 = dm.SP1, SP2 = dm.SP2, UA = dm.UA, FA = dm.FA, TH = dm.TH, SHN = dm.SHN, SW = dm.SW, HW = dm.HW;
     const lo = (fp.loose == null ? 1 : fp.loose) * (rig.solid ? 0.28 : 1), s1 = Math.sin(tick * 0.052 + rig.seed), s2 = Math.sin(tick * 0.037 + rig.seed * 1.7), s3 = Math.sin(tick * 0.083 + rig.seed * 0.6), bk = rig.boK = (rig.boK || 0) + ((rig.boT || 0) - (rig.boK || 0)) * 0.14, vl = Math.max(-6, Math.min(6, (rig.vel || 0) * face)), po0 = fp.po,
       po = Object.assign({}, po0, { hip: [po0.hip[0] + s1 * 3.2 * lo, po0.hip[1] + s3 * 1.3 * lo - bk * 3, 0], ln: po0.ln + s2 * 6 * lo + bk * 9, ln2: po0.ln2 - s2 * 8 * lo + s3 * 3 + bk * 12, hd: po0.hd + s1 * 9 * lo - bk * 12, rot: po0.rot + s2 * 2.2 * lo + vl * 1.4, hL: [po0.hL[0] + s2 * 3.5 * lo, po0.hL[1] + s3 * 3 * lo - bk * 5, po0.hL[2]], hR: [po0.hR[0] - s1 * 3.5 * lo, po0.hR[1] + s2 * 3 * lo - bk * 5, po0.hR[2]] }), b = rig.b, hip = [po.hip[0], po.hip[1], 0];
     const a1 = po.ln * D, a2 = po.ln2 * D, cb = [hip[0] + Math.sin(a1) * SP1, hip[1] + Math.cos(a1) * SP1, 0], nk = [cb[0] + Math.sin(a2) * SP2, cb[1] + Math.cos(a2) * SP2, 0];
@@ -524,7 +580,7 @@ const R = (function () {
     place(b.pel, sub(hip), sub([hip[0] + d0[0] * 4, hip[1] + d0[1] * 4, 0]), 0, pax);
     place(b.abd, sub([hip[0] + d0[0] * 2, hip[1] + d0[1] * 2, 0]), sub(cb), SP1 - 2, mid);
     place(b.chest, sub(cb), sub(nk), SP2, cax);
-    const ha = a2 * 0.45 + po.hd * D, back = Math.max(0, Math.min(1, (Math.abs(po.tw) - 100) / 50)), hz = [-0.5 + back * 0.9 + cax[0] * 0.12, 0, 0.82];
+    const ha = a2 * 0.45 + po.hd * D, back = Math.max(0, Math.min(1, (Math.abs(po.tw) - 100) / 50)), hz = [fp.straight ? 0 : -0.5 + back * 0.9 + cax[0] * 0.12, 0, 0.82];
     place(b.head, sub([nk[0], nk[1] + 1, 0]), sub([nk[0] + Math.sin(ha) * 10, nk[1] + 1 + Math.cos(ha) * 10, 0]), 0, hz);
     const wob = i => Math.sin(tick * 0.085 + rig.seed + i * 1.9), lo2 = 0.45 + 0.55 * lo;
     const bend = (k, p0, p1, rest, amt) => { if (rig.solid) amt = 0; const dx = p1[0] - p0[0], dy = p1[1] - p0[1], L = Math.hypot(dx, dy) || 1, m = [(p0[0] + p1[0]) / 2 - dy / L * amt, (p0[1] + p1[1]) / 2 + dx / L * amt, (p0[2] + p1[2]) / 2]; place(b[k], sub(p0), sub(m), rest / 2, Zc); place(b[k + 'b'], sub(m), sub(p1), rest / 2, Zc); };
@@ -835,7 +891,7 @@ const R = (function () {
       const dim = s.freeze > 0; stage.visible = !dim; scene.background.setHex(dim ? 0x07040a : 0x16111b);
       for (let i = 0; i < 2; i++) {
         const p = s.p[i], o = s.p[1 - i], r = rigs[i]; r.G.visible = true; if (r.T) r.T.visible = true;
-        const fp = fighterPose(p, o, s.frame, i); if (typeof window !== 'undefined' && window.__bg && window.__bg.pose && window.__bg.show === i) { fp.po = norm(PZ[window.__bg.pose], ST); fp.loose = 0; fp.yaw = 0; }
+        const fp = fighterPose(p, o, s.frame, i); if (typeof window !== 'undefined' && window.__bg && window.__bg.pose && window.__bg.show === i) { fp.po = norm(PZ[window.__bg.pose], ST); fp.loose = 0; fp.yaw = 0; fp.straight = 1; }
         let jx = 0; if (p.hs > 0 && (p.st === 'hit' || p.st === 'ahit' || p.st === 'block')) jx = ((p.hs & 1) ? 1 : -1) * Math.min(3, p.hs * 0.5);
         const fl = (p.hs > 0 && (p.st === 'hit' || p.st === 'ahit')) ? Math.min(0.9, p.hs * 0.14) : 0;
         const m = p.st === 'atk' ? SIM.CH[p.ch].mv[p.mv] : null; let tint = [0, 0, 0];
