@@ -490,6 +490,7 @@ const R = (function () {
     // the sky is the inside of a drum around the whole yard, so the camera can swing and never find the edge of the painting
     const SR = 1250, SH = SR * 2 * Math.PI / 768 * 192;
     const skyM = new THREE.Mesh(new THREE.CylinderGeometry(SR, SR, SH, 56, 1, true), new THREE.MeshBasicMaterial({ map: sky, fog: false, side: THREE.BackSide })); skyM.scale.x = -1; skyM.position.set(0, SH / 2 - SH * 32 / 192 - 6, 0); st.add(skyM);
+    const cap = new THREE.Mesh(new THREE.CircleGeometry(SR, 40), new THREE.MeshBasicMaterial({ color: 0x16111b, fog: false, side: THREE.DoubleSide })); cap.rotation.x = Math.PI / 2; cap.position.y = SH / 2; skyM.add(cap);   // lid, so a low camera looking up never sees past the painting
     // rain-wet flagstones with the sun lying across them
     const floor = tex(64, 64, (c) => { c.fillStyle = '#1d161c'; c.fillRect(0, 0, 64, 64); for (let y = 0; y < 4; y++) for (let x = 0; x < 2; x++) { const o = (y % 2) * 16; c.fillStyle = ['#2c2229', '#31262d', '#281e25', '#352830'][(x + y * 3) % 4]; c.fillRect(x * 32 + o - 16, y * 16, 31, 15); c.fillRect(x * 32 + o + 48, y * 16, 31, 15); } for (let i = 0; i < 46; i++) { c.fillStyle = hsh(i * 5) > 0.6 ? 'rgba(230,90,70,0.16)' : 'rgba(255,220,190,0.07)'; c.fillRect(hsh(i) * 64 | 0, hsh(i + 9) * 64 | 0, 2 + (hsh(i + 3) * 4 | 0), 1); } }, [35, 17]);
     const far = new THREE.Mesh(new THREE.CircleGeometry(1260, 40), new THREE.MeshBasicMaterial({ color: 0x1c131a })); far.rotation.x = -Math.PI / 2; far.position.set(0, -0.6, 0); st.add(far);
@@ -514,7 +515,7 @@ const R = (function () {
     // leaves on the wind
     st.userData.leaves = []; const lg = new THREE.PlaneGeometry(4.5, 3.5);
     for (let i = 0; i < 44; i++) { const m = new THREE.Mesh(lg, leafM[i % 5]); m.material.side = THREE.DoubleSide; m.userData = { x: (hsh(i * 3 + 700) - 0.5) * 1500, y: hsh(i * 5 + 701) * 260, z: -220 + hsh(i * 7 + 702) * 330, v: 0.35 + hsh(i * 11 + 703) * 0.55, p: hsh(i * 13) * 6.283 }; st.add(m); st.userData.leaves.push(m); }
-    st.userData.fx = { sky: skyM, glare: gl };
+    st.userData.fx = { sky: skyM, glare: gl, cap };
     scene.add(st); return st;
   }
 
@@ -538,7 +539,8 @@ const R = (function () {
     // night version of the stage sky: the same picture pushed cold, the sun turned into a pale moon
     const fx = stage.userData.fx;
     if (fx && fx.sky) { const src = fx.sky.material.map.image; const t = tex(src.width, src.height, (c, w, h) => { c.drawImage(src, 0, 0); const im = c.getImageData(0, 0, w, h), d = im.data; for (let i = 0; i < d.length; i += 4) { const r = d[i], g = d[i + 1], b = d[i + 2]; if (r > 240 && g > 100 && g < 150) continue; if (r > 160 && g < 60) { d[i] = 206; d[i + 1] = 222; d[i + 2] = 246; continue; } d[i] = b * 0.55 + r * 0.12; d[i + 1] = g * 0.75 + r * 0.1; d[i + 2] = r * 0.72 + b * 0.5 + 14; } c.putImageData(im, 0, 0); for (let i = 0; i < 70; i++) { c.fillStyle = 'rgba(230,240,255,' + (0.3 + hsh(i) * 0.6) + ')'; c.fillRect(hsh(i * 3 + 1) * w | 0, hsh(i * 7 + 2) * h * 0.42 | 0, 1, 1); } });
-      A.night = new THREE.Mesh(fx.sky.geometry, new THREE.MeshBasicMaterial({ map: t, fog: false, transparent: true, opacity: 0 })); A.night.position.copy(fx.sky.position); A.night.position.z += 2; scene.add(A.night); }
+      A.night = new THREE.Mesh(fx.sky.geometry, new THREE.MeshBasicMaterial({ map: t, fog: false, transparent: true, opacity: 0, side: THREE.BackSide, depthWrite: false })); A.night.position.copy(fx.sky.position); A.night.scale.set(-0.996, 1, 0.996); A.night.renderOrder = -1; scene.add(A.night);
+      if (fx.cap) { const nc = t.image.getContext('2d').getImageData(2, 2, 1, 1).data; A.ncap = new THREE.Mesh(fx.cap.geometry, new THREE.MeshBasicMaterial({ color: (nc[0] << 16) | (nc[1] << 8) | nc[2], fog: false, side: THREE.DoubleSide, transparent: true, opacity: 0, depthWrite: false })); A.ncap.rotation.x = Math.PI / 2; A.ncap.position.y = fx.cap.position.y - 2; A.night.add(A.ncap); } }
     // light shafts fanning out from behind the skyline
     A.rays = []; for (let i = 0; i < 7; i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(46 + (i % 3) * 22, 1100), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); m.position.set(0, 230, -1180); m.scale.set(1.6, 1.6, 1); m.rotation.z = (i - 3) * 0.3 + 0.07; scene.add(m); A.rays.push(m); }
     // ground mist in two drifting sheets
@@ -576,7 +578,7 @@ const R = (function () {
     const shim = 1 + 0.06 * Math.sin(tick * 0.21) + 0.04 * Math.sin(tick * 0.057); rimL.color.setRGB(c.rim[0], c.rim[1], c.rim[2]); rimL.intensity = c.rimI * shim; sunL.color.setRGB(c.rim[0], c.rim[1], c.rim[2]); sunL.intensity = 0; for (const h of hitL) h.intensity *= 0.8;
     { const q = s && s.proj && s.proj.find(x => x); if (q) { projL.position.set(q.x / F, q.y / F, 24); projL.color.set(CSSA[q.ch]); projL.intensity = 1.5 + 0.3 * Math.sin(tick * 0.9); } else projL.intensity = 0; }
     scene.fog.color.setRGB(c.fog[0], c.fog[1], c.fog[2]); scene.fog.near = c.fogN - 330 + CAM.d; scene.fog.far = 1170 + CAM.d;
-    const fx = stage.userData.fx; if (fx) { if (fx.sky) fx.sky.material.color.setRGB(Math.min(1, c.sky[0] + fl), Math.min(1, c.sky[1] + fl), Math.min(1, c.sky[2] + fl)); if (fx.glare) { fx.glare.material.color.setRGB(c.glare[0], c.glare[1], c.glare[2]); fx.glare.material.opacity = c.glareO * (0.85 + 0.15 * Math.sin(tick * 0.09)); } }
+    const fx = stage.userData.fx; if (fx) { if (fx.sky) fx.sky.material.color.setRGB(Math.min(1, c.sky[0] + fl), Math.min(1, c.sky[1] + fl), Math.min(1, c.sky[2] + fl)); if (fx.cap) fx.cap.material.color.setRGB(0.086 * Math.min(1, c.sky[0] + fl), 0.067 * Math.min(1, c.sky[1] + fl), 0.106 * Math.min(1, c.sky[2] + fl)); if (A.ncap) A.ncap.material.opacity = Math.max(0, Math.min(1, c.night)); if (fx.glare) { fx.glare.material.color.setRGB(c.glare[0], c.glare[1], c.glare[2]); fx.glare.material.opacity = c.glareO * (0.85 + 0.15 * Math.sin(tick * 0.09)); } }
     if (A.night) { A.night.material.opacity = Math.max(0, Math.min(1, c.night)); A.night.visible = c.night > 0.01; }
     for (let i = 0; i < A.rays.length; i++) { const m = A.rays[i]; m.material.color.setRGB(c.rim[0], c.rim[1], c.rim[2]); m.material.opacity = c.rays * 0.085 * (0.6 + 0.4 * Math.sin(tick * 0.02 + i * 1.7)); m.rotation.z = (i - 3) * 0.3 + 0.07 + 0.03 * Math.sin(tick * 0.008 + i); m.visible = stage.visible; }
     for (let i = 0; i < A.mist.length; i++) { const m = A.mist[i]; m.material.color.setRGB(Math.min(1, c.fog[0] * 2.2 + 0.1), Math.min(1, c.fog[1] * 2.2 + 0.1), Math.min(1, c.fog[2] * 2.2 + 0.1)); m.material.opacity = c.mist * (i ? 0.9 : 0.55); m.material.map.offset.x -= WIND * (i ? 0.0005 : 0.0011); m.position.x = camX; m.rotation.y = CAM.yaw * D; m.visible = stage.visible; }
@@ -755,7 +757,11 @@ const R = (function () {
       if (menuPan) { camX = 0; camW = menuPan.w || 340; camY = menuPan.y || 34; const px = menuPan.x || 75; for (let i = 0; i < 2; i++) { const fake = { ch: menuPan.chars[i], st: menuPan.pose && menuPan.pose[i] ? 'win' : 'idle', sub: 'stand', sf: 30, subf: 0, y: 0, vy: 0 }; const fp = fighterPose(fake, fake, tick); applyPose(rigs[i], fp, i ? -1 : 1, 0, [0, 0, 0]); rigs[i].G.position.set(i ? px : -px, 0, i ? -2 : 2); trailStep(rigs[i], i ? -1 : 1); shadows[i].position.x = i ? px : -px; shadows[i].scale.set(1, 1, 1); } }
     }
     let sx = 0, sy = 0; if (shake > 0) { sx = ((shake * 7919) % 5 - 2) * Math.min(3, shake * 0.35); sy = ((shake * 104729) % 5 - 2) * Math.min(3, shake * 0.35); shake--; }
+    // photo mode for scenery shots: window.__bg = { cam: [x, y, z, lookX, lookY, lookZ, fov, roll] } hides the fighters and takes the camera
+    const bgm = typeof window !== 'undefined' && window.__bg;
+    if (bgm) { for (const r of rigs) { r.G.visible = false; if (r.T) r.T.visible = false; } for (const sh of shadows) sh.visible = false; projMeshes.forEach(g => g.visible = false); fx.length = 0; }
     camApply(s, sx, sy, !!s);
+    if (bgm && bgm.cam) { const c = bgm.cam; cam.fov = c[6] || FOV0; cam.updateProjectionMatrix(); cam.position.set(c[0], c[1], c[2]); cam.up.set(0, 1, 0); cam.lookAt(c[3], c[4], c[5]); if (c[7]) cam.rotateZ(c[7] * D); }
     ren.render(scene, cam);
     // second pass: the fighters again, flipped through the floor and faded, so the wet stone carries their reflections
     if (rigs.length && rigs[0].G.visible && rigs[0].allM) {
