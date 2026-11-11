@@ -120,9 +120,16 @@ const R = (function () {
   // a fighter can bring its own version of a pose; anything it does not override is shared
   let PCH = 0;
   const PZK = {
-    idle: s({ hip: [-2, 34], ln: 13, ln2: 20, tw: -54, pt: -36, hd: -6, hL: [28, 35, 0], hR: [-8, 31, 0], eL: -0.5, eR: -0.9, fL: [22, 4, 0], fR: [-20, 4, 0], kL: 0.3, kR: 0.4 }),
-    idle2: s({ hip: [-2, 32.4], ln: 15, ln2: 23, tw: -54, pt: -36, hd: -8, hL: [29, 33, 0], hR: [-7, 32, 0], eL: -0.5, eR: -0.9, fL: [22, 4, 0], fR: [-20, 4, 0], kL: 0.3, kR: 0.4 }),
-    walkA: s({ hip: [1, 35], ln: 14, ln2: 20, tw: -50, hd: -6, fL: [22, 4], fR: [-8, 9], hL: [26, 36], hR: [-4, 30], eL: -0.5, eR: -0.9 }), walkB: s({ hip: [1, 33.5], ln: 14, ln2: 20, tw: -50, hd: -6, fL: [8, 9], fR: [-20, 4], hL: [28, 33], hR: [-8, 32], eL: -0.5, eR: -0.9 })
+    idle: s({ hip: [-3, 45], ln: 4, ln2: 8, tw: -64, pt: -42, hd: -3, hL: [25, 59, 0], hR: [-9, 41, 0], eL: -0.45, eR: -0.9, fL: [14, 4, 0], fR: [-15, 4, 0], kL: 0.15, kR: 0.5 }),
+    idle2: s({ hip: [-3.6, 43.4], ln: 6, ln2: 11, tw: -64, pt: -42, hd: -5, hL: [26, 57, 0], hR: [-8, 42, 0], eL: -0.45, eR: -0.9, fL: [14, 4, 0], fR: [-15, 4, 0], kL: 0.15, kR: 0.5 }),
+    walkA: s({ hip: [-1, 44], ln: 5, ln2: 9, tw: -62, pt: -40, hd: -3, hL: [25, 58], hR: [-8, 41], eL: -0.45, eR: -0.9, fL: [18, 4], fR: [-6, 8], kL: 0.15, kR: 0.5 }),
+    walkB: s({ hip: [-1, 42.6], ln: 5, ln2: 9, tw: -62, pt: -40, hd: -3, hL: [26, 57], hR: [-9, 42], eL: -0.45, eR: -0.9, fL: [6, 8], fR: [-17, 4], kL: 0.15, kR: 0.5 }),
+    crouch: s({ hip: [-2, 22], ln: 20, ln2: 28, tw: -60, pt: -40, hd: -16, hL: [24, 38], hR: [-2, 22], eL: -0.3, eR: -0.8, fL: [17, 4], fR: [-15, 4], kL: 0.3, kR: 0.7 }),
+    dashf: s({ hip: [6, 29], ln: 66, ln2: 74, hd: -58, tw: -20, pt: -10, hL: [-22, 44, 0], hR: [-28, 38, 0], eL: 0.6, eR: 0.6, fL: [30, 5], fR: [-27, 12], kL: 0.1, kR: 0.1 }),
+    runA: s({ hip: [5, 31], ln: 68, ln2: 76, hd: -60, tw: -24, pt: -30, hL: [-24, 46, 0], hR: [-30, 40, 0], eL: 0.6, eR: 0.6, fL: [28, 7], fR: [-24, 18], kL: 0.1, kR: 0.1 }),
+    runB: s({ hip: [5, 33], ln: 66, ln2: 74, hd: -58, tw: -8, pt: 14, hL: [-26, 44, 0], hR: [-28, 42, 0], eL: 0.6, eR: 0.6, fL: [-22, 18], fR: [30, 7], kL: 0.1, kR: 0.1 }),
+    dashb: s({ hip: [-7, 46], ln: -10, ln2: -4, hd: 4, tw: -70, hL: [24, 54], hR: [8, 44], fL: [12, 10], fR: [-12, 7], eL: -0.2, eR: -0.6 }),
+    win: s({ hip: [0, 49], ln: -2, ln2: -4, tw: -80, pt: -60, hd: 6, hL: [10, 40], hR: [-8, 62], eL: -0.6, eR: 0.4, fL: [7, 4], fR: [-8, 4], kL: 0, kR: 0.2 })
   };
   const P = n => (PCH === 1 && PZK[n]) || PZ[n] || ST;
   function kf(keys, t) {
@@ -513,9 +520,135 @@ const R = (function () {
         pos[o] = p.x + nx * wl; pos[o + 1] = p.y + ny * wl; pos[o + 2] = p.z + nz * wl; pos[o + 3] = p.x - nx * wr; pos[o + 4] = p.y - ny * wr; pos[o + 5] = p.z - nz * wr; }
       (pass ? t.b : t.a).geo.attributes.position.needsUpdate = true; }
   }
+  // ----------------------------------------------------------- the masked one: the sculpted model on its canon rig
+  // The mesh and its 24-joint skeleton come in as authored. Every joint is driven directly: the pose gives a position for it and a
+  // direction for its bone, and the bone is turned from where it pointed in the bind pose to where it points now. The coat, the head
+  // ribbons and the loose strands are not on that skeleton at all: each has its own chain of joints, cut from the mesh and re-weighted,
+  // hung from the body and simulated (see clothStep).
+  const MSK = 63;   // world units per metre of the model
+  const KM = (function () {
+    if (typeof MDK === 'undefined' || typeof atob === 'undefined' || typeof THREE === 'undefined') return null;
+    const dec = (b, T) => { const bin = atob(b), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i); return new T(u8.buffer); };
+    const M = MDK, nv = M.nv, q = dec(M.pos, Uint16Array), pos = new Float32Array(nv * 3); for (let i = 0; i < nv * 3; i++) { const a = i % 3; pos[i] = M.mn[a] + q[i] / 65535 * (M.mx[a] - M.mn[a]); }
+    const n8 = dec(M.nor, Int8Array), nor = new Float32Array(nv * 3); for (let i = 0; i < nv * 3; i++) nor[i] = n8[i] / 127;
+    const u16 = dec(M.uv, Uint16Array), uv = new Float32Array(nv * 2); for (let i = 0; i < nv * 2; i++) uv[i] = u16[i] / 65535;
+    const s8 = dec(M.si, Uint8Array), si = new Uint16Array(nv * 4); for (let i = 0; i < nv * 4; i++) si[i] = s8[i];
+    const w8 = dec(M.sw, Uint8Array), sw = new Float32Array(nv * 4); for (let i = 0; i < nv * 4; i++) sw[i] = w8[i] / 255;
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    geo.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4)); geo.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4)); geo.setIndex(new THREE.BufferAttribute(dec(M.idx, Uint16Array), 1));
+    const id = {}, bp = M.bones.map((b, i) => { id[b[0]] = i; return [b[1], b[2], b[3]]; }), B = n => bp[id[n]], sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], cr = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]], len = v => Math.hypot(v[0], v[1], v[2]);
+    const RT = [-1, 0, 0], F = {}, fr = (n, d, h) => { F[n] = { i: id[n], F: frame3(d, h, []), d: [d[0] / len(d), d[1] / len(d), d[2] / len(d)] }; };
+    fr('Hips', sub(B('Spine02'), B('Hips')), RT); fr('Spine02', sub(B('Spine01'), B('Spine02')), RT); fr('Spine01', sub(B('Spine'), B('Spine01')), RT); fr('Spine', sub(B('neck'), B('Spine')), RT); fr('neck', sub(B('Head'), B('neck')), RT); fr('Head', [0, 1, 0], RT);
+    for (const S of ['Left', 'Right']) { const u = sub(B(S + 'ForeArm'), B(S + 'Arm')), f = sub(B(S + 'Hand'), B(S + 'ForeArm')), ax = cr(u, f); fr(S + 'Arm', u, ax); fr(S + 'ForeArm', f, ax);
+      const t = sub(B(S + 'Leg'), B(S + 'UpLeg')), sn = sub(B(S + 'Foot'), B(S + 'Leg')), kx = cr(t, sn); fr(S + 'UpLeg', t, kx); fr(S + 'Leg', sn, kx); const fd = sub(B(S + 'ToeBase'), B(S + 'Foot')); fr(S + 'Foot', [fd[0], 0, fd[2]], RT); }
+    const L = (a, b) => len(sub(B(a), B(b))) * MSK;
+    return { geo, id, bp, B, F, chains: M.chains, nb: M.bones.length, len: { s: [L('Spine02', 'Hips'), L('Spine01', 'Spine02'), L('Spine', 'Spine01'), L('neck', 'Spine'), L('Head', 'neck')], UA: L('LeftForeArm', 'LeftArm'), FA: L('LeftHand', 'LeftForeArm'), TH: L('LeftLeg', 'LeftUpLeg'), SH: L('LeftFoot', 'LeftLeg'), AH: (MDK.hipY + B('LeftFoot')[1]) * MSK }, tex: null };
+  })();
+  // an orthonormal frame whose first axis is d and whose third is as close to h as it can be; nine numbers, one axis after another
+  function frame3(d, h, out) {
+    let x0 = d[0], x1 = d[1], x2 = d[2], l = Math.hypot(x0, x1, x2) || 1; x0 /= l; x1 /= l; x2 /= l;
+    let k = h[0] * x0 + h[1] * x1 + h[2] * x2, z0 = h[0] - k * x0, z1 = h[1] - k * x1, z2 = h[2] - k * x2; l = Math.hypot(z0, z1, z2);
+    if (l < 1e-5) { z0 = -x1; z1 = x0; z2 = 0; if (Math.hypot(z0, z1) < 1e-4) { z0 = 0; z1 = -x2; z2 = x1; } l = Math.hypot(z0, z1, z2); }
+    z0 /= l; z1 /= l; z2 /= l; out[0] = x0; out[1] = x1; out[2] = x2; out[3] = z1 * x2 - z2 * x1; out[4] = z2 * x0 - z0 * x2; out[5] = z0 * x1 - z1 * x0; out[6] = z0; out[7] = z1; out[8] = z2; return out;
+  }
+  const DITH = 'if (uDith > 0.0) { vec2 dp = mod(floor(gl_FragCoord.xy), 2.0); float dt = (dp.x + dp.y * 2.0 == 0.0) ? 0.2 : (dp.x + dp.y * 2.0 == 3.0) ? 0.4 : (dp.x + dp.y * 2.0 == 1.0) ? 0.6 : 0.8; if (uDith > dt) discard; }\n';
+  function buildRigS(ch, alt) {
+    const G = new THREE.Group(), M = new THREE.Group(), R = new THREE.Group(), W = new THREE.Group(), T = new THREE.Group(); G.add(M); M.add(R); R.add(W); R.rotation.order = 'ZYX'; W.rotation.y = Math.PI / 2; W.scale.setScalar(MSK);
+    if (!KM.tex) { const img = new Image(), tx = new THREE.Texture(img); tx.flipY = false; tx.magFilter = THREE.NearestFilter; img.onload = () => { tx.needsUpdate = true; }; img.src = MDK.tex; KM.tex = tx; }
+    const ramp = new THREE.DataTexture(new Uint8Array([96, 96, 96, 255, 176, 176, 176, 255, 255, 255, 255, 255]), 3, 1, THREE.RGBAFormat); ramp.minFilter = ramp.magFilter = THREE.NearestFilter; ramp.needsUpdate = true;
+    const U = { rim: { value: new THREE.Color(0x000000) }, flat: { value: new THREE.Vector4(1, 1, 1, 0) }, grey: { value: 0 }, swap: { value: alt ? 1 : 0 }, dith: { value: 0 } };
+    const mat = new THREE.MeshToonMaterial({ map: KM.tex, gradientMap: ramp, skinning: true, transparent: true, opacity: 1, side: THREE.DoubleSide }); mat.color.setRGB(0.78, 0.84, 0.86);
+    // an edge light off the stage's backlight, a flat state colour (parry, Slipstream), burnout grey, and a colour swap for the mirror match
+    mat.onBeforeCompile = sh => { sh.uniforms.uRim = U.rim; sh.uniforms.uFlat = U.flat; sh.uniforms.uGrey = U.grey; sh.uniforms.uSwap = U.swap; sh.uniforms.uDith = U.dith;
+      sh.fragmentShader = 'uniform vec3 uRim; uniform vec4 uFlat; uniform float uGrey; uniform float uSwap; uniform float uDith;\n' + sh.fragmentShader.replace('#include <tonemapping_fragment>',
+        DITH + 'float rimK = pow(1.0 - clamp(dot(normalize(vViewPosition), normal), 0.0, 1.0), 2.4);\n gl_FragColor.rgb = mix(gl_FragColor.rgb, gl_FragColor.bgr, uSwap);\n gl_FragColor.rgb += uRim * smoothstep(0.42, 0.5, rimK) * (0.28 + 1.5 * max(gl_FragColor.r, gl_FragColor.b));\n gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(dot(gl_FragColor.rgb, vec3(0.3, 0.5, 0.2))) * vec3(0.8, 0.86, 0.96) + 0.04, uGrey);\n gl_FragColor.rgb = mix(gl_FragColor.rgb, uFlat.rgb * (0.62 + 0.38 * smoothstep(0.2, 0.3, rimK) + 0.3 * step(0.2, dot(gl_FragColor.rgb, vec3(0.34)))), uFlat.a);\n#include <tonemapping_fragment>'); };
+    const bones = [], inv = []; for (let i = 0; i < KM.nb; i++) { const o = new THREE.Bone(), b = KM.bp[i]; o.matrixAutoUpdate = false; o.matrix.makeTranslation(b[0], b[1], b[2]); bones.push(o); inv.push(new THREE.Matrix4().makeTranslation(-b[0], -b[1], -b[2])); (i < 24 ? W : T).add(o); }
+    const mesh = new THREE.SkinnedMesh(KM.geo, mat); mesh.frustumCulled = false; W.add(mesh); mesh.bind(new THREE.Skeleton(bones, inv), new THREE.Matrix4());
+    const chains = KM.chains.map((c, k) => { const n = c.j.length, P = [], Q = [], Tg = [], len = [0], dir = []; for (let i = 0; i < n; i++) { P.push(new THREE.Vector3()); Q.push(new THREE.Vector3()); Tg.push(new THREE.Vector3()); const a = KM.bp[c.j[i]];
+        if (i) { const b = KM.bp[c.j[i - 1]]; len.push(Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) * MSK); dir.push(new THREE.Vector3(a[0] - b[0], a[1] - b[1], a[2] - b[2]).normalize()); } }
+      return { a: c.a, j: c.j, kind: c.kind, p: P, q: Q, t: Tg, len: len, dir: dir, ph: k * 1.37, init: 0 }; });
+    const NP = 12, pg = new THREE.BufferGeometry(), pp = new Float32Array(NP * 3); pg.setAttribute('position', new THREE.BufferAttribute(pp, 3));
+    const pts = new THREE.Points(pg, new THREE.PointsMaterial({ color: alt ? 0x5a8cff : 0xff4a36, size: 2, sizeAttenuation: false, transparent: true, opacity: 0.9, depthWrite: false })); pts.frustumCulled = false; T.add(pts);
+    const sparks = []; for (let i = 0; i < NP; i++) { sparks.push({ life: 0, vx: 0, vy: 0 }); pp[i * 3 + 1] = -99; }
+    const ghosts = []; for (let g = 0; g < 4; g++) { const gu = { dith: { value: 1 } }, gm = new THREE.MeshBasicMaterial({ color: alt ? 0x2a4a9c : 0x9c1420, skinning: true, side: THREE.DoubleSide });
+      gm.onBeforeCompile = sh => { sh.uniforms.uDith = gu.dith; sh.fragmentShader = 'uniform float uDith;\n' + sh.fragmentShader.replace('#include <tonemapping_fragment>', DITH + '#include <tonemapping_fragment>'); };
+      const gb = [], gi = []; for (let i = 0; i < KM.nb; i++) { const o = new THREE.Bone(), b = KM.bp[i]; o.matrixAutoUpdate = false; gb.push(o); gi.push(inv[i]); T.add(o); }
+      const ms = new THREE.SkinnedMesh(KM.geo, gm); ms.frustumCulled = false; ms.visible = false; T.add(ms); ms.bind(new THREE.Skeleton(gb, gi), new THREE.Matrix4()); ghosts.push({ ms: ms, gb: gb, u: gu, life: 0, max: 1 }); }
+    mat.userData.o = 1; G.traverse(o => o.layers.enable(1));
+    return { G, M, R, T, W, mesh, bones, ghosts, gn: 0, skin: 1, ch, U, chains, trails: [], mats: { body: mat }, lit: {}, allM: [mat], pts, pp, sparks, seed: ch * 977 + 13, acc: 0xff4a36, emit: [bones[KM.id.Spine01], bones[KM.id.Hips]], sc: { R: [], F: [], p: {}, r: {} } };
+  }
+  const _kF = [], _white = new THREE.Color(0xffffff);
+  function applyPoseS(rig, fp, face, flashK, tint) {
+    const K = KM, Ln = K.len, bones = rig.bones, lo = (fp.loose == null ? 1 : fp.loose) * 0.45, s1 = Math.sin(tick * 0.052 + rig.seed), s2 = Math.sin(tick * 0.037 + rig.seed * 1.7), s3 = Math.sin(tick * 0.083 + rig.seed * 0.6), bk = rig.boK = (rig.boK || 0) + ((rig.boT || 0) - (rig.boK || 0)) * 0.14, vl = Math.max(-6, Math.min(6, (rig.vel || 0) * face)), po0 = fp.po;
+    const po = Object.assign({}, po0, { hip: [po0.hip[0] + s1 * 2.2 * lo, po0.hip[1] + s3 * 1.1 * lo - bk * 3, 0], ln: po0.ln + s2 * 4 * lo + bk * 9, ln2: po0.ln2 - s2 * 5 * lo + s3 * 2 + bk * 12, hd: po0.hd + s1 * 6 * lo - bk * 12, rot: po0.rot + s2 * 1.4 * lo + vl * 1.2, hL: [po0.hL[0] + s2 * 2.5 * lo, po0.hL[1] + s3 * 2 * lo - bk * 5, po0.hL[2]], hR: [po0.hR[0] - s1 * 2.5 * lo, po0.hR[1] + s2 * 2 * lo - bk * 5, po0.hR[2]] });
+    const hip = [po.hip[0], po.hip[1], 0], a1 = po.ln * D, a2 = po.ln2 * D, tw = po.tw * D, pt = po.pt * D, cax = [Math.sin(tw), 0, Math.cos(tw)], pax = [Math.sin(pt), 0, Math.cos(pt)], mid = [(cax[0] + pax[0]) / 2, 0, (cax[2] + pax[2]) / 2];
+    const ha = a2 * 0.45 + po.hd * D, back = Math.max(0, Math.min(1, (Math.abs(po.tw) - 100) / 50)), hz = [fp.straight ? 0 : -0.5 + back * 0.9 + cax[0] * 0.12, 0, 0.82];
+    // model space, relative to the hips: x = the figure's left, y = up, z = the way it faces
+    const mv = v => [-v[2], v[1], v[0]], mp = g => [-g[2] / MSK, (g[1] - hip[1]) / MSK, (g[0] - hip[0]) / MSK], gp = m => [hip[0] + m[2] * MSK, hip[1] + m[1] * MSK, -m[0] * MSK];
+    const P = rig.sc.p, Rm = rig.sc.r;
+    // turn bone n from its bind frame to (dir, hint), put its joint at p, optionally stretched along its length
+    const drive = (n, p, dir, hint, st) => { const f = K.F[n], Ft = frame3(dir, hint, _kF), Fb = f.F, r = Rm[n] || (Rm[n] = []);
+      for (let a = 0; a < 3; a++) for (let c = 0; c < 3; c++) r[a * 3 + c] = Ft[a] * Fb[c] + Ft[3 + a] * Fb[3 + c] + Ft[6 + a] * Fb[6 + c];   // r[row*3+col]
+      P[n] = p; const e = bones[f.i].matrix.elements, k = (st || 1) - 1, db = f.d;
+      for (let c = 0; c < 3; c++) { e[c * 4] = r[c] + k * Ft[0] * db[c]; e[c * 4 + 1] = r[3 + c] + k * Ft[1] * db[c]; e[c * 4 + 2] = r[6 + c] + k * Ft[2] * db[c]; e[c * 4 + 3] = 0; }
+      e[12] = p[0]; e[13] = p[1]; e[14] = p[2]; e[15] = 1; bones[f.i].matrixWorldNeedsUpdate = true; };
+    // a joint that simply rides on bone n
+    const ride = (child, n) => { const r = Rm[n], p = P[n], a = K.B(child), b = K.B(n), d0 = a[0] - b[0], d1 = a[1] - b[1], d2 = a[2] - b[2], q = [p[0] + r[0] * d0 + r[1] * d1 + r[2] * d2, p[1] + r[3] * d0 + r[4] * d1 + r[5] * d2, p[2] + r[6] * d0 + r[7] * d1 + r[8] * d2];
+      const e = bones[K.id[child]].matrix.elements; for (let c = 0; c < 3; c++) { e[c * 4] = r[c]; e[c * 4 + 1] = r[3 + c]; e[c * 4 + 2] = r[6 + c]; e[c * 4 + 3] = 0; } e[12] = q[0]; e[13] = q[1]; e[14] = q[2]; e[15] = 1; bones[K.id[child]].matrixWorldNeedsUpdate = true; P[child] = q; Rm[child] = r; return q; };
+    if (fp.bindPose) { for (let i = 0; i < 24; i++) { const b = K.bp[i]; bones[i].matrix.makeTranslation(b[0], b[1], b[2]); bones[i].matrixWorldNeedsUpdate = true; } hip[1] = MDK.hipY * MSK; }
+    else {
+      const d0 = [Math.sin(a1 * 0.5), Math.cos(a1 * 0.5), 0], d1 = [Math.sin(a1), Math.cos(a1), 0], d2 = [Math.sin(a2), Math.cos(a2), 0], dh = [Math.sin(ha), Math.cos(ha), 0], add = (p, d, l) => [p[0] + d[0] * l, p[1] + d[1] * l, p[2] + d[2] * l];
+      const g02 = add(hip, d0, Ln.s[0]), g01 = add(g02, d1, Ln.s[1]), gsp = add(g01, d2, Ln.s[2]), gnk = add(gsp, d2, Ln.s[3]), ghd = add(gnk, dh, Ln.s[4]);
+      drive('Hips', [0, 0, 0], mv(d0), mv(pax)); drive('Spine02', mp(g02), mv(d1), mv(mid)); drive('Spine01', mp(g01), mv(d2), mv(cax)); drive('Spine', mp(gsp), mv(d2), mv(cax)); drive('neck', mp(gnk), mv(dh), mv(hz)); drive('Head', mp(ghd), mv(dh), mv(hz)); ride('head_end', 'Head'); ride('headfront', 'Head');
+      const tg = {}; for (const n of ['hL', 'hR', 'fL', 'fR']) tg[n] = po[n].slice();
+      if (po.aim && fp.hb && po.aw > 0) { const h = fp.hb, t = tg[po.aim], tx = po.up ? h[0] + h[2] * 0.6 : h[0] + h[2] - 3, ty = po.up ? h[1] + h[3] - 5 : h[1] + h[3] * po.ay; t[0] += (tx - t[0]) * po.aw; t[1] += (ty - t[1]) * po.aw; }
+      const cr = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]], sb = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], ln = v => Math.hypot(v[0], v[1], v[2]);
+      for (const n of ['L', 'R']) { const sd = n === 'L' ? -1 : 1, S = n === 'L' ? 'Left' : 'Right';
+        ride(S + 'Shoulder', 'Spine'); const shM = ride(S + 'Arm', 'Spine'), sh = gp(shM), ht = tg['h' + n], e = po['e' + n], pole = [-0.35, e, sd * 0.7 * (e > 0 ? 1.4 : 1)];
+        const A = ik(sh, [ht[0], ht[1], sh[2] * 0.45 + ht[2]], Ln.UA, Ln.FA, pole, 1.3), u = mv(sb(A[0], sh)), f = mv(sb(A[1], A[0])); let ax = cr(u, f); if (ln(ax) < 0.02 * ln(u) * ln(f)) ax = cr(u, mv(pole));
+        drive(S + 'Arm', shM, u, ax, ln(u) / Ln.UA); drive(S + 'ForeArm', mp(A[0]), f, ax, ln(f) / Ln.FA); P[S + 'ForeArm'] = mp(A[0]); const wr = mp(A[1]);
+        { const r = Rm[S + 'ForeArm'], eH = bones[K.id[S + 'Hand']].matrix.elements; for (let c = 0; c < 3; c++) { eH[c * 4] = r[c]; eH[c * 4 + 1] = r[3 + c]; eH[c * 4 + 2] = r[6 + c]; eH[c * 4 + 3] = 0; } eH[12] = wr[0]; eH[13] = wr[1]; eH[14] = wr[2]; eH[15] = 1; bones[K.id[S + 'Hand']].matrixWorldNeedsUpdate = true; }
+        const hsM = ride(S + 'UpLeg', 'Hips'), hs = gp(hsM), ft = tg['f' + n], kk = po['k' + n], ay = ft[1] - 4 + Ln.AH, kp = [0.8, 0.45, sd * (0.4 + kk * 1.6)];
+        const Lg = ik(hs, [ft[0], fp.air ? ay : Math.max(Ln.AH, ay), sd * 5.5 + ft[2]], Ln.TH, Ln.SH, kp, 1.22), th = mv(sb(Lg[0], hs)), sn = mv(sb(Lg[1], Lg[0])); let kx = cr(th, sn); if (ln(kx) < 0.02 * ln(th) * ln(sn)) kx = cr(th, mv(kp));
+        drive(S + 'UpLeg', hsM, th, kx, ln(th) / Ln.TH); drive(S + 'Leg', mp(Lg[0]), sn, kx, ln(sn) / Ln.SH);
+        const sx = Lg[1][0] - Lg[0][0], sy2 = Lg[1][1] - Lg[0][1], sl = Math.hypot(sx, sy2) || 1, k = fp.air ? 1 : Math.max(0, Math.min(1, (Lg[1][1] - Ln.AH - 1) / 8)), fx0 = sd > 0 && !fp.air ? 0.8 : 1;
+        drive(S + 'Foot', mp(Lg[1]), mv([fx0 * (1 - k) + (-sy2 / sl * 0.85 + sx / sl * 0.35) * k, (sx / sl * 0.85 + sy2 / sl * 0.35) * k, (sd > 0 ? 0.6 : -0.15) * (1 - k)]), mv([0, 0, 1])); ride(S + 'ToeBase', S + 'Foot');
+      }
+    }
+    rig.R.position.set(hip[0], hip[1], 0); rig.R.rotation.set(0, (po.yaw + fp.yaw) * D, -po.rot * D); rig.M.scale.x = face;
+    // state: parrying it is its accent colour outright, flying a Slipstream it goes pale, burnt out it drains to ash
+    const U = rig.U, md = rig.mode; if (md === 'parry') U.flat.value.set(1, 0.18, 0.59, 1); else if (md === 'home') U.flat.value.set(1, 0.47, 0.74, 0.85); else U.flat.value.w = 0;
+    U.grey.value = bk * ((tick % 53) < 2 && bk > 0.5 ? 0.2 : 0.92); if (rimL) U.rim.value.copy(rimL.color).lerp(_white, 0.55).multiplyScalar(Math.min(0.42, rimL.intensity * 0.26));
+    U.dith.value = rig.phase || 0;
+    rig.mats.body.emissive.setRGB(flashK + tint[0], flashK + tint[1], flashK + tint[2]);
+  }
+  // Cloth. Each chain hangs off one body joint. Its points are simulated in the world: they keep their momentum, sag, drift with the wind,
+  // and are drawn back toward the shape they were sculpted in, firmly near the root and loosely at the tip. Each link keeps its length.
+  const CLP = [{ damp: 0.86, g: 0.05, w: 0.3, tb: 0.06, ws: 0.05, k0: 0.36, k1: 0.07 }, { damp: 0.9, g: 0.012, w: 0.55, tb: 0.24, ws: 0.07, k0: 0.17, k1: 0.022 }, { damp: 0.9, g: 0.03, w: 0.45, tb: 0.13, ws: 0.06, k0: 0.22, k1: 0.035 }];
+  const _cA = new THREE.Matrix4(), _cT = new THREE.Matrix4(), _cL = new THREE.Matrix4(), _cv = new THREE.Vector3(), _c0 = new THREE.Vector3(), _c1 = new THREE.Vector3(), _cq = new THREE.Quaternion();
+  function clothStep(rig) {
+    const bones = rig.bones;
+    for (const c of rig.chains) { const bp = KM.bp[c.a], n = c.j.length, P = c.p, Q = c.q, Tg = c.t, pr = CLP[c.kind];
+      _cA.copy(bones[c.a].matrixWorld).multiply(_cT.makeTranslation(-bp[0], -bp[1], -bp[2]));
+      for (let i = 0; i < n; i++) { const b = KM.bp[c.j[i]]; Tg[i].set(b[0], b[1], b[2]).applyMatrix4(_cA); }
+      if (!c.init || P[0].distanceToSquared(Tg[0]) > 4900) { for (let i = 0; i < n; i++) { P[i].copy(Tg[i]); Q[i].copy(Tg[i]); } c.init = 1; }
+      P[0].copy(Tg[0]); Q[0].copy(Tg[0]);
+      for (let i = 1; i < n; i++) { const p = P[i], u = i / (n - 1);
+        _cv.subVectors(p, Q[i]).multiplyScalar(pr.damp); Q[i].copy(p); p.add(_cv);
+        p.y -= pr.g * (0.4 + u); p.x += WIND * pr.w * u + Math.sin(tick * pr.ws + i * 0.9 + c.ph) * pr.tb * u; p.y += Math.cos(tick * pr.ws * 0.8 + i * 1.1 + c.ph) * pr.tb * 0.6 * u;
+        p.lerp(Tg[i], pr.k0 + (pr.k1 - pr.k0) * u);
+        _cv.subVectors(p, P[i - 1]); const L = _cv.length() || 1; p.copy(P[i - 1]).addScaledVector(_cv, c.len[i] / L); if (p.y < 1) p.y = 1; }
+      _cL.copy(_cA).setPosition(0, 0, 0);
+      for (let i = 0; i < n; i++) { const k = i < n - 1 ? i : i - 1, bo = bones[c.j[i]]; _c0.copy(c.dir[k]).transformDirection(_cA); _c1.subVectors(P[k + 1], P[k]).normalize(); _cq.setFromUnitVectors(_c0, _c1);
+        bo.matrix.makeRotationFromQuaternion(_cq).multiply(_cL).setPosition(P[i]); bo.matrixWorldNeedsUpdate = true; }
+    }
+    // afterimages
+    for (const g of rig.ghosts) { if (g.life > 0) { g.life--; g.ms.visible = g.life > 0 && rig.G.visible; g.u.dith.value = 0.45 + 0.4 * (1 - g.life / g.max); } }
+    if (rig.echo > 0 && rig.G.visible && tick % (rig.echo > 1 ? 3 : 4) === 0) { const g = rig.ghosts[rig.gn++ % rig.ghosts.length]; rig.mesh.updateMatrixWorld(true); for (let i = 0; i < bones.length; i++) { if (i < 24) bones[i].updateMatrixWorld(true); g.gb[i].matrix.copy(i < 24 ? bones[i].matrixWorld : bones[i].matrix); g.gb[i].matrixWorldNeedsUpdate = true; } g.life = g.max = rig.echo > 1 ? 11 : 9; g.ms.visible = true; g.u.dith.value = 0.45; }
+  }
   const Z001 = [0, 0, 1];
   function trailStep(rig, face) {
-    if (!rig.trails) return; rig.G.updateMatrixWorld(true); const gx = rig.G.position.x, gy = rig.G.position.y;
+    if (!rig.trails) return; rig.G.updateMatrixWorld(true); if (rig.skin) clothStep(rig); const gx = rig.G.position.x, gy = rig.G.position.y;
     for (let ti = 0; ti < rig.trails.length; ti++) { const t = rig.trails[ti];
       const a = t.par.localToWorld(_tv.copy(t.off)), n = t.pts.length, gr = rig.grab && ti < 3 ? rig.grab : null;
       if (t.strip) { stripStep(rig, t, a, face, gr, ti); continue; }
@@ -558,6 +691,7 @@ const R = (function () {
   }
   function applyPose(rig, fp, face, flashK, tint) {
     if (rig.sk) return applyPoseM(rig, fp, face, flashK, tint);
+    if (rig.skin) return applyPoseS(rig, fp, face, flashK, tint);
     const dm = rig.dim || DIMS, SP1 = dm.SP1, SP2 = dm.SP2, UA = dm.UA, FA = dm.FA, TH = dm.TH, SHN = dm.SHN, SW = dm.SW, HW = dm.HW;
     const lo = (fp.loose == null ? 1 : fp.loose) * (rig.solid ? 0.28 : 1), s1 = Math.sin(tick * 0.052 + rig.seed), s2 = Math.sin(tick * 0.037 + rig.seed * 1.7), s3 = Math.sin(tick * 0.083 + rig.seed * 0.6), bk = rig.boK = (rig.boK || 0) + ((rig.boT || 0) - (rig.boK || 0)) * 0.14, vl = Math.max(-6, Math.min(6, (rig.vel || 0) * face)), po0 = fp.po,
       po = Object.assign({}, po0, { hip: [po0.hip[0] + s1 * 3.2 * lo, po0.hip[1] + s3 * 1.3 * lo - bk * 3, 0], ln: po0.ln + s2 * 6 * lo + bk * 9, ln2: po0.ln2 - s2 * 8 * lo + s3 * 3 + bk * 12, hd: po0.hd + s1 * 9 * lo - bk * 12, rot: po0.rot + s2 * 2.2 * lo + vl * 1.4, hL: [po0.hL[0] + s2 * 3.5 * lo, po0.hL[1] + s3 * 3 * lo - bk * 5, po0.hL[2]], hR: [po0.hR[0] - s1 * 3.5 * lo, po0.hR[1] + s2 * 3 * lo - bk * 5, po0.hR[2]] }), b = rig.b, hip = [po.hip[0], po.hip[1], 0];
@@ -784,7 +918,7 @@ const R = (function () {
   }
   function setFighters(chars) {
     for (const r of rigs) { scene.remove(r.G); if (r.T) scene.remove(r.T); } rigs = [];
-    for (let i = 0; i < 2; i++) { const r = (chars[i] === 1 ? buildRigK : buildRig)(chars[i], i === 1 && chars[0] === chars[1]); scene.add(r.G); scene.add(r.T); rigs.push(r); }
+    for (let i = 0; i < 2; i++) { const r = (chars[i] === 1 ? (KM ? buildRigS : buildRigK) : buildRig)(chars[i], i === 1 && chars[0] === chars[1]); scene.add(r.G); scene.add(r.T); rigs.push(r); }
     fx = []; combo[0] = combo[1] = null; msg = null; superFx = null; shake = 0; flash = 0;
   }
   // ----------------------------------------------------------- camera
@@ -891,7 +1025,7 @@ const R = (function () {
       const dim = s.freeze > 0; stage.visible = !dim; scene.background.setHex(dim ? 0x07040a : 0x16111b);
       for (let i = 0; i < 2; i++) {
         const p = s.p[i], o = s.p[1 - i], r = rigs[i]; r.G.visible = true; if (r.T) r.T.visible = true;
-        const fp = fighterPose(p, o, s.frame, i); if (typeof window !== 'undefined' && window.__bg && window.__bg.pose && window.__bg.show === i) { fp.po = norm(PZ[window.__bg.pose], ST); fp.loose = 0; fp.yaw = 0; fp.straight = 1; }
+        const fp = fighterPose(p, o, s.frame, i); if (typeof window !== 'undefined' && window.__bg && window.__bg.pose && window.__bg.show === i) { if (window.__bg.pose === 'bind') fp.bindPose = 1; else fp.po = norm(PZ[window.__bg.pose], ST); fp.loose = 0; fp.yaw = 0; fp.straight = 1; }
         let jx = 0; if (p.hs > 0 && (p.st === 'hit' || p.st === 'ahit' || p.st === 'block')) jx = ((p.hs & 1) ? 1 : -1) * Math.min(3, p.hs * 0.5);
         const fl = (p.hs > 0 && (p.st === 'hit' || p.st === 'ahit')) ? Math.min(0.9, p.hs * 0.14) : 0;
         const m = p.st === 'atk' ? SIM.CH[p.ch].mv[p.mv] : null; let tint = [0, 0, 0];
@@ -900,6 +1034,8 @@ const R = (function () {
         if (m && !m.isAir && m.hits[0] && m.hits[0].g === 'h' && p.mf < m.hits[0].s) { const k = 0.3 + 0.3 * Math.sin(s.frame * 1.2); tint = [k + 0.2, k * 0.4, 0]; }
         if (p.st === 'drush' || (p.st === 'atk' && p.drb)) tint = [0, 0.45, 0.18];
         r.mode = p.st === 'parry' ? 'parry' : m && m.home && !p.hmE && !(p.contact && !p.fr) ? 'home' : '';
+        r.echo = r.mode === 'home' || p.st === 'drush' ? 2 : (p.st === 'dashf' || p.st === 'dashb' || p.st === 'run' || Math.abs(r.vel || 0) > 3) ? 1 : 0;
+        r.phase = p.st === 'dashb' && p.sf < 11 ? (p.sf > 2 && p.sf < 6 ? 0.65 : 0.45) : p.st === 'dashf' && p.sf < 4 ? 0.45 : (p.st === 'getup' && p.sf < 6) ? 0.5 : 0;
         if (r.mode === 'parry') { const a = ACC[p.ch], k = 0.16 + 0.12 * Math.sin(s.frame * 0.8); tint = [a[0] * k, a[1] * k, a[2] * k]; }
         if (r.mode === 'home') { const a = ACC[p.ch], w = p.mf >= m.home[0] ? 0.04 + 0.05 * Math.sin(s.frame * 1.6) : 0, k = 0.06 + 0.1 * Math.min(1, p.mf / m.home[0]); tint = [a[0] * k + w, a[1] * k + w, a[2] * k + w]; }
         if (p.bo && (s.frame >> 3) & 1) tint = [tint[0] - 0.18, tint[1] - 0.18, tint[2] - 0.12];
@@ -909,8 +1045,8 @@ const R = (function () {
         { const o = s.p[1 - i], m0 = p.st === 'atk' && p.mv === 'throw' ? SIM.CH[p.ch].mv.throw : null; r.grab = p.st === 'throwing' && o.st === 'thrown' ? { x: o.x / F, y: o.y / F + 50, wrap: 1, sq: p.pmT > 0 ? Math.sin(p.pmT / 9 * Math.PI) : 0 } : m0 && p.mf >= 1 && p.mf <= m0.su + 7 ? { x: p.x / F + p.face * (10 + 46 * Math.min(1, p.mf / m0.su)), y: p.y / F + 54, wrap: 0, sq: 0 } : null; }
         trailStep(r, p.face);
         { r.pt = r.pt == null ? 99 : r.pt + 1; r.boT = p.bo ? 1 : 0; const gx = p.x / F, vx0 = gx - (r.lx == null ? gx : r.lx); r.lx = gx; r.vel = (r.vel || 0) * 0.7 + vx0 * 0.3;
-          if (m && m.home && p.mf >= m.home[0] && !p.contact && !p.hmE && p.hs <= 0) { fx.push({ k: 'echo', x: gx - vx0, y: p.y / F + 30, t: 0, c: CSSA[p.ch], c2: CSSB[p.ch] }); if (tick % 3 === 0) fx.push({ k: 'ripple', x: gx - vx0 * 2, y: p.y / F + 34, t: 0, c: CSSA[p.ch], r: 12 }); }
-          if (Math.abs(vx0) > 2.2 && (tick & 1)) fx.push({ k: 'echo', x: gx - vx0 * 2, y: p.y / F + 34, t: 0, c: CSSB[p.ch], c2: CSSA[p.ch] });
+          if (m && m.home && p.mf >= m.home[0] && !p.contact && !p.hmE && p.hs <= 0) { if (!r.skin) fx.push({ k: 'echo', x: gx - vx0, y: p.y / F + 30, t: 0, c: CSSA[p.ch], c2: CSSB[p.ch] }); if (tick % 3 === 0) fx.push({ k: 'ripple', x: gx - vx0 * 2, y: p.y / F + 34, t: 0, c: CSSA[p.ch], r: 12 }); }
+          if (Math.abs(vx0) > 2.2 && (tick & 1) && !r.skin) fx.push({ k: 'echo', x: gx - vx0 * 2, y: p.y / F + 34, t: 0, c: CSSB[p.ch], c2: CSSA[p.ch] });
           if (p.st === 'parry' && tick % 6 === 0) fx.push({ k: 'ripple', x: gx + p.face * 8, y: p.y / F + 38, t: 0, c: CSSA[p.ch], r: 30 });
           if (p.st === 'parry' && tick % 3 === 0) fx.push({ k: 'echo', x: gx + (hsh(tick * 7 + i) - 0.5) * 16, y: p.y / F + 36, t: 0, c: CSSA[p.ch], c2: '#ffffff' });
           if (p.bo && tick % 14 === 0 && p.st !== 'kd') fx.push({ k: 'ripple', x: gx + (hsh(tick + i * 3) - 0.5) * 20, y: p.y / F + 30 + hsh(tick * 3 + i) * 40, t: 0, c: '#8a8e98', r: 9 }); }
