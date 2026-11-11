@@ -155,6 +155,8 @@ const R = (function () {
     homeT: j({ hip: [-2, 46], ln: 54, ln2: 64, hd: -44, hL: [-16, 46], hR: [-22, 40], fL: [8, 32], fR: [-6, 28] }),
     homeS: j({ hip: [0, 44], ln: 6, ln2: 8, hd: -28, tw: -70, pt: -36, hR: [6, 96], aim: 'hR', up: 1, hL: [-8, 34], fL: [2, 2], fR: [-6, -6], eL: 0.2, eR: 0 }),
     caS: j({ hip: [0, 50], ln: 34, ln2: 40, hd: -26, tw: 44, fL: [10, -4], aim: 'fL', ay: 0.2, fR: [-12, 38], hL: [20, 84, -10], hR: [-18, 80, 10], eL: 0.5, eR: 0.5 }),
+    topS: j({ hip: [0, 46], ln: -8, ln2: -6, hd: 4, tw: -90, pt: -86, fL: [40, 40], aim: 'fL', fR: [-4, 20], hL: [20, 70, -18], hR: [-20, 70, 18], eL: 0.3, eR: 0.3 }),
+    topS2: j({ hip: [0, 46], ln: 10, ln2: 14, hd: -6, tw: 90, pt: 86, fR: [40, 30], aim: 'fR', fL: [-4, 24], hL: [-18, 66, -18], hR: [18, 66, 18], eL: 0.3, eR: 0.3 }),
     sa1S: j({ hip: [0, 48], ln: -30, hd: 22, tw: 142, pt: 122, fR: [58, 60], aim: 'fR', fL: [-6, 28], hL: [-12, 56, -8], hR: [-20, 68, 8] })
   };
   const PZK = {};
@@ -189,10 +191,10 @@ const R = (function () {
     HOME: Q('idle', 'homeS'), AHOME: Q('jump', 'homeS'), AHOME_OD: Q('jump', 'homeS'),
     DL: { f: m => [[0, 'idle'], [Math.max(2, m.rise ? m.rise[0] - 8 : 3), 'dlW', 'o'], [m.rise ? m.rise[0] : 6, 'dlW'], [m.hits[m.hits.length - 1].s - 5, 'dlF'], [m.hits[m.hits.length - 1].s, 'dlS', 'i'], [m.lastAct + 2, 'dlS'], [m.lastAct + 10, 'fall']], yaw: m => [m.rise ? m.rise[0] : 6, m.hits[m.hits.length - 1].s - 1, 360], gh: 1 },
     JIN: A('idle', 'jinW', 'jinS', 'idle3'), KAZE: Q('jinS', 'kazeS', 'idle2'), GORAI: { k: [[0, 'jinS'], [0.55, 'goW', 'o'], [1, 'goS', 'i'], [2, 'goS'], [2.5, 'landP'], [3, 'idle']] }, SENKA: A('jinS', 'kasW', 'senS', 'idle3'), KASAI: A('kazeS', 'kasW', 'kasS', 'idle3'),
-    SA1: { f: m => { const k = [[0, 'dlW'], [4, 'kasW'], [6, 'tf3S', 'i'], [9, 'tf3S'], [11, 'dlW']], st = ['jhkS', 'sa1S', 'jmkS', 'sa1S']; for (let i = 1; i < m.hits.length - 1; i++) { const h = m.hits[i]; k.push([h.s - 2, 'dlF']); k.push([h.s, st[(i - 1) % 4], 'i']); k.push([h.s + 1, st[(i - 1) % 4]]); } const l = m.hits[m.hits.length - 1]; k.push([l.s - 3, 'dlF']); k.push([l.s, 'dlS', 'i']); k.push([l.s + 6, 'dlS']); k.push([l.s + 16, 'fall']); return k; }, yaw: m => [11, m.hits[m.hits.length - 1].s - 1, 1800], gh: 1 },
-    SA2: { f: m => { const k = [[0, 'jinW']], st = ['jinS', 'tf3S', 'mkS', 'jinS'], n = 4; for (let i = 0; i < n; i++) { const h = m.hits[i]; if (i) k.push([h.s - 3, i & 1 ? 'mkW' : 'jinW']); k.push([h.s, st[i], 'i']); k.push([Math.min(h.e, h.s + 2), st[i]]); } k.push([m.rise[0] - 2, 'tf2W']); k.push([m.rise[0] + 2, 'tatS', 'i']); const l = m.hits[m.hits.length - 1]; k.push([l.s + 8, 'tatS']); k.push([l.s + 22, 'fall']); return k; }, yaw: m => [m.rise[0] - 1, m.hits[m.hits.length - 1].s + 8, 2160], gh: 1 },
-    CA: { f: m => { const k = [[0, 'mpW']], st = ['mpS', 'cbS', 'hpS', 'cbS'], air = ['jhkS', 'sa1S', 'jmkS']; for (let i = 0; i < 4; i++) { const h = m.hits[i]; if (i) k.push([h.s - 4, i & 1 ? 'cbW' : 'hpW', 'o']); k.push([h.s, st[i], 'i']); k.push([h.s + 2, st[i]]); } const l = m.hits[4]; k.push([l.s - 5, 'srW', 'o']); k.push([l.s, 'srS', 'i']); k.push([l.s + 5, 'srS']); for (let i = 5; i < 8; i++) { const h = m.hits[i]; k.push([h.s - 2, 'dlF']); k.push([h.s, air[i - 5], 'i']); k.push([h.s + 1, air[i - 5]]); } const z = m.hits[8]; k.push([z.s - 4, 'jhpW', 'o']); k.push([z.s, 'caS', 'i']); k.push([z.s + 12, 'caS']); k.push([z.s + 24, 'fall']); return k; }, yaw: m => [m.hits[4].s, m.hits[8].s - 3, 1440], gh: 1 },
-    SA3: { f: m => { const k = [[0, 'mpW']], st = ['mpS', 'cbS', 'hpS', 'cbS']; for (let i = 0; i < m.hits.length - 1; i++) { const h = m.hits[i]; if (i) k.push([h.s - 4, i & 1 ? 'cbW' : 'hpW', 'o']); k.push([h.s, st[i % 4], 'i']); k.push([h.s + 2, st[i % 4]]); } const l = m.hits[m.hits.length - 1]; k.push([l.s - 5, 'srW', 'o']); k.push([l.s, 'srS', 'i']); k.push([l.s + 40, 'srS']); k.push([l.s + 60, 'srF']); return k; }, yaw: m => [m.hits[m.hits.length - 1].s, m.hits[m.hits.length - 1].s + 36, 720] }
+    SA1: { f: m => { const k = [[0, 'crouch'], [4, 'srW', 'o'], [6, 'cupS', 'i'], [9, 'cupS'], [11, 'jump']], st = ['topS', 'topS2', 'njhkS', 'topS2']; for (let i = 1; i < m.hits.length - 1; i++) { const h = m.hits[i]; k.push([h.s - 2, 'jump']); k.push([h.s, st[(i - 1) % 4], 'i']); k.push([h.s + 1, st[(i - 1) % 4]]); } const l = m.hits[m.hits.length - 1]; k.push([l.s - 3, 'jhpW']); k.push([l.s, 'dlS', 'i']); k.push([l.s + 6, 'dlS']); k.push([l.s + 16, 'fall']); return k; }, yaw: m => [11, m.hits[m.hits.length - 1].s - 1, 1800], gh: 1 },
+    SA2: { f: m => { const k = [[0, 'idle3']], st = ['mpS', 'mkS', 'hpS', 'jinS'], w = ['mpW', 'mkW', 'hpW', 'jinW'], n = 4; for (let i = 0; i < n; i++) { const h = m.hits[i]; if (i) k.push([h.s - 3, w[i]]); k.push([h.s, st[i], 'i']); k.push([Math.min(h.e, h.s + 2), st[i]]); } k.push([m.rise[0] - 2, 'srW']); k.push([m.rise[0] + 2, 'tatS', 'i']); const l = m.hits[m.hits.length - 1]; k.push([l.s + 8, 'tatS']); k.push([l.s + 22, 'fall']); return k; }, yaw: m => [m.rise[0] - 1, m.hits[m.hits.length - 1].s + 8, 2160], gh: 1 },
+    CA: { f: m => { const k = [[0, 'idle3']], st = ['jabS', 'mkS', 'mpS', 'hpS'], w = ['idle3', 'mkW', 'mpW', 'hpW'], air = ['jmkS', 'jhkS', 'njhkS']; for (let i = 0; i < 4; i++) { const h = m.hits[i]; if (i) k.push([h.s - 4, w[i], 'o']); k.push([h.s, st[i], 'i']); k.push([h.s + 2, st[i]]); } const l = m.hits[4]; k.push([l.s - 5, 'cupW', 'o']); k.push([l.s, 'cupS', 'i']); k.push([l.s + 5, 'cupS']); for (let i = 5; i < 8; i++) { const h = m.hits[i]; k.push([h.s - 2, 'jump']); k.push([h.s, air[i - 5], 'i']); k.push([h.s + 1, air[i - 5]]); } const z = m.hits[8]; k.push([z.s - 4, 'jhpW', 'o']); k.push([z.s, 'caS', 'i']); k.push([z.s + 12, 'caS']); k.push([z.s + 24, 'fall']); return k; }, yaw: m => [m.hits[4].s, m.hits[8].s - 3, 1440], gh: 1 },
+    SA3: { f: m => { const k = [[0, 'dashf']], st = ['hpS', 'cbS', 'mkS', 'mpS'], w = ['hpW', 'cbW', 'mkW', 'mpW']; for (let i = 0; i < m.hits.length - 1; i++) { const h = m.hits[i]; if (i) k.push([h.s - 4, w[i % 4], 'o']); k.push([h.s, st[i % 4], 'i']); k.push([h.s + 2, st[i % 4]]); } const l = m.hits[m.hits.length - 1]; k.push([l.s - 5, 'srW', 'o']); k.push([l.s, 'srS', 'i']); k.push([l.s + 18, 'srS']); k.push([l.s + 34, 'win', 'o']); k.push([l.s + 58, 'win']); k.push([l.s + 70, 'fall']); return k; }, yaw: m => [m.hits[m.hits.length - 1].s, m.hits[m.hits.length - 1].s + 30, 720], gh: 1 }
   };
   const anOf = n => AN[n] || AN[n.replace(/^Q/, '').replace(/_(L|M|H|OD)$/, '')] || null;
   const fcache = {};
@@ -238,7 +240,8 @@ const R = (function () {
       case 'win': { const k = sm(p.sf / 26); po = lift(cp(mix(P('idle'), P('win'), k)), k * Math.sin(sFrame * 0.06) * 2.6); loose = 1; break; }
       case 'throwing': {
         if (!p.tk) po = p.sf < 8 ? mix(P('tReach'), P('tHold'), sm(p.sf / 8)) : p.pmT > 0 ? mix(P('tHold'), P('tBite'), Math.sin(p.pmT / 9 * Math.PI)) : P('tHold');
-        else { const t = p.tf; po = cp(p.tk === 2 ? kf([[0, 'tHold'], [4, 'bthTuck', 'i'], [10, 'bthToss'], [18, 'kipB'], [30, 'idle']], t) : p.tk === 3 ? kf([[0, 'tHold'], [5, 'cupW', 'o'], [10, 'thUp', 'i'], [18, 'thUp'], [30, 'idle']], t) : p.tk === 4 ? kf([[0, 'tHold'], [5, 'thUp', 'o'], [10, 'thSlam', 'i'], [18, 'thSlam'], [30, 'idle']], t) : kf([[0, 'tHold'], [5, 'idle3', 'o'], [10, 'thKick', 'i'], [17, 'thKick'], [30, 'idle']], t));
+        else { const t = p.tf; po = cp(p.tk === 2 ? kf([[0, 'tHold'], [4, 'bthTuck', 'i'], [10, 'bthToss'], [18, 'kipB'], [30, 'idle']], t) : p.tk === 3 ? kf([[0, 'tHold'], [5, 'cupW', 'o'], [10, 'thUp', 'i'], [18, 'thUp'], [30, 'idle']], t) : p.tk === 4 ? kf([[0, 'tHold'], [5, 'thUp', 'o'], [10, 'thSlam', 'i'], [17, 'thSlam'], [23, 'landP'], [30, 'idle']], t) : kf([[0, 'tHold'], [5, 'idle3', 'o'], [10, 'thKick', 'i'], [17, 'thKick'], [30, 'idle']], t));
+          if (p.tk === 1) { po.yaw = 360 * sm((t - 1) / 8); echo = t < 14 ? 1 : 0; }
           if (p.tk === 2) po.rot = -200 * Math.max(0, Math.min(1, (t - 3) / 8)) * (t < 14 ? 1 : Math.max(0, 1 - (t - 14) / 6)); }
         loose = 0; break; }
       case 'thrown': { po = cp(P('thrown')); po.hip[1] += 9 + 2 * Math.sin(sFrame * 0.2); po.fL[1] += 6; po.fR[1] += 8; po.rot = o.tk ? -Math.min(120, (o.tf || 0) * 12) : -8 - (o.pmT > 0 ? 12 * Math.sin(o.pmT / 11 * Math.PI) : 0); loose = 0; break; }
@@ -1044,7 +1047,7 @@ const R = (function () {
       else if (e.t === 'splat') { camKick(x > 0 ? 6 : -6, -0.1, 8, x > 0 ? 8 : -8); fx.push({ k: 'paint', x, y, t: 0 }); fx.push({ k: 'word', x: x - 30, y: y + 50, t: 0, s: e.stun ? 'STUN!' : 'WALL SPLAT', c: '#d8322e' }); shake = 14; flash = 2; }
       else if (e.t === 'walljump') { fx.push({ k: 'dust', x, y: y + 10, t: 0, big: 1 }); fx.push({ k: 'ripple', x, y: y + 30, t: 0, c: CSSA[s.p[e.who].ch], r: 20 }); }
       else if (e.t === 'burnout') { const p = s.p[e.who]; fx.push({ k: 'spark', x: p.x / F, y: p.y / F + 44, lvl: 2, t: 0, c: '#8a8e98', c2: '#3a3a44', d: p.face }); fx.push({ k: 'spark', x: p.x / F, y: p.y / F + 20, lvl: 2, t: -4, c: '#5a5e68', c2: CSSA[p.ch], d: -p.face }); fx.push({ k: 'ripple', x: p.x / F, y: p.y / F + 40, t: 0, c: '#8a8e98', r: 70 }); shake = Math.max(shake, 10); fx.push({ k: 'word', x: p.x / F, y: 110, t: 0, s: 'BURNOUT', c: '#b8b0c0' }); }
-      else if (e.t === 'rush') { const p = s.p[e.who]; fx.push({ k: 'dust', x: p.x / F, y: 0, t: 0, big: 1 }); fx.push({ k: 'word', x: p.x / F, y: 104, t: 0, s: 'DRIVE RUSH', c: '#f08a5a' }); }
+      else if (e.t === 'rush') { const p = s.p[e.who]; fx.push({ k: 'dust', x: p.x / F, y: 0, t: 0, big: 1 }); fx.push({ k: 'word', x: p.x / F, y: 104, t: 0, s: 'GHOST STEP', c: '#f08a5a' }); }
       else if (e.t === 'di') { fx.push({ k: 'distart', who: e.who, t: 0 }); shake = Math.max(shake, 4); }
       else if (e.t === 'diclash') { camKick(7, -0.14, 12); fx.push({ k: 'paint', x, y, t: 0, big: 1 }); fx.push({ k: 'word', x, y: y + 60, t: 0, s: 'IMPACT CLASH!', c: '#fff', z: 16, life: 70 }); flash = 4; shake = 14; }
       else if (e.t === 'wbounce') { fx.push({ k: 'spark', x, y, lvl: 2, t: 0, wall: 1 }); shake = 14; flash = 2; camKick(x > 0 ? 5 : -5, -0.1, 8, x > 0 ? 7 : -7); }
@@ -1091,6 +1094,8 @@ const R = (function () {
         r.mode = p.st === 'parry' ? 'parry' : m && m.home && !p.hmE && !(p.contact && !p.fr) ? 'home' : '';
         r.echo = r.mode === 'home' || p.st === 'drush' ? 2 : (p.st === 'dashf' || p.st === 'dashb' || p.st === 'run' || fp.echo || Math.abs(r.vel || 0) > 3) ? 1 : 0;
         r.phase = p.st === 'dashb' && p.sf < 11 ? (p.sf > 2 && p.sf < 6 ? 0.65 : 0.45) : p.st === 'dashf' && p.sf < 4 ? 0.45 : (p.st === 'getup' && p.sf < 6) ? 0.5 : 0;
+        // round start: he comes in out of nothing, seated in the air, and unfolds into his stance
+        if (s.phase === 'intro') { const u = Math.min(1, s.pt / (SIM.INTRO || 90)); fp.po = mix(P('win'), fp.po, sm((u - 0.45) / 0.45)); fp.loose = 1; r.phase = u < 0.16 ? 0.85 : u < 0.3 ? 0.65 : u < 0.46 ? 0.45 : 0; r.echo = 0; }
         if (r.mode === 'parry') { const a = ACC[p.ch], k = 0.16 + 0.12 * Math.sin(s.frame * 0.8); tint = [a[0] * k, a[1] * k, a[2] * k]; }
         if (r.mode === 'home') { const a = ACC[p.ch], w = p.mf >= m.home[0] ? 0.04 + 0.05 * Math.sin(s.frame * 1.6) : 0, k = 0.06 + 0.1 * Math.min(1, p.mf / m.home[0]); tint = [a[0] * k + w, a[1] * k + w, a[2] * k + w]; }
         if (p.bo && (s.frame >> 3) & 1) tint = [tint[0] - 0.18, tint[1] - 0.18, tint[2] - 0.12];
@@ -1197,14 +1202,14 @@ const R = (function () {
       for (let k = 0; k < s.cfg.rounds; k++) { const px = i ? 262 + k * 11 : 211 - k * 11; rect(px - 1, 3, 9, 9, '#120b10'); rect(px, 4, 7, 7, k < p.wins ? '#d8322e' : '#3a2228'); if (k < p.wins) rect(px + 2, 6, 3, 3, '#f1dcb4'); }
       // drive gauge: six bars under the life bar
       for (let k = 0; k < 6; k++) { const gx = flip ? 218 - 15 - k * 16 : 262 + k * 16, fillv = Math.max(0, Math.min(1000, p.dr - k * 1000)) / 1000, w2 = Math.round(13 * fillv); rect(gx - 1, 39, 15, 6, '#120b10'); rect(gx, 40, 13, 4, p.bo ? '#3a3440' : '#30161a'); rect(flip ? gx + 13 - w2 : gx, 40, w2, 4, p.bo ? ((s.frame >> 3) & 1 ? '#9a8488' : '#5a5066') : CSSA[p.ch]); }
-      if (p.bo) txt('BURNOUT', flip ? 118 : 362, 38, 8, (s.frame >> 3) & 1 ? '#d8322e' : '#9a8488', flip ? 'right' : 'left');
+      if (p.bo) txt('LOW TIDE', flip ? 118 : 362, 38, 8, (s.frame >> 3) & 1 ? '#d8322e' : '#9a8488', flip ? 'right' : 'left');
       // super art gauge: three stocks
       const mx = i ? 338 : 22, mw = 120, lv = Math.floor(p.sa / 1000);
       rect(mx - 2, 252, mw + 4, 10, '#120b10'); rect(mx - 1, 253, mw + 2, 8, '#f4f0e0'); rect(mx, 254, mw, 6, '#1c1418');
       const fw = Math.round(mw * p.sa / 3000); rect(i ? mx + mw - fw : mx, 254, fw, 6, lv >= 3 ? ((s.frame >> 2) & 1 ? '#fff' : '#f1dcb4') : lv >= 1 ? '#ffb020' : '#b8463c'); rect(mx + 39, 254, 2, 6, '#120b10'); rect(mx + 79, 254, 2, 6, '#120b10');
       const caOn = lv >= 3 && p.hp * 4 <= C.hp && p.hp > 0;
-      if (caOn) { const pu = 0.5 + 0.5 * Math.sin(s.frame * 0.3); g2.globalAlpha = 0.35 + 0.45 * pu; rect(i ? mx + mw - fw : mx, 254, fw, 6, CSSA[p.ch]); g2.globalAlpha = 1; rect(mx - 2, 250, mw + 4, 1, CSSA[p.ch]); rect(mx - 2, 263, mw + 4, 1, CSSA[p.ch]); txt('CA', i ? mx - 6 : mx + mw + 6, 253, 8, (s.frame >> 2) & 1 ? '#ffffff' : CSSA[p.ch], i ? 'right' : 'left'); txt('\u5965\u7fa9', i ? mx - 26 : mx + mw + 26, 250, 12, CSSA[p.ch], i ? 'right' : 'left', 1); }
-      else txt('SA' + lv, i ? mx - 6 : mx + mw + 6, 253, 8, lv >= 3 ? '#f1dcb4' : lv ? '#ffb020' : '#5a4448', i ? 'right' : 'left');
+      if (caOn) { const pu = 0.5 + 0.5 * Math.sin(s.frame * 0.3); g2.globalAlpha = 0.35 + 0.45 * pu; rect(i ? mx + mw - fw : mx, 254, fw, 6, CSSA[p.ch]); g2.globalAlpha = 1; rect(mx - 2, 250, mw + 4, 1, CSSA[p.ch]); rect(mx - 2, 263, mw + 4, 1, CSSA[p.ch]); txt('FT', i ? mx - 6 : mx + mw + 6, 253, 8, (s.frame >> 2) & 1 ? '#ffffff' : CSSA[p.ch], i ? 'right' : 'left'); txt('\u5965\u7fa9', i ? mx - 26 : mx + mw + 26, 250, 12, CSSA[p.ch], i ? 'right' : 'left', 1); }
+      else txt('TA' + lv, i ? mx - 6 : mx + mw + 6, 253, 8, lv >= 3 ? '#f1dcb4' : lv ? '#ffb020' : '#5a4448', i ? 'right' : 'left');
       // guard cue: say what the incoming attack is before it lands
       const cm = p.st === 'atk' ? SIM.CH[p.ch].mv[p.mv] : null;
       if (cm && (cm.od || cm.sup || cm.fire || cm.tint) && p.mf >= cm.su - 2) { const fq = toScreen(p.x / F + p.face * 16, p.y / F + 70); for (let k = 0; k < 10; k++) { const a = (s.frame * 3 + k * 37) % 26; g2.fillStyle = ['#fff3a0', '#f1dcb4', '#ff8a1e', '#d8322e'][(a / 7) | 0]; const z = 5 - (a / 6 | 0); g2.fillRect(Math.round(fq[0] + (hsh(k * 9 + (s.frame >> 2)) - 0.5) * 30), Math.round(fq[1] - a * 1.6 + (hsh(k) - 0.5) * 24), z, z); } }
@@ -1238,7 +1243,7 @@ const R = (function () {
         if (t === 6 || t === 16) { shake = Math.max(shake, 10); flash = Math.max(flash, 2); }
         const bh = 42, sl = Math.min(1, t / 5); rect(0, 0, VW, bh * sl, '#06040a'); rect(0, VH - bh * sl, VW, bh * sl, '#06040a'); rect(0, bh * sl, VW, 2, ac); rect(0, bh * sl + 3, VW, 1, hi); rect(0, VH - bh * sl - 2, VW, 2, ac); rect(0, VH - bh * sl - 4, VW, 1, hi);
         const sx = Math.min(1, Math.max(0, (t - 14) / 8)), bx = i ? 480 - 320 * sx : -320 + 320 * sx; rect(bx, 180, 320, 44, 'rgba(6,4,10,0.92)'); rect(bx, 180, 320, 2, ac); rect(bx, 222, 320, 2, ac); rect(i ? bx : bx + 316, 180, 4, 44, hi);
-        txt('CRITICAL ART', bx + 160, 185, 16, (t >> 2) & 1 ? '#ffffff' : ac, 'center'); txt(superFx.name.toUpperCase(), bx + 160, 206, 8, hi, 'center');
+        txt('FINAL TIDE', bx + 160, 185, 16, (t >> 2) & 1 ? '#ffffff' : ac, 'center'); txt(superFx.name.toUpperCase(), bx + 160, 206, 8, hi, 'center');
         for (let k = 0; k < 3; k++) rect(bx + 132 + k * 20, 216, 16, 3, ac);
       } else if (t < dur + 6) {
         const p = s.p[i], q = toScreen(p.x / F, p.y / F + 55), dir = i ? -1 : 1;
@@ -1249,7 +1254,7 @@ const R = (function () {
         const bh = lv === 3 ? 36 : lv === 2 ? 22 : 10, sl = Math.min(1, t / 6); rect(0, 0, VW, bh * sl, '#120b10'); rect(0, VH - bh * sl, VW, bh * sl, '#120b10'); rect(0, bh * sl, VW, 2, col); rect(0, VH - bh * sl - 2, VW, 2, col);
         if (lv === 3) { g2.globalAlpha = 0.4; for (let k = 0; k < 4; k++) txt('\u6fc0\u7a81', ((k * 190 + t * 9 * dir) % 760 + 760) % 760 - 150, 76, 96, k % 2 ? col : '#ffffff', 'left', 1, 0); g2.globalAlpha = 1; }
         const sx = Math.min(1, t / 8), bx = i ? 480 - 300 * sx : -300 + 300 * sx; rect(bx, 186, 300, 36, 'rgba(10,6,18,0.9)'); rect(bx, 186, 300, 2, col); rect(bx, 220, 300, 2, col);
-        txt(superFx.name.toUpperCase(), bx + 150, 192, 8, '#fff', 'center'); txt('\u8d85\u5fc5\u6bba  SUPER ART', bx + 132, 202, 16, col, 'center', 1); for (let k = 0; k < 3; k++) rect(bx + 232 + k * 14, 206, 10, 10, k < lv ? col : '#3a2228');
+        txt(superFx.name.toUpperCase(), bx + 150, 192, 8, '#fff', 'center'); txt('\u8d85\u5fc5\u6bba  TIDE ART', bx + 132, 202, 16, col, 'center', 1); for (let k = 0; k < 3; k++) rect(bx + 232 + k * 14, 206, 10, 10, k < lv ? col : '#3a2228');
       }
       if (t > dur + 16) superFx = null;
     }

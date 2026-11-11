@@ -6,7 +6,7 @@ const INP = (function () {
   const B = SIM.BT, keys = {}, touch = { m: 0 }, ATK = 0xff0;
   const KB1 = { KeyW: B.U, KeyS: B.D, KeyA: B.L, KeyD: B.R, KeyJ: B.LT, KeyK: B.MD, KeyL: B.HV, KeyI: B.SP, Space: B.AS, ShiftLeft: B.AS, KeyU: B.PA, KeyO: B.DI, KeyH: B.HM };
   const KB2 = { ArrowUp: B.U, ArrowDown: B.D, ArrowLeft: B.L, ArrowRight: B.R, Numpad1: B.LT, Numpad2: B.MD, Numpad3: B.HV, Numpad5: B.SP, Numpad0: B.AS, Numpad4: B.PA, Numpad6: B.DI, NumpadAdd: B.HM };
-  const ACTS = [['LT', B.LT, 'LIGHT'], ['MD', B.MD, 'MEDIUM'], ['HV', B.HV, 'HEAVY'], ['SP', B.SP, 'SPECIAL'], ['AS', B.AS, 'ASSIST'], ['PA', B.PA, 'DRIVE PARRY'], ['DI', B.DI, 'DRIVE IMPACT'], ['HM', B.HM, 'HOMING (SLIPSTREAM)']];
+  const ACTS = [['LT', B.LT, 'LIGHT'], ['MD', B.MD, 'MEDIUM'], ['HV', B.HV, 'HEAVY'], ['SP', B.SP, 'SPECIAL'], ['AS', B.AS, 'ASSIST'], ['PA', B.PA, 'STILL WATER (PARRY)'], ['DI', B.DI, 'BREACH (IMPACT)'], ['HM', B.HM, 'HOMING (SLIPSTREAM)']];
   // Triangle is the homing button. Special sits on L2, where the throw button used to be; a grab is Light + Medium.
   const DEFPAD = { LT: 2, MD: 0, HV: 1, SP: 6, AS: 7, PA: 5, DI: 4, HM: 3 };
   let pad = Object.assign({}, DEFPAD);

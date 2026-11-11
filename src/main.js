@@ -208,9 +208,9 @@
       tick() { cmd.pg = cmd.pg || 0; if (mn.left || mn.right || (click && click.y < 44)) { cmd.ch ^= 1; AUD.play('move'); } if (mn.up || mn.down) { cmd.pg = (cmd.pg + (mn.down ? 1 : 2)) % 3; AUD.play('move'); }
         const tap = click && click.y >= 44; if (tap && cmd.pg < 2) { cmd.pg++; AUD.play('move'); } else if (mn.back || mn.ok || mn.start || tap) { AUD.play('back'); if (cmd.from === 'fight') scene = 'fight'; else go('menu', 1), cur = 4; } },
       draw() { const C = CH[cmd.ch], pg = cmd.pg || 0; panel(16, 12, 448, 240, '◀  ' + C.name + ' ' + C.jp + '  COMMAND LIST  ▶'); let y = 34;
-        const SYS = [['Normals', 'L   ↓L   M   ↓M   H   ↓H   ↘H', 'Punch, low kick, kick (M M M Triple Flash), low poke, roundhouse, uppercut, sweep.'], ['Assist', 'Assist + L / M / H / SP', 'Light kick, medium punch, heavy punch. With SP: Overdrive special (2 Drive bars).'],
-          ['Drive Impact', 'Impact', 'Armoured strike. Pressed while blocking it is the Drive Reversal.'], ['Drive Parry', 'hold Parry', 'Slips whatever comes in and drains the gauge. The first frames are a Perfect Parry.'],
-          ['Drive Rush', '→→ from Parry or a cancellable normal', 'A fast run that makes the next hit better. From a normal it costs 3 bars.'], ['Burnout', 'empty Drive gauge', 'No Drive moves, blocked specials chip you, and you are stuck longer when blocking.']];
+        const SYS = [['Normals', 'L   ↓L   M   ↓M   H   ↓H   ↘H', 'Punch, low kick, kick (M M M Skipping Stones), low poke, roundhouse, uppercut, sweep.'], ['Assist', 'Assist + L / M / H / SP', 'Light kick, medium punch, heavy punch. With SP: the Flood version of a special (2 Tide bars).'],
+          ['Breach', 'Impact', 'Armoured strike. Pressed while blocking it is the Backwash.'], ['Still Water', 'hold Parry', 'Slips whatever comes in and drains the gauge. The first frames are a Perfect Parry.'],
+          ['Ghost Step', '→→ from Parry or a cancellable normal', 'A fast glide that makes the next hit better. From a normal it costs 3 bars.'], ['Low Tide', 'empty Tide gauge', 'No Tide moves, blocked specials chip you, and you are stuck longer when blocking.']];
         (pg === 0 ? C.cmd : pg === 1 ? C.cmd2 || [] : SYS).forEach(m => { T(m[0].toUpperCase(), 28, y, 8, '#f1dcb4'); T(m[1], 452, y - 2, 8, '#e9a58a', 'right', 1); T(m[2], 28, y + 10, 8, '#cdbcae', 'left', 1); y += 22; });
         T('▲▼   ' + ['SPECIALS & SUPERS', 'AIR, JUGGLES & GRAB', 'SYSTEM'][pg] + '   ' + (pg + 1) + ' / 3', 240, 238, 8, '#9a8488', 'center', 1); }
     },

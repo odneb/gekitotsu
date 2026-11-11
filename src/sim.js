@@ -45,10 +45,10 @@ const SIM = (function () {
     N('2LK', { n: 'Crouching Light Kick', su: 5, ac: 3, rc: 10, d: 20, g: 'l', ha: 1, ba: -3, xh: 1, hb: [15, 0, 41, 22], kb: 300, hsp: 9, dd: 50, sg: 30, ss: 1, crouch: 1, can: C_CH, chain: ch, an: { w: 'clkW', s: 'clkS' } });
     N('2LP', { n: 'Crouching Light Punch', su: 4, ac: 2, rc: 9, d: 30, ha: 5, ba: -1, xh: 1, hb: [19, 39, 29, 14], kb: 280, hsp: 9, dd: 50, sg: 30, ss: 1, crouch: 1, can: C_CH | CS, chain: ch, an: { w: 'cjabW', s: 'cjabS' } });
     N('5MK', { n: 'Medium Kick', su: 8, ac: 3, rc: 20, d: 60, ha: 3, ba: -5, xh: 1, hb: [14, 48, 40, 36], kb: 520, hsp: 11, lvl: 1, dd: 400, sg: 70, can: C_SU, tc: { M: 'TFK2' }, an: { w: 'lkW', s: 'mkS' } });
-    N('TFK2', { n: 'Triple Flash Kicks', su: 11, ac: 2, rc: 27, d: 40, ba: -12, mv: [[1, 9, 420]], xh: 1, hb: [15, 49, 37, 29], launch: [170, 800], air: [170, 800], hsp: 11, lvl: 1, dd: 250, sg: 40, tc: { M: 'TFK3' }, an: { w: 'hkW', s: 'mkS' } });
-    N('TFK3', { n: 'Triple Flash Kicks', su: 13, ac: 3, rc: 28, d: 70, ba: -11, mv: [[1, 11, 300]], xh: 1, hb: [17, 70, 39, 28], launch: [520, 720], air: [520, 720], hsp: 13, lvl: 2, dd: 300, sg: 50, an: { w: 'jhkW', s: 'hkS' } });
+    N('TFK2', { n: 'Skipping Stones', su: 11, ac: 2, rc: 27, d: 40, ba: -12, mv: [[1, 9, 420]], xh: 1, hb: [15, 49, 37, 29], launch: [170, 800], air: [170, 800], hsp: 11, lvl: 1, dd: 250, sg: 40, tc: { M: 'TFK3' }, an: { w: 'hkW', s: 'mkS' } });
+    N('TFK3', { n: 'Skipping Stones', su: 13, ac: 3, rc: 28, d: 70, ba: -11, mv: [[1, 11, 300]], xh: 1, hb: [17, 70, 39, 28], launch: [520, 720], air: [520, 720], hsp: 13, lvl: 2, dd: 300, sg: 50, an: { w: 'jhkW', s: 'hkS' } });
     N('5MP', { n: 'Medium Punch', su: 5, ac: 4, rc: 14, d: 60, ha: 4, ba: -2, xh: 1, hb: [10, 47, 26, 19], kb: 460, hsp: 11, lvl: 1, dd: 300, sg: 50, can: CS, tc: { M: 'CB2' }, an: { w: 'mpW', s: 'mpS' } });
-    N('CB2', { n: 'Chin Buster', su: 11, ac: 3, rc: 27, d: 40, ba: -14, mv: [[1, 9, 420]], xh: 1, hb: [6, 40, 40, 52], launch: [110, 940], air: [110, 940], hsp: 13, lvl: 1, dd: 100, sg: 30, cx: 1, can: CS, an: { w: 'cupW', s: 'cupS' } });
+    N('CB2', { n: 'Last Call', su: 11, ac: 3, rc: 27, d: 40, ba: -14, mv: [[1, 9, 420]], xh: 1, hb: [6, 40, 40, 52], launch: [110, 940], air: [110, 940], hsp: 13, lvl: 1, dd: 100, sg: 30, cx: 1, can: CS, an: { w: 'cupW', s: 'cupS' } });
     N('2MK', { n: 'Crouching Medium Kick', su: 7, ac: 3, rc: 19, d: 50, g: 'l', ha: -2, ba: -6, xh: 1, hb: [20, 0, 40, 21], kb: 460, hsp: 9, lvl: 1, dd: 200, sg: 60, ss: 1, crouch: 1, can: CS, an: { w: 'clkW', s: 'cmkS' } });
     N('5HK', { n: 'Heavy Kick', su: 12, ac: 2, rc: 23, d: 80, ha: 1, ba: -5, xh: 1, hb: [15, 47, 49, 21], kb: 900, hsp: 13, lvl: 1, dd: 600, sg: 100, ss: 2, wr: 2, pcLaunch: [160, 900], an: { w: 'hkW', s: 'hkS' } });
     N('5HP', { n: 'Heavy Punch', su: 10, ac: 5, rc: 17, d: 80, ha: 3, ba: -2, xh: 1, hb: [17, 57, 31, 16], kb: 760, hsp: 13, lvl: 1, dd: 500, sg: 100, can: CS, an: { w: 'strW', s: 'strS' } });
@@ -77,20 +77,20 @@ const SIM = (function () {
     hm('AHOME', { air: 1, su: 10, home: [8, 42, 840], hover: 8 }); hm('AHOME_OD', { air: 1, od: 1, su: 8, home: [6, 42, 980], hover: 6, pinv: [0, 42] });
     N('njHK', { n: 'Neutral Jump Heavy Kick', air: 1, su: 6, ac: 6, t: 999, g: 'h', d: 90, fs: 21, fb: 17, xh: 1, hb: [9, 28, 33, 34], kb: 500, hsp: 13, lvl: 1, dd: 400, sg: 100, landRec: 3, an: { w: 'jhkW', s: 'jhkS' } });
     N('throw', { n: 'Throw', su: 5, ac: 3, rc: 23, thr: 1, hits: [], an: { w: 'grabW', s: 'grabS' } });
-    N('DI', { n: 'Drive Impact', su: 26, ac: 2, rc: 35, d: 80, arm: 2, di: 1, ba: -3, xh: 1, hb: [4, 30, 49, 44], kb: 1500, launch: [650, 540], air: [650, 540], wb: 1, lvl: 2, hsp: 16, dd: 500, ss: 1, xm: 1, mv: [[16, 26, 620]], an: { k: [[0, 'idle'], [14, 'diW'], [24, 'diW'], [26, 'diS'], [40, 'diS'], [62, 'idle']] } });
-    N('DREV', { n: 'Drive Reversal', su: 20, ac: 3, rc: 26, d: 50, inv: [0, 21], ba: -6, xh: 1, hb: [4, 30, 50, 44], launch: [760, 430], air: [760, 430], lvl: 1, hsp: 11, dd: 0, xm: 1, mv: [[10, 20, 250]], an: { w: 'strW', s: 'strS' } });
+    N('DI', { n: 'Breach', su: 26, ac: 2, rc: 35, d: 80, arm: 2, di: 1, ba: -3, xh: 1, hb: [4, 30, 49, 44], kb: 1500, launch: [650, 540], air: [650, 540], wb: 1, lvl: 2, hsp: 16, dd: 500, ss: 1, xm: 1, mv: [[16, 26, 620]], an: { k: [[0, 'idle'], [14, 'diW'], [24, 'diW'], [26, 'diS'], [40, 'diS'], [62, 'idle']] } });
+    N('DREV', { n: 'Backwash', su: 20, ac: 3, rc: 26, d: 50, inv: [0, 21], ba: -6, xh: 1, hb: [4, 30, 50, 44], launch: [760, 430], air: [760, 430], lvl: 1, hsp: 11, dd: 0, xm: 1, mv: [[10, 20, 250]], an: { w: 'strW', s: 'strS' } });
     // Quick Dash branches
-    N('TK', { n: 'Thunder Kick', su: 18, ac: 3, rc: 20, d: 100, g: 'h', ha: 3, ba: -3, hb: [8, 30, 52, 60], kb: 560, hsp: 13, lvl: 1, dd: 250, sg: 50, can: C_SU, mv: [[0, 12, 300]], an: { w: 'axW', s: 'axS' } });
-    N('FSK', { n: 'Forward Step Kick', su: 8, ac: 4, rc: 20, wr: 4, d: 80, ha: 1, ba: -4, hb: [10, 30, 72, 18], kb: 700, hsp: 13, lvl: 1, dd: 500, sg: 100, ss: 1, can: C_SU, mv: [[0, 7, 520]], an: { w: 'lkW', s: 'mkS' } });
+    N('TK', { n: 'Sinker', su: 18, ac: 3, rc: 20, d: 100, g: 'h', ha: 3, ba: -3, hb: [8, 30, 52, 60], kb: 560, hsp: 13, lvl: 1, dd: 250, sg: 50, can: C_SU, mv: [[0, 12, 300]], an: { w: 'axW', s: 'axS' } });
+    N('FSK', { n: 'Tow Line', su: 8, ac: 4, rc: 20, wr: 4, d: 80, ha: 1, ba: -4, hb: [10, 30, 72, 18], kb: 700, hsp: 13, lvl: 1, dd: 500, sg: 100, ss: 1, can: C_SU, mv: [[0, 7, 520]], an: { w: 'lkW', s: 'mkS' } });
     // Hadoken (Modern has only the heavy and the Overdrive)
-    const fb = (k, su, t, st, bs, od) => N(k, { n: 'Hadoken', sp: 1, su: su, t: t, hits: [], fc: [su, su + 12], can: C_SU, od: od, sg: 60,
+    const fb = (k, su, t, st, bs, od) => N(k, { n: 'Corpse Candle', sp: 1, su: su, t: t, hits: [], fc: [su, su + 12], can: C_SU, od: od, sg: 60,
       proj: { f: su - 1, vx: 780, y: 50, w: 26, h: 22, hits: od ? 2 : 1, d: od ? 40 : 60, stun: st, bstun: bs, kb: 560, hsp: 9, lvl: 1, dd: od ? 125 : 250 },
       an: { k: [[0, 'idle'], [su - 6, 'fbW'], [su - 1, 'fbS'], [su + 14, 'fbS'], [t, 'idle']] } });
     fb('HAD_H', 12, 49, 24, 20); fb('HAD_OD', 12, 40, 8, 8, 1);
     // Shoryuken
     const hbA = [2, 30, 56, 62], hbB = [0, 20, 56, 90], g = (s, e, d, o) => Object.assign({ s: s, e: e, hb: hbB, d: d, np: 1, stun: 26, kb: 0, air: [40, 600], lvl: 1, hsp: 9, bstun: 18 }, o || {});
     const fin = (s, e, d, o) => Object.assign({ s: s, e: e, hb: hbB, d: d, launch: [200, 1150], air: [200, 1150], lvl: 2, hsp: 13, bstun: 18 }, o || {});
-    const sr = (k, su, hits, vy, rec, o) => N(k, Object.assign({ n: 'Shoryuken', sp: 1, su: su, t: 999, mv: [[0, su - 1, 500]], rise: [su + 1, 150, vy], landRec: rec, can: C_SU, hits: hits, ss: 2,
+    const sr = (k, su, hits, vy, rec, o) => N(k, Object.assign({ n: 'Spindrift', sp: 1, su: su, t: 999, mv: [[0, su - 1, 500]], rise: [su + 1, 150, vy], landRec: rec, can: C_SU, hits: hits, ss: 2,
       an: { k: [[0, 'cupW'], [su - 1, 'srS'], [su + 12, 'srS2'], [su + 32, 'jump']], spin: [su, su + 26, 360] } }, o || {}));
     sr('SRK_L', 5, [fin(4, 13, 110, { hb: hbA, bstun: 20 })], 930, 12, { ainv: [0, 13], dd: 400, sg: 80 });
     sr('SRK_M', 6, [g(5, 6, 70, { hb: hbA }), fin(9, 14, 60)], 1147, 12, { ainv: [0, 7], dd: 400, sg: 100 });
@@ -99,50 +99,50 @@ const SIM = (function () {
     sr('QSRK', 8, [g(7, 8, 50, { hb: hbA }), g(9, 10, 45), g(11, 12, 25), g(13, 14, 25), fin(15, 17, 25, { bstun: 16 })], 1240, 17, { ainv: [0, 17], dd: 400, sg: 140, rise: [10, 150, 1240], fire: 1, an: { k: [[0, 'cupW'], [7, 'srS'], [24, 'srS2'], [46, 'jump']], spin: [10, 36, 720] } });
     // Tatsumaki
     const sb = [-4, 40, 58, 24], th = (s, d, last, wb) => last ? { s: s, e: s + 2, hb: sb, d: d, launch: last, air: last, wb: wb, lvl: 2, hsp: 12, bstun: 17 } : { s: s, e: s + 1, hb: sb, d: d, stun: 18, kb: 110, air: [260, 420], lvl: 1, hsp: 7, bstun: 16 };
-    const ts = (k, su, t, run, spd, hits, deg, o) => N(k, Object.assign({ n: 'Tatsumaki Senpu-kyaku', sp: 1, su: su, t: t, mv: [[Math.max(1, su - 7), run, spd]], hits: hits, lowInv: [4, run], dd: 400, sg: 100,
+    const ts = (k, su, t, run, spd, hits, deg, o) => N(k, Object.assign({ n: 'Maelstrom', sp: 1, su: su, t: t, mv: [[Math.max(1, su - 7), run, spd]], hits: hits, lowInv: [4, run], dd: 400, sg: 100,
       an: { k: [[0, 'idle'], [Math.max(1, su - 6), 'spW'], [su - 1, 'spS'], [run + 2, 'spS'], [t, 'idle']], spin: [Math.max(0, su - 4), run + 4, deg] } }, o || {}));
     ts('TAT_L', 4, 46, 14, 460, [th(3, 30), Object.assign(th(9, 40, [450, 660]), { bstun: 23 })], 720);
     ts('TAT_M', 14, 61, 30, 470, [th(13, 45), Object.assign(th(24, 45, [600, 700]), { bstun: 25 })], 720);
     ts('TAT_H', 16, 78, 47, 480, [th(15, 30), th(27, 30), Object.assign(th(40, 40, [780, 760], 1), { bstun: 26 })], 1440);
     ts('TAT_OD', 9, 90, 56, 520, [Object.assign(th(8, 30), { bstun: 21 }), Object.assign(th(18, 20), { req: 1 }), Object.assign(th(28, 20), { req: 1 }), Object.assign(th(38, 20), { req: 1 }), Object.assign(th(50, 80, [1000, 820], 1), { req: 1 })], 2160, { od: 1 });
     ts('QTAT', 13, 78, 57, 520, [th(12, 20), th(22, 20), th(32, 20), th(42, 20), { s: 52, e: 54, hb: sb, d: 40, stun: 29, kb: 320, air: [500, 620], lvl: 1, hsp: 11, bstun: 17 }], 2160, { ss: 1 });
-    N('ATAT', { n: 'Air Tatsumaki', sp: 1, air: 1, su: 11, t: 999, landRec: 14, ss: 2, dd: 300, sg: 60, hits: [{ s: 10, e: 26, hb: [-10, 6, 60, 24], d: 90, launch: [520, 640], air: [520, 640], lvl: 1, hsp: 11, bstun: 14 }], an: { k: [[0, 'jump'], [9, 'spS'], [40, 'spS']], spin: [6, 30, 1080] } });
-    N('ATAT_OD', { n: 'Air Tatsumaki', sp: 1, air: 1, od: 1, su: 11, t: 999, landRec: 14, ss: 2, dd: 300, sg: 100, hits: [{ s: 10, e: 14, hb: [-10, 6, 60, 24], d: 30, stun: 18, air: [200, 300], lvl: 1, hsp: 7, bstun: 14 }, { s: 17, e: 21, hb: [-10, 6, 60, 24], d: 30, stun: 18, air: [200, 300], lvl: 1, hsp: 7, bstun: 14 }, { s: 24, e: 28, hb: [-10, 6, 60, 24], d: 30, launch: [620, 700], air: [620, 700], lvl: 2, hsp: 12, bstun: 14 }], an: { k: [[0, 'jump'], [9, 'spS'], [40, 'spS']], spin: [6, 34, 1440] } });
+    N('ATAT', { n: 'Waterspout', sp: 1, air: 1, su: 11, t: 999, landRec: 14, ss: 2, dd: 300, sg: 60, hits: [{ s: 10, e: 26, hb: [-10, 6, 60, 24], d: 90, launch: [520, 640], air: [520, 640], lvl: 1, hsp: 11, bstun: 14 }], an: { k: [[0, 'jump'], [9, 'spS'], [40, 'spS']], spin: [6, 30, 1080] } });
+    N('ATAT_OD', { n: 'Waterspout', sp: 1, air: 1, od: 1, su: 11, t: 999, landRec: 14, ss: 2, dd: 300, sg: 100, hits: [{ s: 10, e: 14, hb: [-10, 6, 60, 24], d: 30, stun: 18, air: [200, 300], lvl: 1, hsp: 7, bstun: 14 }, { s: 17, e: 21, hb: [-10, 6, 60, 24], d: 30, stun: 18, air: [200, 300], lvl: 1, hsp: 7, bstun: 14 }, { s: 24, e: 28, hb: [-10, 6, 60, 24], d: 30, launch: [620, 700], air: [620, 700], lvl: 2, hsp: 12, bstun: 14 }], an: { k: [[0, 'jump'], [9, 'spS'], [40, 'spS']], spin: [6, 34, 1440] } });
     // Dragonlash Kick
     const dlA = { k: (su) => [[0, 'idle'], [Math.max(2, su - 14), 'jump'], [su - 4, 'jhkW'], [su - 1, 'axS'], [su + 10, 'axS']] };
-    N('DL_H', { n: 'Dragonlash Kick', sp: 1, su: 28, t: 999, ag: 108, rise: [19, 830, 1032], landRec: 16, ss: 2, dd: 300, sg: 80,
+    N('DL_H', { n: 'Breaker', sp: 1, su: 28, t: 999, ag: 108, rise: [19, 830, 1032], landRec: 16, ss: 2, dd: 300, sg: 80,
       hits: [{ s: 27, e: 31, hb: [0, -34, 62, 66], d: 120, stun: 29, kb: 300, air: [300, 520], lvl: 1, hsp: 13, bstun: 27 }],
       an: { k: [[0, 'idle'], [9, 'dlW'], [18, 'dlW'], [22, 'dlF'], [26, 'dlF'], [28, 'dlS'], [34, 'dlS'], [38, 'prejump'], [54, 'idle']] } });
-    const dl2 = (k, st, bs, rec, o) => N(k, Object.assign({ n: 'Dragonlash Kick', sp: 1, su: 9, t: 999, ag: 108, rise: [8, 640, 972], landRec: rec, dd: 300, sg: 120, can: C_SU,
+    const dl2 = (k, st, bs, rec, o) => N(k, Object.assign({ n: 'Breaker', sp: 1, su: 9, t: 999, ag: 108, rise: [8, 640, 972], landRec: rec, dd: 300, sg: 120, can: C_SU,
       hits: [{ s: 8, e: 12, hb: [0, 0, 56, 70], d: 50, stun: 22, kb: 60, np: 1, air: [120, 470], lvl: 1, hsp: 9, bstun: 18 }, Object.assign({ s: 15, e: 22, hb: [0, -34, 62, 70], d: 70, stun: st, kb: 300, air: [200, 820], lvl: 2, hsp: 13, bstun: bs }, o && o.thru ? { air: [40, -1300], gb: 1, xup: 470 } : {})],
       an: { k: [[0, 'dlW'], [8, 'dlF'], [13, 'dlF'], [15, 'dlS'], [24, 'dlS'], [28, 'prejump'], [48, 'idle']] } }, o || {}));
     dl2('DL_OD', 34, 24, 23, { od: 1 }); dl2('QDL', 34, 24, 22, { thru: 1 });
     // Jinrai Kick and its follow-ups
     const fu = { S4: 'KAZE', S2: 'GORAI', S5: 'SENKA', L: 'KAZE', M: 'GORAI', H: 'SENKA' }, fuO = { S4: 'KAZE_OD', S2: 'GORAI_OD', S5: 'SENKA_OD', L: 'KAZE_OD', M: 'GORAI_OD', H: 'SENKA_OD' }, ka = { S4: 'KASAI', S2: 'KASAI', S5: 'KASAI', L: 'KASAI', M: 'KASAI', H: 'KASAI' };
     const jb = [8, 40, 62, 22], jA = (su, t) => ({ k: [[0, 'idle'], [Math.max(2, su - 6), 'lkW'], [su - 1, 'hkS'], [su + 6, 'hkS'], [t, 'idle']] });
-    N('JIN_L', { n: 'Jinrai Kick', sp: 1, su: 12, ac: 3, rc: 28, d: 50, ha: 1, ba: -11, hb: jb, kb: 300, lvl: 1, hsp: 11, dd: 200, sg: 55, can: C_SU, mv: [[3, 12, 420]], fu: { w: [31, 35], to: fu }, an: jA(12, 42) });
-    N('JIN_M', { n: 'Jinrai Kick', sp: 1, su: 16, ac: 3, rc: 24, d: 60, ha: 2, ba: -7, hb: jb, kb: 300, lvl: 1, hsp: 11, dd: 200, sg: 55, can: C_SU, mv: [[5, 16, 420]], fu: { w: [31, 35], to: fu }, an: jA(16, 42) });
-    N('JIN_H', { n: 'Jinrai Kick', sp: 1, su: 25, ac: 3, rc: 19, d: 70, ba: -2, hb: jb, launch: [260, 760], air: [260, 760], lvl: 1, hsp: 13, dd: 400, sg: 55, can: C_SU, mv: [[10, 25, 380]], fu: { w: [35, 41], to: fu }, an: jA(25, 46) });
-    N('JIN_OD', { n: 'Jinrai Kick', sp: 1, od: 1, su: 13, ac: 2, rc: 25, d: 60, ha: -4, ba: -7, hb: jb, kb: 240, lvl: 1, hsp: 11, dd: 300, sg: 40, can: C_SU, mv: [[3, 13, 460]], fu: { w: [20, 27], to: fuO }, an: jA(13, 40) });
-    N('KAZE', { n: 'Kazekama Shin Kick', sp: 1, su: 6, ac: 4, rc: 19, d: 60, g: 'l', ha: 3, ba: -5, hb: [6, 0, 62, 14], kb: 420, lvl: 1, hsp: 11, dd: 200, sg: 40, can: C_SU, mv: [[0, 5, 300]], crouch: 1, an: { w: 'clkW', s: 'cmkS' } });
-    N('GORAI', { n: 'Gorai Axe Kick', sp: 1, su: 18, ac: 3, rc: 20, d: 100, g: 'h', ha: 3, ba: -3, hb: [8, 30, 52, 60], kb: 520, air: [150, -1400], gb: 1, lvl: 1, hsp: 13, dd: 250, sg: 50, can: C_SU, mv: [[0, 12, 260]], an: { w: 'axW', s: 'axS' } });
-    N('SENKA', { n: 'Senka Snap Kick', sp: 1, su: 10, ac: 3, rc: 25, d: 80, ba: -3, hb: [8, 58, 66, 22], launch: [520, 620], air: [520, 620], lvl: 2, hsp: 13, dd: 700, sg: 60, can: C_SU, mv: [[0, 8, 300]], an: { w: 'hkW', s: 'hkS' } });
-    N('KAZE_OD', { n: 'Kazekama Shin Kick', sp: 1, su: 6, ac: 3, rc: 20, d: 50, g: 'l', ha: 3, ba: -5, hb: [6, 0, 62, 14], kb: 300, lvl: 1, hsp: 11, dd: 300, sg: 40, can: C_SU, mv: [[0, 5, 300]], crouch: 1, fu: { w: [10, 27], to: ka }, tint: 1, an: { w: 'clkW', s: 'cmkS' } });
-    N('GORAI_OD', { n: 'Gorai Axe Kick', sp: 1, su: 17, ac: 3, rc: 24, d: 100, g: 'h', ha: -3, ba: -7, hb: [8, 30, 52, 60], kb: 300, air: [150, -1400], gb: 1, lvl: 1, hsp: 13, dd: 250, sg: 50, can: C_SU, mv: [[0, 12, 260]], fu: { w: [23, 42], to: ka }, tint: 1, an: { w: 'axW', s: 'axS' } });
-    N('SENKA_OD', { n: 'Senka Snap Kick', sp: 1, su: 10, ac: 6, rc: 18, d: 80, ba: -4, hb: [8, 50, 66, 30], launch: [200, 800], air: [200, 800], lvl: 1, hsp: 13, dd: 700, sg: 60, can: C_SU, mv: [[0, 8, 300]], fu: { w: [21, 32], to: ka }, tint: 1, an: { w: 'hkW', s: 'hkS' } });
-    N('KASAI', { n: 'Kasai Thrust Kick', sp: 1, su: 15, ac: 3, rc: 29, d: 50, ba: -12, hb: [8, 30, 70, 40], launch: [240, 800], air: [240, 800], lvl: 2, hsp: 14, dd: 500, sg: 60, cx: 2, can: C_SU, mv: [[2, 14, 520]], tint: 1, an: { w: 'lkW', s: 'mkS' } });
+    N('JIN_L', { n: 'Black Current', sp: 1, su: 12, ac: 3, rc: 28, d: 50, ha: 1, ba: -11, hb: jb, kb: 300, lvl: 1, hsp: 11, dd: 200, sg: 55, can: C_SU, mv: [[3, 12, 420]], fu: { w: [31, 35], to: fu }, an: jA(12, 42) });
+    N('JIN_M', { n: 'Black Current', sp: 1, su: 16, ac: 3, rc: 24, d: 60, ha: 2, ba: -7, hb: jb, kb: 300, lvl: 1, hsp: 11, dd: 200, sg: 55, can: C_SU, mv: [[5, 16, 420]], fu: { w: [31, 35], to: fu }, an: jA(16, 42) });
+    N('JIN_H', { n: 'Black Current', sp: 1, su: 25, ac: 3, rc: 19, d: 70, ba: -2, hb: jb, launch: [260, 760], air: [260, 760], lvl: 1, hsp: 13, dd: 400, sg: 55, can: C_SU, mv: [[10, 25, 380]], fu: { w: [35, 41], to: fu }, an: jA(25, 46) });
+    N('JIN_OD', { n: 'Black Current', sp: 1, od: 1, su: 13, ac: 2, rc: 25, d: 60, ha: -4, ba: -7, hb: jb, kb: 240, lvl: 1, hsp: 11, dd: 300, sg: 40, can: C_SU, mv: [[3, 13, 460]], fu: { w: [20, 27], to: fuO }, an: jA(13, 40) });
+    N('KAZE', { n: 'Low Water', sp: 1, su: 6, ac: 4, rc: 19, d: 60, g: 'l', ha: 3, ba: -5, hb: [6, 0, 62, 14], kb: 420, lvl: 1, hsp: 11, dd: 200, sg: 40, can: C_SU, mv: [[0, 5, 300]], crouch: 1, an: { w: 'clkW', s: 'cmkS' } });
+    N('GORAI', { n: 'High Water', sp: 1, su: 18, ac: 3, rc: 20, d: 100, g: 'h', ha: 3, ba: -3, hb: [8, 30, 52, 60], kb: 520, air: [150, -1400], gb: 1, lvl: 1, hsp: 13, dd: 250, sg: 50, can: C_SU, mv: [[0, 12, 260]], an: { w: 'axW', s: 'axS' } });
+    N('SENKA', { n: 'Crest', sp: 1, su: 10, ac: 3, rc: 25, d: 80, ba: -3, hb: [8, 58, 66, 22], launch: [520, 620], air: [520, 620], lvl: 2, hsp: 13, dd: 700, sg: 60, can: C_SU, mv: [[0, 8, 300]], an: { w: 'hkW', s: 'hkS' } });
+    N('KAZE_OD', { n: 'Low Water', sp: 1, su: 6, ac: 3, rc: 20, d: 50, g: 'l', ha: 3, ba: -5, hb: [6, 0, 62, 14], kb: 300, lvl: 1, hsp: 11, dd: 300, sg: 40, can: C_SU, mv: [[0, 5, 300]], crouch: 1, fu: { w: [10, 27], to: ka }, tint: 1, an: { w: 'clkW', s: 'cmkS' } });
+    N('GORAI_OD', { n: 'High Water', sp: 1, su: 17, ac: 3, rc: 24, d: 100, g: 'h', ha: -3, ba: -7, hb: [8, 30, 52, 60], kb: 300, air: [150, -1400], gb: 1, lvl: 1, hsp: 13, dd: 250, sg: 50, can: C_SU, mv: [[0, 12, 260]], fu: { w: [23, 42], to: ka }, tint: 1, an: { w: 'axW', s: 'axS' } });
+    N('SENKA_OD', { n: 'Crest', sp: 1, su: 10, ac: 6, rc: 18, d: 80, ba: -4, hb: [8, 50, 66, 30], launch: [200, 800], air: [200, 800], lvl: 1, hsp: 13, dd: 700, sg: 60, can: C_SU, mv: [[0, 8, 300]], fu: { w: [21, 32], to: ka }, tint: 1, an: { w: 'hkW', s: 'hkS' } });
+    N('KASAI', { n: 'Floodgate', sp: 1, su: 15, ac: 3, rc: 29, d: 50, ba: -12, hb: [8, 30, 70, 40], launch: [240, 800], air: [240, 800], lvl: 2, hsp: 14, dd: 500, sg: 60, cx: 2, can: C_SU, mv: [[2, 14, 520]], tint: 1, an: { w: 'lkW', s: 'mkS' } });
     // Super Arts
     // Dragonlash Flame: launcher, then spinning kicks carried up into the air; the last kick sends them back over Ken's shoulder so he lands on the far side
     const ak = (st, d) => ({ s: st, e: st + 1, hb: [-10, -10, 80, 100], d: d, stun: 34, kb: 0, air: [0, 300], lvl: 1, hsp: 6, bstun: 20, req: 1, lk: 1, carry: [24, 4] });
-    N('SA1', { n: 'Dragonlash Flame', sup: 1, sa: 1, su: 7, t: 999, frz: 40, inv: [0, 8], minScale: 30, dd: 250, mv: [[2, 8, 760]], stopOnHit: 1, wEnd: [9, -41], rise: [11, 330, 1120], landRec: 12,
+    N('SA1', { n: 'Moonwake', sup: 1, sa: 1, su: 7, t: 999, frz: 40, inv: [0, 8], minScale: 30, dd: 250, mv: [[2, 8, 760]], stopOnHit: 1, wEnd: [9, -41], rise: [11, 330, 1120], landRec: 12,
       hits: [{ s: 6, e: 8, hb: [2, 10, 64, 80], d: 40, stun: 34, kb: 0, launch: [0, 700], air: [0, 300], lk: 1, lvl: 2, hsp: 14, bstun: 20 }, ak(15, 25), ak(20, 25), ak(25, 25), ak(30, 25), { s: 36, e: 38, hb: [-10, -10, 80, 100], d: 60, launch: [-620, 520], air: [-620, 520], lvl: 2, hsp: 18, req: 1, bstun: 20 }] });
     const big = [-4, 0, 84, 104], rq = (s, d) => ({ s: s, e: s + 1, hb: big, d: d, stun: 34, kb: 0, air: [0, 250], lvl: 1, hsp: 6, bstun: 20, req: 2, lk: 1 });
     // Shippu Jinrai-kyaku: kicks on the ground, then a rising Tatsumaki that carries them into the air
     const tk2 = (st, d) => ({ s: st, e: st + 1, hb: big, d: d, stun: 34, kb: 0, air: [0, 300], lvl: 1, hsp: 5, bstun: 20, req: 2, lk: 1, carry: [22, 2] });
-    N('SA2', { n: 'Shippu Jinrai-kyaku', sup: 1, sa: 2, su: 6, t: 999, frz: 44, minScale: 40, mv: [[4, 14, 1300]], stopOnHit: 1, dd: 500, wEnd: [88, -1], rise: [38, 110, 1060], landRec: 14,
+    N('SA2', { n: 'Storm Surge', sup: 1, sa: 2, su: 6, t: 999, frz: 44, minScale: 40, mv: [[4, 14, 1300]], stopOnHit: 1, dd: 500, wEnd: [88, -1], rise: [38, 110, 1060], landRec: 14,
       hits: [{ s: 5, e: 14, hb: [0, 6, 64, 110], d: 30, stun: 34, kb: 0, air: [0, 300], lk: 1, pop: [40, 640], lvl: 1, hsp: 10, bstun: 33 }, rq(20, 30), rq(26, 30), rq(32, 30), tk2(40, 15), tk2(44, 15), tk2(48, 15), tk2(52, 15), { s: 57, e: 59, hb: [-10, -10, 90, 110], d: 100, launch: [900, 900], air: [900, 900], wb: 1, lvl: 2, hsp: 18, req: 2, bstun: 27 }] });
     const fl = s => ({ s: s, e: s + 1, hb: big, d: 60, stun: 34, kb: 0, air: [0, 260], lvl: 1, hsp: 7, bstun: 20, lk: 1 });
-    N('SA3', { n: 'Shinryu Reppa', sup: 1, sa: 3, su: 7, t: 999, frz: 60, inv: [0, 17], minScale: 50, partAt: 10, rise: [41, 100, 1280], landRec: 19, dd: 900, mv: [[1, 6, 1100]], stopOnHit: 1,
+    N('SA3', { n: 'King Tide', sup: 1, sa: 3, su: 7, t: 999, frz: 60, inv: [0, 17], minScale: 50, partAt: 10, rise: [41, 100, 1280], landRec: 19, dd: 900, mv: [[1, 6, 1100]], stopOnHit: 1,
       hits: [{ s: 6, e: 9, hb: [0, 6, 70, 110], d: 60, stun: 34, kb: 0, air: [0, 260], lvl: 1, hsp: 7, bstun: 20 }, fl(14), fl(22), fl(30), { s: 40, e: 44, hb: big, d: 160, launch: [150, 1450], air: [150, 1450], lvl: 2, hsp: 22, bstun: 20 }],
       an: { k: [[0, 'cupW'], [6, 'srS'], [11, 'cupW'], [14, 'srS'], [19, 'cupW'], [22, 'srS'], [27, 'cupW'], [30, 'srS'], [36, 'cupW'], [40, 'srS'], [56, 'srS2'], [80, 'jump']], spin: [40, 70, 1080] } });
     // Critical Art: the Level 3 at a quarter health or less. Same opening and the same frame data, but it carries them to the top of the screen and drives them back into the floor.
@@ -156,14 +156,14 @@ const SIM = (function () {
       mo: [{ m: '623', L: 'SRK_L', M: 'SRK_M', H: 'SRK_H', OD: 'SRK_OD' }, { m: '214', L: 'TAT_L', M: 'TAT_M', H: 'TAT_H', OD: 'TAT_OD' }, { m: '236', L: 'JIN_L', M: 'JIN_M', H: 'JIN_H', OD: 'JIN_OD' }, { m: '214', air: 1, fwd: 1, L: 'ATAT', M: 'ATAT', H: 'ATAT', OD: 'ATAT_OD' }],
       run: { L: 'STOP', M: 'TK', H: 'FSK', S6: 'QSRK', S5: 'QSRK', S2: 'QTAT', S4: 'QDL', m623: 'QSRK', m214: 'QTAT' },
       auto: { L: [['5LK'], ['JIN_L'], ['KAZE']], LC: [['2LK'], ['5LP'], ['JIN_L'], ['KAZE']], M: [['5MP'], ['CB2'], ['RUN'], ['QDL'], ['SA2', 'SRK_H']], H: [['5HP'], ['JIN_OD', 'JIN_M'], ['KAZE_OD', 'KAZE'], ['KASAI'], ['SA3']] },
-      cmd: [['Hadoken', 'SP', 'Heavy fireball. Assist+SP is the two-hit Overdrive.'], ['Shoryuken', '→ + SP   (623 + L/M/H)', 'Anti-air invincible. Only the Overdrive is fully invincible.'],
-        ['Slipstream', 'Homing button   (or ← + SP, air: SP)', 'Homes in. Hit = free air combo. Blocked or missed = long helpless fall.'], ['Jinrai Kick', '↓ + SP   (236 + L/M/H)', 'Then ←SP low, ↓SP overhead, SP knockdown kick.'],
-        ['Tatsumaki Senpu-kyaku', '214 + L/M/H   (air: → + SP)', 'Motion only on the ground. Air: forward jump, → + SP.'], ['Quick Dash', 'M + H', 'Run. L stops, M overhead, H step kick, SP specials (←SP Dragonlash).'],
-        ['Super Arts', 'H + SP   ← H + SP   ↓ H + SP', 'Dragonlash Flame, Shippu Jinrai-kyaku, Shinryu Reppa.'], ['Critical Art', '↓ H + SP   at 25% health or less', 'Abyssal Tide replaces Level 3 when nearly dead. More damage, ends in a slam.']],
+      cmd: [['Corpse Candle', 'SP', 'A drifting ghost flame. Assist+SP is the two-hit Flood version.'], ['Spindrift', '→ + SP   (623 + L/M/H)', 'Rising spin, anti-air invincible. Only the Flood version is fully invincible.'],
+        ['Slipstream', 'Homing button   (or ← + SP, air: SP)', 'Homes in. Hit = free air combo. Blocked or missed = long helpless fall.'], ['Black Current', '↓ + SP   (236 + L/M/H)', 'Then ←SP Low Water, ↓SP High Water (overhead), SP Crest.'],
+        ['Maelstrom', '214 + L/M/H   (air: → + SP)', 'Motion only on the ground. In the air it is the Waterspout: forward jump, → + SP.'], ['Quick Dash', 'M + H', 'Run. L stops, M overhead, H step kick, SP specials (←SP Breaker).'],
+        ['Tide Arts', 'H + SP   ← H + SP   ↓ H + SP', 'Moonwake, Storm Surge, King Tide.'], ['Final Tide', '↓ H + SP   at 25% health or less', 'Abyssal Tide replaces King Tide when nearly dead. More damage, ends in a slam.']],
       cmd2: [['Air Normals', '↑ L/M/H   ↓ M/H   ← L/M/H', 'Rising Lash launches. Falling Heel spikes. Back Lash hits behind.'], ['Air Specials', 'Homing / SP   ↑ SP   ↓ SP   ← SP', 'Slipstream, Riptide, Falling Star (spike), Undertow (behind).'],
         ['Air Movement', '↑ again   ↑ at the wall   ← →', 'Double jump, wall jump, drift. Hold ↓ to fall fast.'], ['Air Cancels', 'after an air normal hits', '↑ jump-cancels it; SP cancels it into an air special.'],
         ['Juggle Loop', 'launch, Homing, air combo, ↓ + SP', 'Slipstream pops them up twice per combo; the spike bounces them once.'], ['Grab', 'L + M   then any attack button', 'Holds them. Pummel up to five times before throwing.'],
-        ['Throws', '→   ←   ↑   ↓   while holding', 'Forward, back, straight up (juggle), slam into a ground bounce.'], ['Assist Combos', 'hold Assist, tap L / M / H', 'L x3, M x5 (ends in SA2), H x5 (ends in SA3, or the Critical Art).']]
+        ['Throws', '→   ←   ↑   ↓   while holding', 'Forward, back, straight up (juggle), slam into a ground bounce.'], ['Assist Combos', 'hold Assist, tap L / M / H', 'L x3, M x5 (ends in Storm Surge), H x5 (ends in King Tide, or the Final Tide).']]
     };
   }
   function ren() { return Object.assign(ken(), { name: 'ARD', jp: '闇', title: 'THE BLACK TIDE' }); }
