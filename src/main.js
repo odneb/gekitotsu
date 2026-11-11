@@ -229,7 +229,7 @@
         const pads = INP.devs.filter(d => d.id.indexOf('pad') === 0), m = INP.merged(); let x = 80; T('TEST', x, 206, 8, '#9a8488'); x += 40; T(DIRG[SIM.npad(m, 1)] || '\u00b7', x, 203, 12, '#fff', 'left', 1); x += 22; [['L', 16], ['M', 32], ['H', 64], ['SP', 128], ['AS', 256], ['PA', 1024], ['DI', 512]].forEach(b => { T(b[0], x, 206, 8, m & b[1] ? '#d8322e' : '#3a2a30'); x += b[0].length * 8 + 6; });
         const raw = []; pads.forEach(d => d.raw.forEach((v, i) => { if (v) raw.push(PADN[i] && d.std ? PADN[i] : '#' + i); })); T(raw.join(' ').slice(0, 26), 404, 206, 8, '#f6e7c8', 'right');
         T(INP.padBlocked ? 'CONTROLLERS ARE BLOCKED IN THIS VIEWER - USE THE HOSTED BUILD' : pads.length ? pads.map(d => d.name + (d.std ? ' \u00b7 STANDARD LAYOUT' : ' \u00b7 CUSTOM LAYOUT') + ' \u00b7 ' + d.nb + ' BUTTONS').join('   ') : 'NO CONTROLLER SEEN YET - PRESS ANY BUTTON ON IT', 240, 222, 8, pads.length ? '#f08a5a' : '#f1dcb4', 'center', 1);
-        T('DIRECTIONS READ FROM D-PAD, LEFT STICK AND HAT AUTOMATICALLY', 240, 234, 8, '#9a8488', 'center', 1); foot('KEYBOARD: WASD, J K L = LIGHT MEDIUM HEAVY, I = SPECIAL, SPACE = ASSIST, U = PARRY, O = IMPACT, H = THROW, K+L = RUN'); }
+        T('DIRECTIONS READ FROM D-PAD, LEFT STICK AND HAT AUTOMATICALLY', 240, 234, 8, '#9a8488', 'center', 1); foot('KEYBOARD: WASD, J K L = LIGHT MEDIUM HEAVY, I = SPECIAL, SPACE = ASSIST, U = PARRY, O = IMPACT, H = HOMING, J+K = GRAB, K+L = RUN'); }
     }
   };
 
@@ -257,7 +257,7 @@
     // eight attack buttons for one thumb: L M H SP along the bottom, and directly above each one its Assist version (AL AM AH AS)
     const DEF = [['L', B.LT, 7.65, 1.7, 0.92], ['M', B.MD, 5.6, 1.7, 0.92], ['H', B.HV, 3.55, 1.7, 0.92], ['SP', B.SP, 1.5, 1.7, 0.92],
       ['AL', B.AS | B.LT, 7.65, 3.85, 0.86, 2], ['AM', B.AS | B.MD, 5.6, 3.85, 0.86, 2], ['AH', B.AS | B.HV, 3.55, 3.85, 0.86, 2], ['AS', B.AS | B.SP, 1.5, 3.85, 0.86, 2],
-      ['PA', B.PA, 9.9, 2.5, 0.8], ['DI', B.DI, 9.5, 4.75, 0.74], ['GRAB', B.LT | B.MD, 6.6, 5.85, 0.66, 1], ['RUN', B.MD | B.HV, 4.55, 5.85, 0.66, 1], ['II', 4096, 1.3, -1, 0.6, 1]];
+      ['PA', B.PA, 9.9, 2.5, 0.8], ['DI', B.DI, 9.5, 4.75, 0.74], ['GRAB', B.LT | B.MD, 6.6, 5.85, 0.66, 1], ['RUN', B.MD | B.HV, 4.55, 5.85, 0.66, 1], ['HOME', B.HM, 2.5, 5.85, 0.66, 1], ['II', 4096, 1.3, -1, 0.6, 1]];
     let btn = [], R = 34, stick = null, base = null, knob = null, live = false; const ptr = new Map();
     function layout() {
       const W = innerWidth, H = innerHeight, port = H > W; R = Math.max(24, Math.min(44, Math.min(W, H) * 0.086)); if (port) R = Math.max(24, Math.min(40, W * 0.062));

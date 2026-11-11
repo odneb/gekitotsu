@@ -3,14 +3,23 @@
 // ===================================================================
 const INP = (function () {
   'use strict';
-  const B = SIM.BT, keys = {}, touch = { m: 0 }, ATK = 0x7f0;
-  const KB1 = { KeyW: B.U, KeyS: B.D, KeyA: B.L, KeyD: B.R, KeyJ: B.LT, KeyK: B.MD, KeyL: B.HV, KeyI: B.SP, Space: B.AS, ShiftLeft: B.AS, KeyU: B.PA, KeyO: B.DI, KeyH: B.LT | B.MD };
-  const KB2 = { ArrowUp: B.U, ArrowDown: B.D, ArrowLeft: B.L, ArrowRight: B.R, Numpad1: B.LT, Numpad2: B.MD, Numpad3: B.HV, Numpad5: B.SP, Numpad0: B.AS, Numpad4: B.PA, Numpad6: B.DI, NumpadAdd: B.LT | B.MD };
-  const ACTS = [['LT', B.LT, 'LIGHT'], ['MD', B.MD, 'MEDIUM'], ['HV', B.HV, 'HEAVY'], ['SP', B.SP, 'SPECIAL'], ['AS', B.AS, 'ASSIST'], ['PA', B.PA, 'DRIVE PARRY'], ['DI', B.DI, 'DRIVE IMPACT'], ['TH', B.LT | B.MD, 'THROW (LIGHT+MEDIUM)']];
-  const DEFPAD = { LT: 2, MD: 0, HV: 1, SP: 3, AS: 7, PA: 5, DI: 4, TH: 6 };
+  const B = SIM.BT, keys = {}, touch = { m: 0 }, ATK = 0xff0;
+  const KB1 = { KeyW: B.U, KeyS: B.D, KeyA: B.L, KeyD: B.R, KeyJ: B.LT, KeyK: B.MD, KeyL: B.HV, KeyI: B.SP, Space: B.AS, ShiftLeft: B.AS, KeyU: B.PA, KeyO: B.DI, KeyH: B.HM };
+  const KB2 = { ArrowUp: B.U, ArrowDown: B.D, ArrowLeft: B.L, ArrowRight: B.R, Numpad1: B.LT, Numpad2: B.MD, Numpad3: B.HV, Numpad5: B.SP, Numpad0: B.AS, Numpad4: B.PA, Numpad6: B.DI, NumpadAdd: B.HM };
+  const ACTS = [['LT', B.LT, 'LIGHT'], ['MD', B.MD, 'MEDIUM'], ['HV', B.HV, 'HEAVY'], ['SP', B.SP, 'SPECIAL'], ['AS', B.AS, 'ASSIST'], ['PA', B.PA, 'DRIVE PARRY'], ['DI', B.DI, 'DRIVE IMPACT'], ['HM', B.HM, 'HOMING (SLIPSTREAM)']];
+  // Triangle is the homing button. Special sits on L2, where the throw button used to be; a grab is Light + Medium.
+  const DEFPAD = { LT: 2, MD: 0, HV: 1, SP: 6, AS: 7, PA: 5, DI: 4, HM: 3 };
   let pad = Object.assign({}, DEFPAD);
-  try { const s = JSON.parse(localStorage.getItem('gk_pad2') || 'null'); if (s) pad = Object.assign(pad, s); } catch (e) { }
-  function savePad() { try { localStorage.setItem('gk_pad2', JSON.stringify(pad)); } catch (e) { } }
+  try {
+    const s3 = JSON.parse(localStorage.getItem('gk_pad3') || 'null'), s2 = JSON.parse(localStorage.getItem('gk_pad2') || 'null');
+    if (s3) pad = Object.assign(pad, s3);
+    else if (s2) {   // an older saved layout: Triangle becomes homing, whatever was on Triangle moves to the old throw button
+      const old = Object.assign({ LT: 2, MD: 0, HV: 1, SP: 3, AS: 7, PA: 5, DI: 4, TH: 6 }, s2);
+      for (const a of ACTS) if (a[0] !== 'HM') pad[a[0]] = old[a[0]] === 3 ? (old.TH === 3 ? -1 : old.TH) : old[a[0]];
+      pad.HM = 3;
+    }
+  } catch (e) { }
+  function savePad() { try { localStorage.setItem('gk_pad3', JSON.stringify(pad)); } catch (e) { } }
   addEventListener('keydown', e => { keys[e.code] = 1; if (KB1[e.code] || KB2[e.code] || e.code === 'Enter' || e.code === 'Backspace' || e.code === 'Tab') e.preventDefault(); });
   addEventListener('keyup', e => { keys[e.code] = 0; });
   addEventListener('blur', () => { for (const k in keys) keys[k] = 0; });
@@ -131,7 +140,7 @@ const AUD = (function () {
 // ===================================================================
 const AI = (function () {
   'use strict';
-  const B = SIM.BT, F = SIM.F, FW = 2048, BK = 4096;
+  const B = SIM.BT, F = SIM.F, FW = 8192, BK = 16384, HM = B.HM;
   const D = B.D, U = B.U, L = B.LT, M = B.MD, H = B.HV, SP = B.SP, AS = B.AS, DI = B.DI, PA = B.PA;
   function make(level) { return { q: [], level: level, hold: 0, cool: 0 }; }
   function seq(parts) { const o = []; for (const p of parts) for (let i = 0; i < (p[1] || 1); i++) o.push(p[0]); return o; }
@@ -155,7 +164,7 @@ const AI = (function () {
     // time until a launched opponent lands, and how long a Slipstream needs to reach them
     const tLand = o.y > 0 ? (o.vy + Math.sqrt(Math.max(0, o.vy * o.vy + 2 * 66 * o.y))) / 66 : 0, tHome = 15 + Math.hypot(o.x - p.x, o.y - p.y) / 840;
     const chase = o.st === 'ahit' && (o.hmc || 0) < 2 && !p.hm && tLand > tHome + 3;
-    if (grounded && om && om.proj && o.mf < 16 && dist > 130 && drive && lv >= 2 && r(33) < [0, 0, 22, 45][lv]) return push([[AS | BK | SP, 2], [AS, 3]]);   // through the fireball
+    if (grounded && om && om.proj && o.mf < 16 && dist > 130 && drive && lv >= 2 && r(33) < [0, 0, 22, 45][lv]) return push([[AS | HM, 2], [AS, 3]]);   // through the fireball
     const threat = (om && dist < 150 && o.mf <= om.lastAct + 1) || incoming;
     if (grounded && threat) {
       if (om && om.thr) { if (r(1) < lv * 25) return out(L | M); }
@@ -172,14 +181,14 @@ const AI = (function () {
         if (up && ax < 56 && dy < -6 && dy > -100 && r(22) < 35 + lv * 20) return out(lv >= 2 && r(23) < 50 ? D | SP : D | H);
         if (up && lv >= 3 && !behind && ax < 60 && dy > 10 && p.vy > 0 && r(24) < 12) return out(U | SP);
         if (behind && ax < 76 && Math.abs(dy) < 60 && r(25) < 45 + lv * 15) return out(lv >= 3 && ax > 30 && r(26) < 35 ? BK | SP : BK | M);
-        if (p.st === 'jump' && chase && (ax > 64 || Math.abs(dy) > 70) && r(32) < [0, 18, 45, 70][lv]) return out(SP);
+        if (p.st === 'jump' && chase && (ax > 64 || Math.abs(dy) > 70) && r(32) < [0, 18, 45, 70][lv]) return out(HM);
         if (p.st === 'jump' && lv >= 2 && !p.wj && p.y > 30 * F && Math.abs(p.x) > SIM.STAGE - 20 * F && r(27) < 8) return out(U);
         if (p.st === 'jump' && lv >= 2 && !p.dj && incoming && p.vy < 0 && r(28) < 25) return out(U);
         if (o.st === 'ahit' && p.st === 'jump') { if (p.vy < 100 && dist < 90 && r(4) < 60 + lv * 10) return out(H); return out(behind ? BK : FW); }
       }
       if (p.st === 'jump' && p.vy < 100 && dist < 90 && r(4) < 60 + lv * 10) return out(H); if (p.st === 'drush' && p.sf >= 10 && dist < 80) return push([[AS | M, 2], [AS, 9], [AS | M, 2], [AS, 12], [FW | SP, 2], [0, 12]]); return out(ai.hold); }
     if (o.y > 20 * F && o.vy < 300 && dist < 105 && o.st !== 'ahit' && r(5) < [0, 20, 50, 85][lv]) return push(r(6) < 70 ? [[FW | SP, 2], [0, 6]] : [[D | H, 2], [0, 6]]);
-    if (chase && o.y > 24 * F && r(31) < [0, 24, 52, 80][lv]) return push([[BK | SP, 2], [0, 3]]);   // fly in after a launched opponent
+    if (chase && o.y > 24 * F && r(31) < [0, 24, 52, 80][lv]) return push([[HM, 2], [0, 3]]);   // fly in after a launched opponent
     if (o.st === 'land' && o.rec >= 20 && o.rec - o.sf > 10 && dist >= 76 && dist < 170) return out(FW);   // walk up to someone stuck in a long landing
     if (o.st === 'ahit' && o.y > 40 * F && o.vy > -700 && dist < 150 && r(29) < [0, 35, 70, 95][lv]) return push([[U | FW, 3], [FW, 2]]);   // go up after a launched opponent
     const open = (om && !om.isAir && o.mf > om.lastAct + 1 && om.t - o.mf > 9) || (o.st === 'land' && o.rec > 6) || o.st === 'prec' || (o.st === 'hit' && o.crum && o.stun > 30);
@@ -194,7 +203,7 @@ const AI = (function () {
       if (drive && lv >= 2 && k < 72) return push([[FW], [0], [FW | PA, 2], [PA, 4], [0, 4]]);
       if (k < 80) return push([[FW], [0], [FW, 2], [0, 14]]);
       if (k < 90) return push([[U | FW, 3], [0, 26], [H, 2], [0, 10]]);
-      if (k < 90 + [0, 6, 4, 2][lv]) return push([[BK | SP, 2], [0, 30]]);   // the gamble: fly in raw
+      if (k < 90 + [0, 6, 4, 2][lv]) return push([[HM, 2], [0, 30]]);   // the gamble: fly in raw
       ai.hold = 0; return 0;
     }
     if (dist > 80) {

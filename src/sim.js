@@ -8,8 +8,8 @@
 const SIM = (function () {
   'use strict';
   const F = 100;
-  const BT = { U: 1, D: 2, L: 4, R: 8, LT: 16, MD: 32, HV: 64, SP: 128, AS: 256, DI: 512, PA: 1024 };
-  const MASK = 2047, NB = 7;
+  const BT = { U: 1, D: 2, L: 4, R: 8, LT: 16, MD: 32, HV: 64, SP: 128, AS: 256, DI: 512, PA: 1024, HM: 2048 };
+  const MASK = 4095, NB = 8;
   const STAGE = 375 * F, SEP = 345 * F, PW = 17 * F, HS = 0.7, JG = 58;
   const GRAV = 62, BUF = 5, NBUF = 40, DMAX = 6000, BAR = 1000;
   const INTRO = 120, KOTIME = 290, KD = 26, GETUP = 22;
@@ -157,12 +157,12 @@ const SIM = (function () {
       run: { L: 'STOP', M: 'TK', H: 'FSK', S6: 'QSRK', S5: 'QSRK', S2: 'QTAT', S4: 'QDL', m623: 'QSRK', m214: 'QTAT' },
       auto: { L: [['5LK'], ['JIN_L'], ['KAZE']], LC: [['2LK'], ['5LP'], ['JIN_L'], ['KAZE']], M: [['5MP'], ['CB2'], ['RUN'], ['QDL'], ['SA2', 'SRK_H']], H: [['5HP'], ['JIN_OD', 'JIN_M'], ['KAZE_OD', 'KAZE'], ['KASAI'], ['SA3']] },
       cmd: [['Hadoken', 'SP', 'Heavy fireball. Assist+SP is the two-hit Overdrive.'], ['Shoryuken', '→ + SP   (623 + L/M/H)', 'Anti-air invincible. Only the Overdrive is fully invincible.'],
-        ['Slipstream', '← + SP   (air: SP)', 'Homes in. Hit = free air combo. Blocked or missed = long helpless fall.'], ['Jinrai Kick', '↓ + SP   (236 + L/M/H)', 'Then ←SP low, ↓SP overhead, SP knockdown kick.'],
+        ['Slipstream', 'Homing button   (or ← + SP, air: SP)', 'Homes in. Hit = free air combo. Blocked or missed = long helpless fall.'], ['Jinrai Kick', '↓ + SP   (236 + L/M/H)', 'Then ←SP low, ↓SP overhead, SP knockdown kick.'],
         ['Tatsumaki Senpu-kyaku', '214 + L/M/H   (air: → + SP)', 'Motion only on the ground. Air: forward jump, → + SP.'], ['Quick Dash', 'M + H', 'Run. L stops, M overhead, H step kick, SP specials (←SP Dragonlash).'],
         ['Super Arts', 'H + SP   ← H + SP   ↓ H + SP', 'Dragonlash Flame, Shippu Jinrai-kyaku, Shinryu Reppa.'], ['Critical Art', '↓ H + SP   at 25% health or less', 'Abyssal Tide replaces Level 3 when nearly dead. More damage, ends in a slam.']],
-      cmd2: [['Air Normals', '↑ L/M/H   ↓ M/H   ← L/M/H', 'Rising Lash launches. Falling Heel spikes. Back Lash hits behind.'], ['Air Specials', 'SP   ↑ SP   ↓ SP   ← SP', 'Slipstream, Riptide, Falling Star (spike), Undertow (behind).'],
+      cmd2: [['Air Normals', '↑ L/M/H   ↓ M/H   ← L/M/H', 'Rising Lash launches. Falling Heel spikes. Back Lash hits behind.'], ['Air Specials', 'Homing / SP   ↑ SP   ↓ SP   ← SP', 'Slipstream, Riptide, Falling Star (spike), Undertow (behind).'],
         ['Air Movement', '↑ again   ↑ at the wall   ← →', 'Double jump, wall jump, drift. Hold ↓ to fall fast.'], ['Air Cancels', 'after an air normal hits', '↑ jump-cancels it; SP cancels it into an air special.'],
-        ['Juggle Loop', 'launch, ← + SP, air combo, ↓ + SP', 'Slipstream pops them up twice per combo; the spike bounces them once.'], ['Grab', 'L + M   then any attack button', 'Holds them. Pummel up to five times before throwing.'],
+        ['Juggle Loop', 'launch, Homing, air combo, ↓ + SP', 'Slipstream pops them up twice per combo; the spike bounces them once.'], ['Grab', 'L + M   then any attack button', 'Holds them. Pummel up to five times before throwing.'],
         ['Throws', '→   ←   ↑   ↓   while holding', 'Forward, back, straight up (juggle), slam into a ground bounce.'], ['Assist Combos', 'hold Assist, tap L / M / H', 'L x3, M x5 (ends in SA2), H x5 (ends in SA3, or the Critical Art).']]
     };
   }
@@ -173,9 +173,9 @@ const SIM = (function () {
   function newFighter(ch, i) {
     const b = []; for (let k = 0; k < NBUF; k++) b.push(0);
     return { ch: ch, x: (i ? 80 : -80) * F, y: 0, vx: 0, vy: 0, pv: 0, face: i ? -1 : 1, hp: CH[ch].hp, sa: 0, dr: DMAX, bo: 0, drT: 0, st: 'idle', sub: 'stand', sf: 0, subf: 0,
-      mv: '', mf: 0, hitMask: 0, contact: 0, hitOK: 0, hs: 0, stun: 0, buf: b, prev: 0, age: [99, 99, 99, 99, 99, 99, 99], d66: 99, d44: 99, combo: 0, comboDmg: 0, jug: 0,
+      mv: '', mf: 0, hitMask: 0, contact: 0, hitOK: 0, hs: 0, stun: 0, buf: b, prev: 0, age: [99, 99, 99, 99, 99, 99, 99, 99], d66: 99, d44: 99, combo: 0, comboDmg: 0, jug: 0,
       wbUsed: 0, gbUsed: 0, wbPend: 0, gbPend: 0, jd: 0, rec: 0, cb: 0, hitHi: 1, tinv: 0, wins: 0, back: 0, red: CH[ch].hp, redT: 0, air2: 0, noTech: 0,
-      ca: 0, rq: 99, part: 0, jg: 0, cxSeq: -1, fuq: '', fum: 0, pd: [0, 0, 0, 0, 0, 0, 0], mseq: 0, cs: 0, lastSeq: -1, acq: 0, rcn: 0, sshift: 0, drs: 0, pok: 0, roll: 0, hard: 0, arm: 0, armHit: 0, drb: 0, mod: 0, ac: '', aci: 0, crum: 0, pp: 0, plock: 0, half: 0, hm: 0, hmc: 0, fr: 0, hmE: 0, dj: 0, wj: 0, aa: 0 };
+      ca: 0, rq: 99, part: 0, jg: 0, cxSeq: -1, fuq: '', fum: 0, pd: [0, 0, 0, 0, 0, 0, 0, 0], mseq: 0, cs: 0, lastSeq: -1, acq: 0, rcn: 0, sshift: 0, drs: 0, pok: 0, roll: 0, hard: 0, arm: 0, armHit: 0, drb: 0, mod: 0, ac: '', aci: 0, crum: 0, pp: 0, plock: 0, half: 0, hm: 0, hmc: 0, fr: 0, hmE: 0, dj: 0, wj: 0, aa: 0 };
   }
   function newMatch(cfg) {
     const s = { frame: 0, slow: 0, phase: 'intro', pt: 0, kx: 0, round: 1, time: 99 * 60, freeze: 0, frzWho: 0, proj: [], ev: [], winner: -1, rw: -1, koType: '', cfg: { training: !!cfg.training, chars: cfg.chars.slice(), rounds: cfg.rounds || 2 }, p: [] };
@@ -251,7 +251,7 @@ const SIM = (function () {
     else if (m.od) s.ev.push({ t: 'ex', who: i });
     else if (m.di) s.ev.push({ t: 'di', who: i });
     if (m.sp || m.sup) s.ev.push({ t: 'special', who: i, k: key });
-    p.age = [99, 99, 99, 99, 99, 99, 99];
+    p.age = [99, 99, 99, 99, 99, 99, 99, 99];
     return true;
   }
   function pick(b, h, v, as) {
@@ -261,9 +261,9 @@ const SIM = (function () {
   }
   function tryAttack(s, p, o, inp, i) {
     const C = CH[p.ch], A = p.age, air = p.y > 0;
-    const lt = A[0] <= BUF, md = A[1] <= BUF, hv = A[2] <= BUF, spb = A[3] <= BUF, dib = A[5] <= BUF;
+    const lt = A[0] <= BUF, md = A[1] <= BUF, hv = A[2] <= BUF, spb = A[3] <= BUF, dib = A[5] <= BUF, hmb = A[7] <= BUF;
     const m = cur(p);
-    if (!(lt || md || hv || spb || dib) && !(m && m.tc && p.contact)) return false;
+    if (!(lt || md || hv || spb || dib || hmb) && !(m && m.tc && p.contact)) return false;
     let canSp = true, canSu = true, chain = null, kara = false, canN = true, ok = false;
     if (m) {
       ok = p.contact && p.mf <= m.lastAct + 10;
@@ -286,6 +286,11 @@ const SIM = (function () {
       if (lv && mod) return false;
     }
     if (dib && !air && (canN || kara) && !p.bo && p.dr > 0) { spend(s, p, i, BAR, 120); return start(s, p, 'DI', i); }
+    // the homing button: Slipstream from anywhere, whatever direction is held. Assist makes it the Overdrive.
+    if (hmb && !p.hm && canSp && !(m && m.sp && !kara)) {
+      const od = (inp & 256) && !p.bo && p.dr > 0; if (od) spend(s, p, i, 2 * BAR, 120);
+      return start(s, p, (air ? 'AHOME' : 'HOME') + (od ? '_OD' : ''), i, { mod: 1 });
+    }
     if (canSp && !(m && m.sp && !kara)) {
       const nAtk = ((inp & 16) ? 1 : 0) + ((inp & 32) ? 1 : 0) + ((inp & 64) ? 1 : 0), canOD = !p.bo && p.dr > 0;
       if (lt || md || hv) for (const sp of C.mo) {
@@ -351,7 +356,7 @@ const SIM = (function () {
   function runHeld(p, inp) { return p.rq <= BUF; }
   function enterParry(s, p, i) { if (!spend(s, p, i, BAR / 2, 240)) return false; p.st = 'parry'; p.sf = 0; p.mv = ''; p.vx = 0; p.plock = 0; p.pok = 0; p.arm = 0; s.ev.push({ t: 'parryOn', who: i }); return true; }
   function enterRush(s, p, o, i, fromCancel) { p.st = 'drush'; p.sf = 0; p.rcn = fromCancel ? 1 : 0; p.mv = ''; p.vx = 0; p.d66 = 99; p.arm = 0; p.drT = fromCancel ? 120 : 240; if (fromCancel && o.combo > 0) o.drs = 1; s.freeze = fromCancel ? 9 : 10; s.frzWho = i; s.ev.push({ t: 'rush', who: i }); }
-  function enterRun(s, p, i, keepAuto) { p.st = 'run'; p.rq = 99; p.sf = 0; p.mv = ''; p.arm = 0; p.age = [99, 99, 99, 99, 99, 99, 99]; if (!keepAuto) { p.ac = ''; p.aci = 0; p.acq = 0; } s.ev.push({ t: 'run', who: i }); }
+  function enterRun(s, p, i, keepAuto) { p.st = 'run'; p.rq = 99; p.sf = 0; p.mv = ''; p.arm = 0; p.age = [99, 99, 99, 99, 99, 99, 99, 99]; if (!keepAuto) { p.ac = ''; p.aci = 0; p.acq = 0; } s.ev.push({ t: 'run', who: i }); }
   function neutral(s, p, o, inp, i) {
     p.st = 'idle'; p.mv = '';
     if (o.x > p.x) p.face = 1; else if (o.x < p.x) p.face = -1;
@@ -435,9 +440,10 @@ const SIM = (function () {
         if (f >= 9 && p.age[2] <= BUF) k = R.H;
         else if (f >= 11) {
           if (p.age[3] <= BUF) { const h = hdir(p.pd[3], p.face), v = vdir(p.pd[3]); k = R[v < 0 ? 'S2' : h < 0 ? 'S4' : h > 0 ? 'S6' : 'S5']; if (k) { start(s, p, k, i, { mod: 1 }); atkFrame(s, p, o, C.mv[k], i); break; } }
+          else if (p.age[7] <= BUF && !p.hm) { const od = (inp & 256) && !p.bo && p.dr > 0; if (od) spend(s, p, i, 2 * BAR, 120); k = od ? 'HOME_OD' : 'HOME'; start(s, p, k, i, { mod: 1 }); atkFrame(s, p, o, C.mv[k], i); break; }
           else if (p.age[0] <= BUF || p.age[1] <= BUF) { if (motionOK(p, '623')) k = R.m623; else if (motionOK(p, '214')) k = R.m214; else k = p.age[1] <= BUF ? R.M : R.L; }
         }
-        if (k === 'STOP') { p.st = 'land'; p.sf = 0; p.rec = 16; p.vx = 0; p.pv = p.face * 180; p.age = [99, 99, 99, 99, 99, 99, 99]; break; }
+        if (k === 'STOP') { p.st = 'land'; p.sf = 0; p.rec = 16; p.vx = 0; p.pv = p.face * 180; p.age = [99, 99, 99, 99, 99, 99, 99, 99]; break; }
         if (k) { start(s, p, k, i); atkFrame(s, p, o, C.mv[k], i); break; }
         if (f >= 45) { toIdle(p); neutral(s, p, o, inp, i); }
         break;
@@ -458,10 +464,10 @@ const SIM = (function () {
           if ((inp & 1) && !(pv & 1) && p.contact && !p.dj && !m.home) { p.dj = 1; p.vy = 800; p.vx = hx * tr(C.jx * 8 / 10); p.jg = 1; p.st = 'jump'; p.mv = ''; p.sf = 0; s.ev.push({ t: 'jump', who: i, dj: 1 }); break; } }
         if (m.t < 900 && p.mf >= m.t + (m.wr && !p.contact ? m.wr : 0)) { toIdle(p); neutral(s, p, o, inp, i); break; }
         autoPress(p, inp); if (p.acq && autoStep(s, p, o, i)) { if (p.st === 'atk') atkFrame(s, p, o, C.mv[p.mv], i); break; }
-        if (m.fu && p.mf <= m.fu.w[1]) { if (!p.fuq && p.mf >= m.su - 1) { const r = fuKey(p, m, inp); if (r && r.k) { p.fuq = r.k; p.fum = r.mod; p.age = [99, 99, 99, 99, 99, 99, 99]; } } if (p.fuq && p.mf >= m.fu.w[0]) { const k = p.fuq; start(s, p, k, i, { mod: p.fum, auto: 1 }); atkFrame(s, p, o, C.mv[k], i); break; } }
+        if (m.fu && p.mf <= m.fu.w[1]) { if (!p.fuq && p.mf >= m.su - 1) { const r = fuKey(p, m, inp); if (r && r.k) { p.fuq = r.k; p.fum = r.mod; p.age = [99, 99, 99, 99, 99, 99, 99, 99]; } } if (p.fuq && p.mf >= m.fu.w[0]) { const k = p.fuq; start(s, p, k, i, { mod: p.fum, auto: 1 }); atkFrame(s, p, o, C.mv[k], i); break; } }
         const live = p.contact && p.mf <= m.lastAct + 10, kara = !m.sp && !m.sup && !m.thr && !m.di && p.mf <= 2 && !p.contact, ground = p.y <= 0;
         if (ground && ((live && (m.can & C_SP) && !m.sp) || kara) && runHeld(p, inp)) { enterRun(s, p, i); break; }
-        if (live && (m.can & C_SP) && !m.sp && ground && !p.bo && p.dr > 0 && (p.d66 <= BUF || p.age[6] <= BUF)) { spend(s, p, i, 3 * BAR, 120); p.age = [99, 99, 99, 99, 99, 99, 99]; enterRush(s, p, o, i, true); break; }
+        if (live && (m.can & C_SP) && !m.sp && ground && !p.bo && p.dr > 0 && (p.d66 <= BUF || p.age[6] <= BUF)) { spend(s, p, i, 3 * BAR, 120); p.age = [99, 99, 99, 99, 99, 99, 99, 99]; enterRush(s, p, o, i, true); break; }
         if (kara && ground && parryHeld(inp) && enterParry(s, p, i)) break;
         if (!tryAttack(s, p, o, inp, i)) atkFrame(s, p, o, m, i); else atkFrame(s, p, o, C.mv[p.mv], i);
         break;
@@ -739,7 +745,7 @@ const SIM = (function () {
     const live = s.phase === 'fight';
     for (let i = 0; i < 2; i++) {
       const p = s.p[i]; let inp = live || (s.phase === 'ko' && s.rw === i && s.koType !== 'time') ? raw[i] : 0;
-      if (s.phase === 'ko' && p.st === 'win' && (inp & 0x7F0)) { p.st = 'idle'; p.sub = 'stand'; p.sf = 0; }
+      if (s.phase === 'ko' && p.st === 'win' && (inp & 0xFF0)) { p.st = 'idle'; p.sub = 'stand'; p.sf = 0; }
       if ((inp & 12) === 12) inp &= ~12; if ((inp & 3) === 3) inp &= ~3;
       raw[i] = inp;
       const frozen = s.freeze > 0 || p.hs > 0;

@@ -40,7 +40,7 @@ body.mob #touch .knob{position:absolute;border-radius:50%;background:rgba(244,24
 <div class="bar" id="linkbar" hidden><span>Invite link</span><input id="link" readonly aria-label="Invite link"><button id="copy" type="button">COPY</button></div>
 <div class="bar" id="voicebar" hidden><button id="voice" type="button">TURN ON VOICE CHAT</button><span id="voicest"></span></div>
 <div id="touch" aria-hidden="true"></div>
-<div class="bar" id="keys"><span><b>Move</b> <kbd>W A S D</kbd></span><span><b>Light Medium Heavy</b> <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd></span><span><b>Special</b> <kbd>I</kbd></span><span><b>Assist</b> <kbd>Space</kbd></span><span><b>Parry</b> <kbd>U</kbd></span><span><b>Impact</b> <kbd>O</kbd></span><span><b>Throw</b> <kbd>H</kbd></span><span><b>Start</b> <kbd>Enter</kbd></span><span>Pad or fight stick: press any button</span><button id="fs" type="button">FULLSCREEN</button></div>
+<div class="bar" id="keys"><span><b>Move</b> <kbd>W A S D</kbd></span><span><b>Light Medium Heavy</b> <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd></span><span><b>Special</b> <kbd>I</kbd></span><span><b>Assist</b> <kbd>Space</kbd></span><span><b>Parry</b> <kbd>U</kbd></span><span><b>Impact</b> <kbd>O</kbd></span><span><b>Homing</b> <kbd>H</kbd></span><span><b>Grab</b> <kbd>J</kbd>+<kbd>K</kbd></span><span><b>Start</b> <kbd>Enter</kbd></span><span>Pad or fight stick: press any button</span><button id="fs" type="button">FULLSCREEN</button></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 (function(){const v=document.getElementById('view'),b=document.getElementById('stagebox'),c=document.getElementById('cab');
@@ -48,7 +48,7 @@ function fit(){const fs=document.fullscreenElement===c,W=fs?innerWidth:b.clientW
 addEventListener('resize',fit);document.addEventListener('fullscreenchange',fit);fit();setTimeout(fit,50);})();
 </script>
 <script>
-window.GK_BUILD='1111-0258 UTC';
+window.GK_BUILD='1111-0326 UTC';
 // ===================================================================
 // GEKITOTSU deterministic simulation core. Integer math only, no RNG,
 // no wall-clock, no floats. state = step(state, inputP1, inputP2).
@@ -59,8 +59,8 @@ window.GK_BUILD='1111-0258 UTC';
 const SIM = (function () {
   'use strict';
   const F = 100;
-  const BT = { U: 1, D: 2, L: 4, R: 8, LT: 16, MD: 32, HV: 64, SP: 128, AS: 256, DI: 512, PA: 1024 };
-  const MASK = 2047, NB = 7;
+  const BT = { U: 1, D: 2, L: 4, R: 8, LT: 16, MD: 32, HV: 64, SP: 128, AS: 256, DI: 512, PA: 1024, HM: 2048 };
+  const MASK = 4095, NB = 8;
   const STAGE = 375 * F, SEP = 345 * F, PW = 17 * F, HS = 0.7, JG = 58;
   const GRAV = 62, BUF = 5, NBUF = 40, DMAX = 6000, BAR = 1000;
   const INTRO = 120, KOTIME = 290, KD = 26, GETUP = 22;
@@ -208,12 +208,12 @@ const SIM = (function () {
       run: { L: 'STOP', M: 'TK', H: 'FSK', S6: 'QSRK', S5: 'QSRK', S2: 'QTAT', S4: 'QDL', m623: 'QSRK', m214: 'QTAT' },
       auto: { L: [['5LK'], ['JIN_L'], ['KAZE']], LC: [['2LK'], ['5LP'], ['JIN_L'], ['KAZE']], M: [['5MP'], ['CB2'], ['RUN'], ['QDL'], ['SA2', 'SRK_H']], H: [['5HP'], ['JIN_OD', 'JIN_M'], ['KAZE_OD', 'KAZE'], ['KASAI'], ['SA3']] },
       cmd: [['Hadoken', 'SP', 'Heavy fireball. Assist+SP is the two-hit Overdrive.'], ['Shoryuken', '→ + SP   (623 + L/M/H)', 'Anti-air invincible. Only the Overdrive is fully invincible.'],
-        ['Slipstream', '← + SP   (air: SP)', 'Homes in. Hit = free air combo. Blocked or missed = long helpless fall.'], ['Jinrai Kick', '↓ + SP   (236 + L/M/H)', 'Then ←SP low, ↓SP overhead, SP knockdown kick.'],
+        ['Slipstream', 'Homing button   (or ← + SP, air: SP)', 'Homes in. Hit = free air combo. Blocked or missed = long helpless fall.'], ['Jinrai Kick', '↓ + SP   (236 + L/M/H)', 'Then ←SP low, ↓SP overhead, SP knockdown kick.'],
         ['Tatsumaki Senpu-kyaku', '214 + L/M/H   (air: → + SP)', 'Motion only on the ground. Air: forward jump, → + SP.'], ['Quick Dash', 'M + H', 'Run. L stops, M overhead, H step kick, SP specials (←SP Dragonlash).'],
         ['Super Arts', 'H + SP   ← H + SP   ↓ H + SP', 'Dragonlash Flame, Shippu Jinrai-kyaku, Shinryu Reppa.'], ['Critical Art', '↓ H + SP   at 25% health or less', 'Abyssal Tide replaces Level 3 when nearly dead. More damage, ends in a slam.']],
-      cmd2: [['Air Normals', '↑ L/M/H   ↓ M/H   ← L/M/H', 'Rising Lash launches. Falling Heel spikes. Back Lash hits behind.'], ['Air Specials', 'SP   ↑ SP   ↓ SP   ← SP', 'Slipstream, Riptide, Falling Star (spike), Undertow (behind).'],
+      cmd2: [['Air Normals', '↑ L/M/H   ↓ M/H   ← L/M/H', 'Rising Lash launches. Falling Heel spikes. Back Lash hits behind.'], ['Air Specials', 'Homing / SP   ↑ SP   ↓ SP   ← SP', 'Slipstream, Riptide, Falling Star (spike), Undertow (behind).'],
         ['Air Movement', '↑ again   ↑ at the wall   ← →', 'Double jump, wall jump, drift. Hold ↓ to fall fast.'], ['Air Cancels', 'after an air normal hits', '↑ jump-cancels it; SP cancels it into an air special.'],
-        ['Juggle Loop', 'launch, ← + SP, air combo, ↓ + SP', 'Slipstream pops them up twice per combo; the spike bounces them once.'], ['Grab', 'L + M   then any attack button', 'Holds them. Pummel up to five times before throwing.'],
+        ['Juggle Loop', 'launch, Homing, air combo, ↓ + SP', 'Slipstream pops them up twice per combo; the spike bounces them once.'], ['Grab', 'L + M   then any attack button', 'Holds them. Pummel up to five times before throwing.'],
         ['Throws', '→   ←   ↑   ↓   while holding', 'Forward, back, straight up (juggle), slam into a ground bounce.'], ['Assist Combos', 'hold Assist, tap L / M / H', 'L x3, M x5 (ends in SA2), H x5 (ends in SA3, or the Critical Art).']]
     };
   }
@@ -224,9 +224,9 @@ const SIM = (function () {
   function newFighter(ch, i) {
     const b = []; for (let k = 0; k < NBUF; k++) b.push(0);
     return { ch: ch, x: (i ? 80 : -80) * F, y: 0, vx: 0, vy: 0, pv: 0, face: i ? -1 : 1, hp: CH[ch].hp, sa: 0, dr: DMAX, bo: 0, drT: 0, st: 'idle', sub: 'stand', sf: 0, subf: 0,
-      mv: '', mf: 0, hitMask: 0, contact: 0, hitOK: 0, hs: 0, stun: 0, buf: b, prev: 0, age: [99, 99, 99, 99, 99, 99, 99], d66: 99, d44: 99, combo: 0, comboDmg: 0, jug: 0,
+      mv: '', mf: 0, hitMask: 0, contact: 0, hitOK: 0, hs: 0, stun: 0, buf: b, prev: 0, age: [99, 99, 99, 99, 99, 99, 99, 99], d66: 99, d44: 99, combo: 0, comboDmg: 0, jug: 0,
       wbUsed: 0, gbUsed: 0, wbPend: 0, gbPend: 0, jd: 0, rec: 0, cb: 0, hitHi: 1, tinv: 0, wins: 0, back: 0, red: CH[ch].hp, redT: 0, air2: 0, noTech: 0,
-      ca: 0, rq: 99, part: 0, jg: 0, cxSeq: -1, fuq: '', fum: 0, pd: [0, 0, 0, 0, 0, 0, 0], mseq: 0, cs: 0, lastSeq: -1, acq: 0, rcn: 0, sshift: 0, drs: 0, pok: 0, roll: 0, hard: 0, arm: 0, armHit: 0, drb: 0, mod: 0, ac: '', aci: 0, crum: 0, pp: 0, plock: 0, half: 0, hm: 0, hmc: 0, fr: 0, hmE: 0, dj: 0, wj: 0, aa: 0 };
+      ca: 0, rq: 99, part: 0, jg: 0, cxSeq: -1, fuq: '', fum: 0, pd: [0, 0, 0, 0, 0, 0, 0, 0], mseq: 0, cs: 0, lastSeq: -1, acq: 0, rcn: 0, sshift: 0, drs: 0, pok: 0, roll: 0, hard: 0, arm: 0, armHit: 0, drb: 0, mod: 0, ac: '', aci: 0, crum: 0, pp: 0, plock: 0, half: 0, hm: 0, hmc: 0, fr: 0, hmE: 0, dj: 0, wj: 0, aa: 0 };
   }
   function newMatch(cfg) {
     const s = { frame: 0, slow: 0, phase: 'intro', pt: 0, kx: 0, round: 1, time: 99 * 60, freeze: 0, frzWho: 0, proj: [], ev: [], winner: -1, rw: -1, koType: '', cfg: { training: !!cfg.training, chars: cfg.chars.slice(), rounds: cfg.rounds || 2 }, p: [] };
@@ -302,7 +302,7 @@ const SIM = (function () {
     else if (m.od) s.ev.push({ t: 'ex', who: i });
     else if (m.di) s.ev.push({ t: 'di', who: i });
     if (m.sp || m.sup) s.ev.push({ t: 'special', who: i, k: key });
-    p.age = [99, 99, 99, 99, 99, 99, 99];
+    p.age = [99, 99, 99, 99, 99, 99, 99, 99];
     return true;
   }
   function pick(b, h, v, as) {
@@ -312,9 +312,9 @@ const SIM = (function () {
   }
   function tryAttack(s, p, o, inp, i) {
     const C = CH[p.ch], A = p.age, air = p.y > 0;
-    const lt = A[0] <= BUF, md = A[1] <= BUF, hv = A[2] <= BUF, spb = A[3] <= BUF, dib = A[5] <= BUF;
+    const lt = A[0] <= BUF, md = A[1] <= BUF, hv = A[2] <= BUF, spb = A[3] <= BUF, dib = A[5] <= BUF, hmb = A[7] <= BUF;
     const m = cur(p);
-    if (!(lt || md || hv || spb || dib) && !(m && m.tc && p.contact)) return false;
+    if (!(lt || md || hv || spb || dib || hmb) && !(m && m.tc && p.contact)) return false;
     let canSp = true, canSu = true, chain = null, kara = false, canN = true, ok = false;
     if (m) {
       ok = p.contact && p.mf <= m.lastAct + 10;
@@ -337,6 +337,11 @@ const SIM = (function () {
       if (lv && mod) return false;
     }
     if (dib && !air && (canN || kara) && !p.bo && p.dr > 0) { spend(s, p, i, BAR, 120); return start(s, p, 'DI', i); }
+    // the homing button: Slipstream from anywhere, whatever direction is held. Assist makes it the Overdrive.
+    if (hmb && !p.hm && canSp && !(m && m.sp && !kara)) {
+      const od = (inp & 256) && !p.bo && p.dr > 0; if (od) spend(s, p, i, 2 * BAR, 120);
+      return start(s, p, (air ? 'AHOME' : 'HOME') + (od ? '_OD' : ''), i, { mod: 1 });
+    }
     if (canSp && !(m && m.sp && !kara)) {
       const nAtk = ((inp & 16) ? 1 : 0) + ((inp & 32) ? 1 : 0) + ((inp & 64) ? 1 : 0), canOD = !p.bo && p.dr > 0;
       if (lt || md || hv) for (const sp of C.mo) {
@@ -402,7 +407,7 @@ const SIM = (function () {
   function runHeld(p, inp) { return p.rq <= BUF; }
   function enterParry(s, p, i) { if (!spend(s, p, i, BAR / 2, 240)) return false; p.st = 'parry'; p.sf = 0; p.mv = ''; p.vx = 0; p.plock = 0; p.pok = 0; p.arm = 0; s.ev.push({ t: 'parryOn', who: i }); return true; }
   function enterRush(s, p, o, i, fromCancel) { p.st = 'drush'; p.sf = 0; p.rcn = fromCancel ? 1 : 0; p.mv = ''; p.vx = 0; p.d66 = 99; p.arm = 0; p.drT = fromCancel ? 120 : 240; if (fromCancel && o.combo > 0) o.drs = 1; s.freeze = fromCancel ? 9 : 10; s.frzWho = i; s.ev.push({ t: 'rush', who: i }); }
-  function enterRun(s, p, i, keepAuto) { p.st = 'run'; p.rq = 99; p.sf = 0; p.mv = ''; p.arm = 0; p.age = [99, 99, 99, 99, 99, 99, 99]; if (!keepAuto) { p.ac = ''; p.aci = 0; p.acq = 0; } s.ev.push({ t: 'run', who: i }); }
+  function enterRun(s, p, i, keepAuto) { p.st = 'run'; p.rq = 99; p.sf = 0; p.mv = ''; p.arm = 0; p.age = [99, 99, 99, 99, 99, 99, 99, 99]; if (!keepAuto) { p.ac = ''; p.aci = 0; p.acq = 0; } s.ev.push({ t: 'run', who: i }); }
   function neutral(s, p, o, inp, i) {
     p.st = 'idle'; p.mv = '';
     if (o.x > p.x) p.face = 1; else if (o.x < p.x) p.face = -1;
@@ -486,9 +491,10 @@ const SIM = (function () {
         if (f >= 9 && p.age[2] <= BUF) k = R.H;
         else if (f >= 11) {
           if (p.age[3] <= BUF) { const h = hdir(p.pd[3], p.face), v = vdir(p.pd[3]); k = R[v < 0 ? 'S2' : h < 0 ? 'S4' : h > 0 ? 'S6' : 'S5']; if (k) { start(s, p, k, i, { mod: 1 }); atkFrame(s, p, o, C.mv[k], i); break; } }
+          else if (p.age[7] <= BUF && !p.hm) { const od = (inp & 256) && !p.bo && p.dr > 0; if (od) spend(s, p, i, 2 * BAR, 120); k = od ? 'HOME_OD' : 'HOME'; start(s, p, k, i, { mod: 1 }); atkFrame(s, p, o, C.mv[k], i); break; }
           else if (p.age[0] <= BUF || p.age[1] <= BUF) { if (motionOK(p, '623')) k = R.m623; else if (motionOK(p, '214')) k = R.m214; else k = p.age[1] <= BUF ? R.M : R.L; }
         }
-        if (k === 'STOP') { p.st = 'land'; p.sf = 0; p.rec = 16; p.vx = 0; p.pv = p.face * 180; p.age = [99, 99, 99, 99, 99, 99, 99]; break; }
+        if (k === 'STOP') { p.st = 'land'; p.sf = 0; p.rec = 16; p.vx = 0; p.pv = p.face * 180; p.age = [99, 99, 99, 99, 99, 99, 99, 99]; break; }
         if (k) { start(s, p, k, i); atkFrame(s, p, o, C.mv[k], i); break; }
         if (f >= 45) { toIdle(p); neutral(s, p, o, inp, i); }
         break;
@@ -509,10 +515,10 @@ const SIM = (function () {
           if ((inp & 1) && !(pv & 1) && p.contact && !p.dj && !m.home) { p.dj = 1; p.vy = 800; p.vx = hx * tr(C.jx * 8 / 10); p.jg = 1; p.st = 'jump'; p.mv = ''; p.sf = 0; s.ev.push({ t: 'jump', who: i, dj: 1 }); break; } }
         if (m.t < 900 && p.mf >= m.t + (m.wr && !p.contact ? m.wr : 0)) { toIdle(p); neutral(s, p, o, inp, i); break; }
         autoPress(p, inp); if (p.acq && autoStep(s, p, o, i)) { if (p.st === 'atk') atkFrame(s, p, o, C.mv[p.mv], i); break; }
-        if (m.fu && p.mf <= m.fu.w[1]) { if (!p.fuq && p.mf >= m.su - 1) { const r = fuKey(p, m, inp); if (r && r.k) { p.fuq = r.k; p.fum = r.mod; p.age = [99, 99, 99, 99, 99, 99, 99]; } } if (p.fuq && p.mf >= m.fu.w[0]) { const k = p.fuq; start(s, p, k, i, { mod: p.fum, auto: 1 }); atkFrame(s, p, o, C.mv[k], i); break; } }
+        if (m.fu && p.mf <= m.fu.w[1]) { if (!p.fuq && p.mf >= m.su - 1) { const r = fuKey(p, m, inp); if (r && r.k) { p.fuq = r.k; p.fum = r.mod; p.age = [99, 99, 99, 99, 99, 99, 99, 99]; } } if (p.fuq && p.mf >= m.fu.w[0]) { const k = p.fuq; start(s, p, k, i, { mod: p.fum, auto: 1 }); atkFrame(s, p, o, C.mv[k], i); break; } }
         const live = p.contact && p.mf <= m.lastAct + 10, kara = !m.sp && !m.sup && !m.thr && !m.di && p.mf <= 2 && !p.contact, ground = p.y <= 0;
         if (ground && ((live && (m.can & C_SP) && !m.sp) || kara) && runHeld(p, inp)) { enterRun(s, p, i); break; }
-        if (live && (m.can & C_SP) && !m.sp && ground && !p.bo && p.dr > 0 && (p.d66 <= BUF || p.age[6] <= BUF)) { spend(s, p, i, 3 * BAR, 120); p.age = [99, 99, 99, 99, 99, 99, 99]; enterRush(s, p, o, i, true); break; }
+        if (live && (m.can & C_SP) && !m.sp && ground && !p.bo && p.dr > 0 && (p.d66 <= BUF || p.age[6] <= BUF)) { spend(s, p, i, 3 * BAR, 120); p.age = [99, 99, 99, 99, 99, 99, 99, 99]; enterRush(s, p, o, i, true); break; }
         if (kara && ground && parryHeld(inp) && enterParry(s, p, i)) break;
         if (!tryAttack(s, p, o, inp, i)) atkFrame(s, p, o, m, i); else atkFrame(s, p, o, C.mv[p.mv], i);
         break;
@@ -790,7 +796,7 @@ const SIM = (function () {
     const live = s.phase === 'fight';
     for (let i = 0; i < 2; i++) {
       const p = s.p[i]; let inp = live || (s.phase === 'ko' && s.rw === i && s.koType !== 'time') ? raw[i] : 0;
-      if (s.phase === 'ko' && p.st === 'win' && (inp & 0x7F0)) { p.st = 'idle'; p.sub = 'stand'; p.sf = 0; }
+      if (s.phase === 'ko' && p.st === 'win' && (inp & 0xFF0)) { p.st = 'idle'; p.sub = 'stand'; p.sf = 0; }
       if ((inp & 12) === 12) inp &= ~12; if ((inp & 3) === 3) inp &= ~3;
       raw[i] = inp;
       const frozen = s.freeze > 0 || p.hs > 0;
@@ -1224,7 +1230,7 @@ const R = (function () {
     const sparks = []; for (let i = 0; i < NP; i++) { sparks.push({ life: 0, vx: 0, vy: 0 }); pp[i * 3 + 1] = -99; }
     const allM = Object.values(mats).concat(Object.values(lit), [inkN]); for (const m of allM) m.userData.o = m.opacity;
     G.traverse(o => o.layers.enable(1)); for (const t of trails) for (const sg of t.segs) sg.traverse(o => o.layers.enable(1));
-    return { G, M, R, T, b, mats, lit, lk, allM, trails, drops, pts, pp, sparks, seed: ch * 977 + 13, acc: lk.acc, emit: [b.head, b.chest, b.fiL, b.fiR, b.ftL, b.ftR, b.pel] };
+    return { G, M, R, T, b, mats, lit, lk, ink: inkN, pm, ch, allM, trails, drops, pts, pp, sparks, seed: ch * 977 + 13, acc: lk.acc, emit: [b.head, b.chest, b.fiL, b.fiR, b.ftL, b.ftR, b.pel] };
   }
   const _tv = new THREE.Vector3(), _tr = new THREE.Vector3();
   if (typeof window !== 'undefined') window.__rigs = () => rigs;
@@ -1271,7 +1277,7 @@ const R = (function () {
   }
   function applyPose(rig, fp, face, flashK, tint) {
     if (rig.sk) return applyPoseM(rig, fp, face, flashK, tint);
-    const lo = fp.loose == null ? 1 : fp.loose, s1 = Math.sin(tick * 0.052 + rig.seed), s2 = Math.sin(tick * 0.037 + rig.seed * 1.7), s3 = Math.sin(tick * 0.083 + rig.seed * 0.6), bk = rig.boK = (rig.boK || 0) + ((rig.boT || 0) - (rig.boK || 0)) * 0.06, vl = Math.max(-6, Math.min(6, (rig.vel || 0) * face)), po0 = fp.po,
+    const lo = fp.loose == null ? 1 : fp.loose, s1 = Math.sin(tick * 0.052 + rig.seed), s2 = Math.sin(tick * 0.037 + rig.seed * 1.7), s3 = Math.sin(tick * 0.083 + rig.seed * 0.6), bk = rig.boK = (rig.boK || 0) + ((rig.boT || 0) - (rig.boK || 0)) * 0.14, vl = Math.max(-6, Math.min(6, (rig.vel || 0) * face)), po0 = fp.po,
       po = Object.assign({}, po0, { hip: [po0.hip[0] + s1 * 3.2 * lo, po0.hip[1] + s3 * 1.3 * lo - bk * 3, 0], ln: po0.ln + s2 * 6 * lo + bk * 9, ln2: po0.ln2 - s2 * 8 * lo + s3 * 3 + bk * 12, hd: po0.hd + s1 * 9 * lo - bk * 12, rot: po0.rot + s2 * 2.2 * lo + vl * 1.4, hL: [po0.hL[0] + s2 * 3.5 * lo, po0.hL[1] + s3 * 3 * lo - bk * 5, po0.hL[2]], hR: [po0.hR[0] - s1 * 3.5 * lo, po0.hR[1] + s2 * 3 * lo - bk * 5, po0.hR[2]] }), b = rig.b, hip = [po.hip[0], po.hip[1], 0];
     const a1 = po.ln * D, a2 = po.ln2 * D, cb = [hip[0] + Math.sin(a1) * SP1, hip[1] + Math.cos(a1) * SP1, 0], nk = [cb[0] + Math.sin(a2) * SP2, cb[1] + Math.cos(a2) * SP2, 0];
     const tw = po.tw * D, pt = po.pt * D, cax = [Math.sin(tw), 0, Math.cos(tw)], pax = [Math.sin(pt), 0, Math.cos(pt)], mid = [(cax[0] + pax[0]) / 2, 0, (cax[2] + pax[2]) / 2];
@@ -1306,7 +1312,16 @@ const R = (function () {
       const a0 = [l.an[0], l.an[1] - 0.4, l.an[2]]; place(b['ft' + n], sub(a0), sub([a0[0] + tx, a0[1] + ty, a0[2] + tz]), 0, [0, 0, 1], -3);
     }
     rig.R.position.set(hip[0], hip[1], 0); rig.R.rotation.set(0, (po.yaw + fp.yaw) * D, -po.rot * D); rig.M.scale.x = face;
-    { const sq = 1 + 0.035 * s3 * lo; rig.R.scale.set(1 / sq + Math.abs(vl) * 0.02, sq - Math.abs(vl) * 0.012, 1); if (rig.lk) { rig.mats.body.color.setHex(rig.lk.body).lerp(_gc, bk * 0.6); rig.lit.acc.color.setHex(rig.lk.acc).lerp(_gc, bk * 0.85); } }
+    { const sq = 1 + 0.035 * s3 * lo; rig.R.scale.set(1 / sq + Math.abs(vl) * 0.02, sq - Math.abs(vl) * 0.012, 1); if (rig.lk) {
+        // the body says what state it is in: parrying it becomes its own accent colour outright (Ret all blue, Ard all pink),
+        // flying a Slipstream it goes pale and bright, burnt out every colour drains to ash and the accents die
+        const L = rig.lk, Mt = rig.mats, Lt = rig.lit, set = (m, hex) => { if (m) m.color.setHex(hex); };
+        if (rig.mode === 'parry') { const pc = rig.ch ? 0xff2f96 : 0x1f7dff; set(Mt.body, pc); set(Mt.body2, pc); set(Lt.acc, 0xffffff); set(Lt.eye, 0xffffff); set(rig.ink, L.acc2); set(rig.pm, pc); }
+        else if (rig.mode === 'home') { rig.ink.color.setHex(0xffffff); const hc = rig.ch ? 0xff78bc : 0x58aeff; set(Mt.body, hc); set(Mt.body2, hc); set(Lt.acc, 0xffffff); set(Lt.eye, 0xffffff); set(rig.pm, hc); }
+        else { const fk = bk > 0.5 && (tick % 53) < 2 ? 0.2 : 1, g = bk * 0.94 * fk, ash = rig.ch ? _gcB : _gcA;
+          Mt.body.color.setHex(L.body).lerp(ash, g); if (Mt.body2) Mt.body2.color.setHex(L.body2).lerp(_gcD, g); Lt.acc.color.setHex(L.acc).lerp(_gcD, Math.min(1, bk * fk)); if (Lt.eye) Lt.eye.color.setHex(L.eye).lerp(_gcD, bk * 0.7 * fk);
+          rig.ink.color.setHex(L.ink).lerp(rig.ch ? _gcA : _gcD, g); if (rig.pm) rig.pm.color.setHex(L.body).lerp(ash, g); }
+      } }
     for (const k in rig.mats) { const m = rig.mats[k]; m.emissive.setRGB(flashK + tint[0], flashK + tint[1], flashK + tint[2]); }
   }
 
@@ -1363,7 +1378,7 @@ const R = (function () {
   // One mood is always being blended toward. Which mood depends on the fight: the round, who is close to death, burnout, supers, the KO.
   // A stage only has to hand over its sky planes and floor glare; the lights, weather, wind, rays, mist and grade are shared by every stage.
   let ambL, keyL, rimL, sunL, projL, hitL = [], hitN = 0, WIND = -0.5, atm = null;
-  const _clip = [new THREE.Plane(new THREE.Vector3(0, -1, 0), 0)], _noclip = [], _gc = new THREE.Color(0x6a6e78);
+  const _clip = [new THREE.Plane(new THREE.Vector3(0, -1, 0), 0)], _noclip = [], _gc = new THREE.Color(0x6a6e78), _gcA = new THREE.Color(0x868a92), _gcB = new THREE.Color(0x3e4048), _gcD = new THREE.Color(0x2c2e34);
   const CSSA = ['#4aa8ff', '#ff4aa0'], CSSB = ['#ffffff', '#17121c'], CSSH = ['#eef4ff', '#ff5aa8'];
   const C3 = h => [(h >> 16 & 255) / 255, (h >> 8 & 255) / 255, (h & 255) / 255];
   const MOOD = {
@@ -1520,7 +1535,9 @@ const R = (function () {
         if (m && m.di) { const a = s.frame * 0.7; tint = [0.35 + 0.3 * Math.sin(a), 0.35 + 0.3 * Math.sin(a + 2.1), 0.35 + 0.3 * Math.sin(a + 4.2)]; }
         if (m && !m.isAir && m.hits[0] && m.hits[0].g === 'h' && p.mf < m.hits[0].s) { const k = 0.3 + 0.3 * Math.sin(s.frame * 1.2); tint = [k + 0.2, k * 0.4, 0]; }
         if (p.st === 'drush' || (p.st === 'atk' && p.drb)) tint = [0, 0.45, 0.18];
-        if (p.st === 'parry') { const k = 0.25 + 0.15 * Math.sin(s.frame * 0.8); tint = [0.05, k, k * 2]; }
+        r.mode = p.st === 'parry' ? 'parry' : m && m.home && !p.hmE && !(p.contact && !p.fr) ? 'home' : '';
+        if (r.mode === 'parry') { const a = ACC[p.ch], k = 0.16 + 0.12 * Math.sin(s.frame * 0.8); tint = [a[0] * k, a[1] * k, a[2] * k]; }
+        if (r.mode === 'home') { const a = ACC[p.ch], w = p.mf >= m.home[0] ? 0.04 + 0.05 * Math.sin(s.frame * 1.6) : 0, k = 0.06 + 0.1 * Math.min(1, p.mf / m.home[0]); tint = [a[0] * k + w, a[1] * k + w, a[2] * k + w]; }
         if (p.bo && (s.frame >> 3) & 1) tint = [tint[0] - 0.18, tint[1] - 0.18, tint[2] - 0.12];
         if (s.freeze > 0 && s.frzWho === i) tint = [0.5, 0.35, 0.1];
         applyPose(r, fp, p.face, fl, tint);
@@ -1530,7 +1547,9 @@ const R = (function () {
         { r.pt = r.pt == null ? 99 : r.pt + 1; r.boT = p.bo ? 1 : 0; const gx = p.x / F, vx0 = gx - (r.lx == null ? gx : r.lx); r.lx = gx; r.vel = (r.vel || 0) * 0.7 + vx0 * 0.3;
           if (m && m.home && p.mf >= m.home[0] && !p.contact && !p.hmE && p.hs <= 0) { fx.push({ k: 'echo', x: gx - vx0, y: p.y / F + 30, t: 0, c: CSSA[p.ch], c2: CSSB[p.ch] }); if (tick % 3 === 0) fx.push({ k: 'ripple', x: gx - vx0 * 2, y: p.y / F + 34, t: 0, c: CSSA[p.ch], r: 12 }); }
           if (Math.abs(vx0) > 2.2 && (tick & 1)) fx.push({ k: 'echo', x: gx - vx0 * 2, y: p.y / F + 34, t: 0, c: CSSB[p.ch], c2: CSSA[p.ch] });
-          if (p.st === 'parry' && tick % 6 === 0) fx.push({ k: 'ripple', x: gx + p.face * 8, y: p.y / F + 38, t: 0, c: CSSA[p.ch], r: 24 }); }
+          if (p.st === 'parry' && tick % 6 === 0) fx.push({ k: 'ripple', x: gx + p.face * 8, y: p.y / F + 38, t: 0, c: CSSA[p.ch], r: 30 });
+          if (p.st === 'parry' && tick % 3 === 0) fx.push({ k: 'echo', x: gx + (hsh(tick * 7 + i) - 0.5) * 16, y: p.y / F + 36, t: 0, c: CSSA[p.ch], c2: '#ffffff' });
+          if (p.bo && tick % 14 === 0 && p.st !== 'kd') fx.push({ k: 'ripple', x: gx + (hsh(tick + i * 3) - 0.5) * 20, y: p.y / F + 30 + hsh(tick * 3 + i) * 40, t: 0, c: '#8a8e98', r: 9 }); }
         shadows[i].visible = true; shadows[i].position.x = p.x / F; const sc = Math.max(0.45, 1 - p.y / F / 220); shadows[i].scale.set(sc * (p.st === 'kd' ? 1.8 : 1), sc, 1);
       }
       // projectiles
@@ -1693,14 +1712,23 @@ const R = (function () {
 // ===================================================================
 const INP = (function () {
   'use strict';
-  const B = SIM.BT, keys = {}, touch = { m: 0 }, ATK = 0x7f0;
-  const KB1 = { KeyW: B.U, KeyS: B.D, KeyA: B.L, KeyD: B.R, KeyJ: B.LT, KeyK: B.MD, KeyL: B.HV, KeyI: B.SP, Space: B.AS, ShiftLeft: B.AS, KeyU: B.PA, KeyO: B.DI, KeyH: B.LT | B.MD };
-  const KB2 = { ArrowUp: B.U, ArrowDown: B.D, ArrowLeft: B.L, ArrowRight: B.R, Numpad1: B.LT, Numpad2: B.MD, Numpad3: B.HV, Numpad5: B.SP, Numpad0: B.AS, Numpad4: B.PA, Numpad6: B.DI, NumpadAdd: B.LT | B.MD };
-  const ACTS = [['LT', B.LT, 'LIGHT'], ['MD', B.MD, 'MEDIUM'], ['HV', B.HV, 'HEAVY'], ['SP', B.SP, 'SPECIAL'], ['AS', B.AS, 'ASSIST'], ['PA', B.PA, 'DRIVE PARRY'], ['DI', B.DI, 'DRIVE IMPACT'], ['TH', B.LT | B.MD, 'THROW (LIGHT+MEDIUM)']];
-  const DEFPAD = { LT: 2, MD: 0, HV: 1, SP: 3, AS: 7, PA: 5, DI: 4, TH: 6 };
+  const B = SIM.BT, keys = {}, touch = { m: 0 }, ATK = 0xff0;
+  const KB1 = { KeyW: B.U, KeyS: B.D, KeyA: B.L, KeyD: B.R, KeyJ: B.LT, KeyK: B.MD, KeyL: B.HV, KeyI: B.SP, Space: B.AS, ShiftLeft: B.AS, KeyU: B.PA, KeyO: B.DI, KeyH: B.HM };
+  const KB2 = { ArrowUp: B.U, ArrowDown: B.D, ArrowLeft: B.L, ArrowRight: B.R, Numpad1: B.LT, Numpad2: B.MD, Numpad3: B.HV, Numpad5: B.SP, Numpad0: B.AS, Numpad4: B.PA, Numpad6: B.DI, NumpadAdd: B.HM };
+  const ACTS = [['LT', B.LT, 'LIGHT'], ['MD', B.MD, 'MEDIUM'], ['HV', B.HV, 'HEAVY'], ['SP', B.SP, 'SPECIAL'], ['AS', B.AS, 'ASSIST'], ['PA', B.PA, 'DRIVE PARRY'], ['DI', B.DI, 'DRIVE IMPACT'], ['HM', B.HM, 'HOMING (SLIPSTREAM)']];
+  // Triangle is the homing button. Special sits on L2, where the throw button used to be; a grab is Light + Medium.
+  const DEFPAD = { LT: 2, MD: 0, HV: 1, SP: 6, AS: 7, PA: 5, DI: 4, HM: 3 };
   let pad = Object.assign({}, DEFPAD);
-  try { const s = JSON.parse(localStorage.getItem('gk_pad2') || 'null'); if (s) pad = Object.assign(pad, s); } catch (e) { }
-  function savePad() { try { localStorage.setItem('gk_pad2', JSON.stringify(pad)); } catch (e) { } }
+  try {
+    const s3 = JSON.parse(localStorage.getItem('gk_pad3') || 'null'), s2 = JSON.parse(localStorage.getItem('gk_pad2') || 'null');
+    if (s3) pad = Object.assign(pad, s3);
+    else if (s2) {   // an older saved layout: Triangle becomes homing, whatever was on Triangle moves to the old throw button
+      const old = Object.assign({ LT: 2, MD: 0, HV: 1, SP: 3, AS: 7, PA: 5, DI: 4, TH: 6 }, s2);
+      for (const a of ACTS) if (a[0] !== 'HM') pad[a[0]] = old[a[0]] === 3 ? (old.TH === 3 ? -1 : old.TH) : old[a[0]];
+      pad.HM = 3;
+    }
+  } catch (e) { }
+  function savePad() { try { localStorage.setItem('gk_pad3', JSON.stringify(pad)); } catch (e) { } }
   addEventListener('keydown', e => { keys[e.code] = 1; if (KB1[e.code] || KB2[e.code] || e.code === 'Enter' || e.code === 'Backspace' || e.code === 'Tab') e.preventDefault(); });
   addEventListener('keyup', e => { keys[e.code] = 0; });
   addEventListener('blur', () => { for (const k in keys) keys[k] = 0; });
@@ -1821,7 +1849,7 @@ const AUD = (function () {
 // ===================================================================
 const AI = (function () {
   'use strict';
-  const B = SIM.BT, F = SIM.F, FW = 2048, BK = 4096;
+  const B = SIM.BT, F = SIM.F, FW = 8192, BK = 16384, HM = B.HM;
   const D = B.D, U = B.U, L = B.LT, M = B.MD, H = B.HV, SP = B.SP, AS = B.AS, DI = B.DI, PA = B.PA;
   function make(level) { return { q: [], level: level, hold: 0, cool: 0 }; }
   function seq(parts) { const o = []; for (const p of parts) for (let i = 0; i < (p[1] || 1); i++) o.push(p[0]); return o; }
@@ -1845,7 +1873,7 @@ const AI = (function () {
     // time until a launched opponent lands, and how long a Slipstream needs to reach them
     const tLand = o.y > 0 ? (o.vy + Math.sqrt(Math.max(0, o.vy * o.vy + 2 * 66 * o.y))) / 66 : 0, tHome = 15 + Math.hypot(o.x - p.x, o.y - p.y) / 840;
     const chase = o.st === 'ahit' && (o.hmc || 0) < 2 && !p.hm && tLand > tHome + 3;
-    if (grounded && om && om.proj && o.mf < 16 && dist > 130 && drive && lv >= 2 && r(33) < [0, 0, 22, 45][lv]) return push([[AS | BK | SP, 2], [AS, 3]]);   // through the fireball
+    if (grounded && om && om.proj && o.mf < 16 && dist > 130 && drive && lv >= 2 && r(33) < [0, 0, 22, 45][lv]) return push([[AS | HM, 2], [AS, 3]]);   // through the fireball
     const threat = (om && dist < 150 && o.mf <= om.lastAct + 1) || incoming;
     if (grounded && threat) {
       if (om && om.thr) { if (r(1) < lv * 25) return out(L | M); }
@@ -1862,14 +1890,14 @@ const AI = (function () {
         if (up && ax < 56 && dy < -6 && dy > -100 && r(22) < 35 + lv * 20) return out(lv >= 2 && r(23) < 50 ? D | SP : D | H);
         if (up && lv >= 3 && !behind && ax < 60 && dy > 10 && p.vy > 0 && r(24) < 12) return out(U | SP);
         if (behind && ax < 76 && Math.abs(dy) < 60 && r(25) < 45 + lv * 15) return out(lv >= 3 && ax > 30 && r(26) < 35 ? BK | SP : BK | M);
-        if (p.st === 'jump' && chase && (ax > 64 || Math.abs(dy) > 70) && r(32) < [0, 18, 45, 70][lv]) return out(SP);
+        if (p.st === 'jump' && chase && (ax > 64 || Math.abs(dy) > 70) && r(32) < [0, 18, 45, 70][lv]) return out(HM);
         if (p.st === 'jump' && lv >= 2 && !p.wj && p.y > 30 * F && Math.abs(p.x) > SIM.STAGE - 20 * F && r(27) < 8) return out(U);
         if (p.st === 'jump' && lv >= 2 && !p.dj && incoming && p.vy < 0 && r(28) < 25) return out(U);
         if (o.st === 'ahit' && p.st === 'jump') { if (p.vy < 100 && dist < 90 && r(4) < 60 + lv * 10) return out(H); return out(behind ? BK : FW); }
       }
       if (p.st === 'jump' && p.vy < 100 && dist < 90 && r(4) < 60 + lv * 10) return out(H); if (p.st === 'drush' && p.sf >= 10 && dist < 80) return push([[AS | M, 2], [AS, 9], [AS | M, 2], [AS, 12], [FW | SP, 2], [0, 12]]); return out(ai.hold); }
     if (o.y > 20 * F && o.vy < 300 && dist < 105 && o.st !== 'ahit' && r(5) < [0, 20, 50, 85][lv]) return push(r(6) < 70 ? [[FW | SP, 2], [0, 6]] : [[D | H, 2], [0, 6]]);
-    if (chase && o.y > 24 * F && r(31) < [0, 24, 52, 80][lv]) return push([[BK | SP, 2], [0, 3]]);   // fly in after a launched opponent
+    if (chase && o.y > 24 * F && r(31) < [0, 24, 52, 80][lv]) return push([[HM, 2], [0, 3]]);   // fly in after a launched opponent
     if (o.st === 'land' && o.rec >= 20 && o.rec - o.sf > 10 && dist >= 76 && dist < 170) return out(FW);   // walk up to someone stuck in a long landing
     if (o.st === 'ahit' && o.y > 40 * F && o.vy > -700 && dist < 150 && r(29) < [0, 35, 70, 95][lv]) return push([[U | FW, 3], [FW, 2]]);   // go up after a launched opponent
     const open = (om && !om.isAir && o.mf > om.lastAct + 1 && om.t - o.mf > 9) || (o.st === 'land' && o.rec > 6) || o.st === 'prec' || (o.st === 'hit' && o.crum && o.stun > 30);
@@ -1884,7 +1912,7 @@ const AI = (function () {
       if (drive && lv >= 2 && k < 72) return push([[FW], [0], [FW | PA, 2], [PA, 4], [0, 4]]);
       if (k < 80) return push([[FW], [0], [FW, 2], [0, 14]]);
       if (k < 90) return push([[U | FW, 3], [0, 26], [H, 2], [0, 10]]);
-      if (k < 90 + [0, 6, 4, 2][lv]) return push([[BK | SP, 2], [0, 30]]);   // the gamble: fly in raw
+      if (k < 90 + [0, 6, 4, 2][lv]) return push([[HM, 2], [0, 30]]);   // the gamble: fly in raw
       ai.hold = 0; return 0;
     }
     if (dist > 80) {
@@ -1983,7 +2011,7 @@ const NET = (function () {
   };
   Session.prototype.packet = function (m) {
     const n = m.i.length, a = m.f - n + 1;
-    for (let k = 0; k < n; k++) { const fr = a + k; if (fr < 0 || this.rem[fr] !== undefined) continue; this.rem[fr] = m.i[k] & 2047; if (fr < this.f && this.used[fr] !== this.rem[fr]) this.rb = this.rb < 0 ? fr : Math.min(this.rb, fr); }
+    for (let k = 0; k < n; k++) { const fr = a + k; if (fr < 0 || this.rem[fr] !== undefined) continue; this.rem[fr] = m.i[k] & SIM.MASK; if (fr < this.f && this.used[fr] !== this.rem[fr]) this.rb = this.rb < 0 ? fr : Math.min(this.rb, fr); }
     while (this.rem[this.remLast + 1] !== undefined) this.remLast++;
     const now = performance.now(); if (m.c >= this.remC) { this.remC = m.c; this.remCAt = now; } this.lastTs = m.ts; this.lastTsAt = now; if (m.ets) { const r = now - m.ets - m.edt; if (r >= 0 && r < 2000) this.rtt = this.rtt ? this.rtt * 0.9 + r * 0.1 : r; }
     if (m.hf && this.myH[m.hf] !== undefined && this.myH[m.hf] !== m.hv) this.desync = true;
@@ -2249,7 +2277,7 @@ const NET = (function () {
         const pads = INP.devs.filter(d => d.id.indexOf('pad') === 0), m = INP.merged(); let x = 80; T('TEST', x, 206, 8, '#9a8488'); x += 40; T(DIRG[SIM.npad(m, 1)] || '\u00b7', x, 203, 12, '#fff', 'left', 1); x += 22; [['L', 16], ['M', 32], ['H', 64], ['SP', 128], ['AS', 256], ['PA', 1024], ['DI', 512]].forEach(b => { T(b[0], x, 206, 8, m & b[1] ? '#d8322e' : '#3a2a30'); x += b[0].length * 8 + 6; });
         const raw = []; pads.forEach(d => d.raw.forEach((v, i) => { if (v) raw.push(PADN[i] && d.std ? PADN[i] : '#' + i); })); T(raw.join(' ').slice(0, 26), 404, 206, 8, '#f6e7c8', 'right');
         T(INP.padBlocked ? 'CONTROLLERS ARE BLOCKED IN THIS VIEWER - USE THE HOSTED BUILD' : pads.length ? pads.map(d => d.name + (d.std ? ' \u00b7 STANDARD LAYOUT' : ' \u00b7 CUSTOM LAYOUT') + ' \u00b7 ' + d.nb + ' BUTTONS').join('   ') : 'NO CONTROLLER SEEN YET - PRESS ANY BUTTON ON IT', 240, 222, 8, pads.length ? '#f08a5a' : '#f1dcb4', 'center', 1);
-        T('DIRECTIONS READ FROM D-PAD, LEFT STICK AND HAT AUTOMATICALLY', 240, 234, 8, '#9a8488', 'center', 1); foot('KEYBOARD: WASD, J K L = LIGHT MEDIUM HEAVY, I = SPECIAL, SPACE = ASSIST, U = PARRY, O = IMPACT, H = THROW, K+L = RUN'); }
+        T('DIRECTIONS READ FROM D-PAD, LEFT STICK AND HAT AUTOMATICALLY', 240, 234, 8, '#9a8488', 'center', 1); foot('KEYBOARD: WASD, J K L = LIGHT MEDIUM HEAVY, I = SPECIAL, SPACE = ASSIST, U = PARRY, O = IMPACT, H = HOMING, J+K = GRAB, K+L = RUN'); }
     }
   };
 
@@ -2277,7 +2305,7 @@ const NET = (function () {
     // eight attack buttons for one thumb: L M H SP along the bottom, and directly above each one its Assist version (AL AM AH AS)
     const DEF = [['L', B.LT, 7.65, 1.7, 0.92], ['M', B.MD, 5.6, 1.7, 0.92], ['H', B.HV, 3.55, 1.7, 0.92], ['SP', B.SP, 1.5, 1.7, 0.92],
       ['AL', B.AS | B.LT, 7.65, 3.85, 0.86, 2], ['AM', B.AS | B.MD, 5.6, 3.85, 0.86, 2], ['AH', B.AS | B.HV, 3.55, 3.85, 0.86, 2], ['AS', B.AS | B.SP, 1.5, 3.85, 0.86, 2],
-      ['PA', B.PA, 9.9, 2.5, 0.8], ['DI', B.DI, 9.5, 4.75, 0.74], ['GRAB', B.LT | B.MD, 6.6, 5.85, 0.66, 1], ['RUN', B.MD | B.HV, 4.55, 5.85, 0.66, 1], ['II', 4096, 1.3, -1, 0.6, 1]];
+      ['PA', B.PA, 9.9, 2.5, 0.8], ['DI', B.DI, 9.5, 4.75, 0.74], ['GRAB', B.LT | B.MD, 6.6, 5.85, 0.66, 1], ['RUN', B.MD | B.HV, 4.55, 5.85, 0.66, 1], ['HOME', B.HM, 2.5, 5.85, 0.66, 1], ['II', 4096, 1.3, -1, 0.6, 1]];
     let btn = [], R = 34, stick = null, base = null, knob = null, live = false; const ptr = new Map();
     function layout() {
       const W = innerWidth, H = innerHeight, port = H > W; R = Math.max(24, Math.min(44, Math.min(W, H) * 0.086)); if (port) R = Math.max(24, Math.min(40, W * 0.062));

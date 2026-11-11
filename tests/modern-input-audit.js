@@ -130,5 +130,16 @@ t('Critical Art replaces Level 3 at 25% health',[],()=>{const r=sim1([[2,D|H|SP]
 t('Level 3 stays Level 3 above 25% health',[],()=>{const r=sim1([[2,D|H|SP],[10,0]],s=>{s.p[0].hp=251;s.p[0].sa=3000;});return r.s.p[0].mv==='SA3';});
 t('Critical Art does more damage than Level 3 and ends in a ground bounce',[],()=>{const a=sim1([[2,D|H|SP],[290,0]],s=>{s.p[0].hp=250;s.p[0].sa=3000;}),b=sim1([[2,D|H|SP],[290,0]],s=>{s.p[0].hp=251;s.p[0].sa=3000;});return (1000-a.s.p[1].hp)===360&&(1000-b.s.p[1].hp)===320&&a.ev.includes('gbounce')&&!b.ev.includes('gbounce');});
 t('Assist heavy combo ends in the Critical Art at low health',[],()=>{const r=sim1(Array.from({length:14},()=>[[2,A|H],[9,A]]).flat(),s=>{s.p[0].hp=200;s.p[0].sa=3000;s.p[0].x=-2500;s.p[1].x=2500;});return r.ev.includes('super')&&r.s.p[0].ca===1;});
+// ---- the dedicated homing button
+const HMB=B.HM;
+t('Homing button on the ground = Slipstream',[w,[2,HMB],[20,0]],r=>r.seen==='HOME');
+t('Homing button with forward held = still Slipstream',[w,[2,R|HMB],[20,R]],r=>r.seen.startsWith('HOME')&&!r.seen.includes('SRK'));
+t('Homing button with down held = still Slipstream',[w,[2,D|HMB],[20,D]],r=>r.seen.startsWith('HOME'));
+t('Assist + Homing button = Overdrive Slipstream',[w,[2,A|HMB],[20,A]],r=>r.seen.startsWith('HOME_OD'));
+t('Homing button in a forward jump holding forward = air Slipstream',[w,[3,U|R],[14,R],[2,R|HMB],[30,R]],r=>r.seen.startsWith('AHOME'));
+t('Homing button in the air holding down = air Slipstream, not the spike',[w,[3,U],[14,0],[2,D|HMB],[30,0]],r=>r.seen.startsWith('AHOME')&&!r.seen.includes('ASPK'));
+t('Homing button from the run',[w,[2,M|H],[12,0],[2,HMB],[30,0]],r=>r.seen.includes('HOME'),{far:1});
+t('Homing button cancels a heavy punch on hit',[],()=>{const r=sim1([[2,A|H],[12,A],[2,HMB],[40,0]],s=>{s.p[0].x=-2500;s.p[1].x=2500;});return r.ev.includes('home')&&r.s.p[1].combo>=2;});
+t('Light + Medium is still the grab',[w,[2,L|M],[30,0]],r=>r.s.p[0].st==='throwing'&&r.s.p[1].st==='thrown');
 const fails=T.filter(x=>x.startsWith('FAIL'));console.log('inputs audited',T.length,'pass',T.length-fails.length,'fail',fails.length);console.log(fails.join('\n'));
 if(process.argv[2]==='all')console.log(T.join('\n'));

@@ -68,7 +68,7 @@ const NET = (function () {
   };
   Session.prototype.packet = function (m) {
     const n = m.i.length, a = m.f - n + 1;
-    for (let k = 0; k < n; k++) { const fr = a + k; if (fr < 0 || this.rem[fr] !== undefined) continue; this.rem[fr] = m.i[k] & 2047; if (fr < this.f && this.used[fr] !== this.rem[fr]) this.rb = this.rb < 0 ? fr : Math.min(this.rb, fr); }
+    for (let k = 0; k < n; k++) { const fr = a + k; if (fr < 0 || this.rem[fr] !== undefined) continue; this.rem[fr] = m.i[k] & SIM.MASK; if (fr < this.f && this.used[fr] !== this.rem[fr]) this.rb = this.rb < 0 ? fr : Math.min(this.rb, fr); }
     while (this.rem[this.remLast + 1] !== undefined) this.remLast++;
     const now = performance.now(); if (m.c >= this.remC) { this.remC = m.c; this.remCAt = now; } this.lastTs = m.ts; this.lastTsAt = now; if (m.ets) { const r = now - m.ets - m.edt; if (r >= 0 && r < 2000) this.rtt = this.rtt ? this.rtt * 0.9 + r * 0.1 : r; }
     if (m.hf && this.myH[m.hf] !== undefined && this.myH[m.hf] !== m.hv) this.desync = true;

@@ -369,7 +369,7 @@ const R = (function () {
     const sparks = []; for (let i = 0; i < NP; i++) { sparks.push({ life: 0, vx: 0, vy: 0 }); pp[i * 3 + 1] = -99; }
     const allM = Object.values(mats).concat(Object.values(lit), [inkN]); for (const m of allM) m.userData.o = m.opacity;
     G.traverse(o => o.layers.enable(1)); for (const t of trails) for (const sg of t.segs) sg.traverse(o => o.layers.enable(1));
-    return { G, M, R, T, b, mats, lit, lk, allM, trails, drops, pts, pp, sparks, seed: ch * 977 + 13, acc: lk.acc, emit: [b.head, b.chest, b.fiL, b.fiR, b.ftL, b.ftR, b.pel] };
+    return { G, M, R, T, b, mats, lit, lk, ink: inkN, pm, ch, allM, trails, drops, pts, pp, sparks, seed: ch * 977 + 13, acc: lk.acc, emit: [b.head, b.chest, b.fiL, b.fiR, b.ftL, b.ftR, b.pel] };
   }
   const _tv = new THREE.Vector3(), _tr = new THREE.Vector3();
   if (typeof window !== 'undefined') window.__rigs = () => rigs;
@@ -416,7 +416,7 @@ const R = (function () {
   }
   function applyPose(rig, fp, face, flashK, tint) {
     if (rig.sk) return applyPoseM(rig, fp, face, flashK, tint);
-    const lo = fp.loose == null ? 1 : fp.loose, s1 = Math.sin(tick * 0.052 + rig.seed), s2 = Math.sin(tick * 0.037 + rig.seed * 1.7), s3 = Math.sin(tick * 0.083 + rig.seed * 0.6), bk = rig.boK = (rig.boK || 0) + ((rig.boT || 0) - (rig.boK || 0)) * 0.06, vl = Math.max(-6, Math.min(6, (rig.vel || 0) * face)), po0 = fp.po,
+    const lo = fp.loose == null ? 1 : fp.loose, s1 = Math.sin(tick * 0.052 + rig.seed), s2 = Math.sin(tick * 0.037 + rig.seed * 1.7), s3 = Math.sin(tick * 0.083 + rig.seed * 0.6), bk = rig.boK = (rig.boK || 0) + ((rig.boT || 0) - (rig.boK || 0)) * 0.14, vl = Math.max(-6, Math.min(6, (rig.vel || 0) * face)), po0 = fp.po,
       po = Object.assign({}, po0, { hip: [po0.hip[0] + s1 * 3.2 * lo, po0.hip[1] + s3 * 1.3 * lo - bk * 3, 0], ln: po0.ln + s2 * 6 * lo + bk * 9, ln2: po0.ln2 - s2 * 8 * lo + s3 * 3 + bk * 12, hd: po0.hd + s1 * 9 * lo - bk * 12, rot: po0.rot + s2 * 2.2 * lo + vl * 1.4, hL: [po0.hL[0] + s2 * 3.5 * lo, po0.hL[1] + s3 * 3 * lo - bk * 5, po0.hL[2]], hR: [po0.hR[0] - s1 * 3.5 * lo, po0.hR[1] + s2 * 3 * lo - bk * 5, po0.hR[2]] }), b = rig.b, hip = [po.hip[0], po.hip[1], 0];
     const a1 = po.ln * D, a2 = po.ln2 * D, cb = [hip[0] + Math.sin(a1) * SP1, hip[1] + Math.cos(a1) * SP1, 0], nk = [cb[0] + Math.sin(a2) * SP2, cb[1] + Math.cos(a2) * SP2, 0];
     const tw = po.tw * D, pt = po.pt * D, cax = [Math.sin(tw), 0, Math.cos(tw)], pax = [Math.sin(pt), 0, Math.cos(pt)], mid = [(cax[0] + pax[0]) / 2, 0, (cax[2] + pax[2]) / 2];
@@ -451,7 +451,16 @@ const R = (function () {
       const a0 = [l.an[0], l.an[1] - 0.4, l.an[2]]; place(b['ft' + n], sub(a0), sub([a0[0] + tx, a0[1] + ty, a0[2] + tz]), 0, [0, 0, 1], -3);
     }
     rig.R.position.set(hip[0], hip[1], 0); rig.R.rotation.set(0, (po.yaw + fp.yaw) * D, -po.rot * D); rig.M.scale.x = face;
-    { const sq = 1 + 0.035 * s3 * lo; rig.R.scale.set(1 / sq + Math.abs(vl) * 0.02, sq - Math.abs(vl) * 0.012, 1); if (rig.lk) { rig.mats.body.color.setHex(rig.lk.body).lerp(_gc, bk * 0.6); rig.lit.acc.color.setHex(rig.lk.acc).lerp(_gc, bk * 0.85); } }
+    { const sq = 1 + 0.035 * s3 * lo; rig.R.scale.set(1 / sq + Math.abs(vl) * 0.02, sq - Math.abs(vl) * 0.012, 1); if (rig.lk) {
+        // the body says what state it is in: parrying it becomes its own accent colour outright (Ret all blue, Ard all pink),
+        // flying a Slipstream it goes pale and bright, burnt out every colour drains to ash and the accents die
+        const L = rig.lk, Mt = rig.mats, Lt = rig.lit, set = (m, hex) => { if (m) m.color.setHex(hex); };
+        if (rig.mode === 'parry') { const pc = rig.ch ? 0xff2f96 : 0x1f7dff; set(Mt.body, pc); set(Mt.body2, pc); set(Lt.acc, 0xffffff); set(Lt.eye, 0xffffff); set(rig.ink, L.acc2); set(rig.pm, pc); }
+        else if (rig.mode === 'home') { rig.ink.color.setHex(0xffffff); const hc = rig.ch ? 0xff78bc : 0x58aeff; set(Mt.body, hc); set(Mt.body2, hc); set(Lt.acc, 0xffffff); set(Lt.eye, 0xffffff); set(rig.pm, hc); }
+        else { const fk = bk > 0.5 && (tick % 53) < 2 ? 0.2 : 1, g = bk * 0.94 * fk, ash = rig.ch ? _gcB : _gcA;
+          Mt.body.color.setHex(L.body).lerp(ash, g); if (Mt.body2) Mt.body2.color.setHex(L.body2).lerp(_gcD, g); Lt.acc.color.setHex(L.acc).lerp(_gcD, Math.min(1, bk * fk)); if (Lt.eye) Lt.eye.color.setHex(L.eye).lerp(_gcD, bk * 0.7 * fk);
+          rig.ink.color.setHex(L.ink).lerp(rig.ch ? _gcA : _gcD, g); if (rig.pm) rig.pm.color.setHex(L.body).lerp(ash, g); }
+      } }
     for (const k in rig.mats) { const m = rig.mats[k]; m.emissive.setRGB(flashK + tint[0], flashK + tint[1], flashK + tint[2]); }
   }
 
@@ -508,7 +517,7 @@ const R = (function () {
   // One mood is always being blended toward. Which mood depends on the fight: the round, who is close to death, burnout, supers, the KO.
   // A stage only has to hand over its sky planes and floor glare; the lights, weather, wind, rays, mist and grade are shared by every stage.
   let ambL, keyL, rimL, sunL, projL, hitL = [], hitN = 0, WIND = -0.5, atm = null;
-  const _clip = [new THREE.Plane(new THREE.Vector3(0, -1, 0), 0)], _noclip = [], _gc = new THREE.Color(0x6a6e78);
+  const _clip = [new THREE.Plane(new THREE.Vector3(0, -1, 0), 0)], _noclip = [], _gc = new THREE.Color(0x6a6e78), _gcA = new THREE.Color(0x868a92), _gcB = new THREE.Color(0x3e4048), _gcD = new THREE.Color(0x2c2e34);
   const CSSA = ['#4aa8ff', '#ff4aa0'], CSSB = ['#ffffff', '#17121c'], CSSH = ['#eef4ff', '#ff5aa8'];
   const C3 = h => [(h >> 16 & 255) / 255, (h >> 8 & 255) / 255, (h & 255) / 255];
   const MOOD = {
@@ -665,7 +674,9 @@ const R = (function () {
         if (m && m.di) { const a = s.frame * 0.7; tint = [0.35 + 0.3 * Math.sin(a), 0.35 + 0.3 * Math.sin(a + 2.1), 0.35 + 0.3 * Math.sin(a + 4.2)]; }
         if (m && !m.isAir && m.hits[0] && m.hits[0].g === 'h' && p.mf < m.hits[0].s) { const k = 0.3 + 0.3 * Math.sin(s.frame * 1.2); tint = [k + 0.2, k * 0.4, 0]; }
         if (p.st === 'drush' || (p.st === 'atk' && p.drb)) tint = [0, 0.45, 0.18];
-        if (p.st === 'parry') { const k = 0.25 + 0.15 * Math.sin(s.frame * 0.8); tint = [0.05, k, k * 2]; }
+        r.mode = p.st === 'parry' ? 'parry' : m && m.home && !p.hmE && !(p.contact && !p.fr) ? 'home' : '';
+        if (r.mode === 'parry') { const a = ACC[p.ch], k = 0.16 + 0.12 * Math.sin(s.frame * 0.8); tint = [a[0] * k, a[1] * k, a[2] * k]; }
+        if (r.mode === 'home') { const a = ACC[p.ch], w = p.mf >= m.home[0] ? 0.04 + 0.05 * Math.sin(s.frame * 1.6) : 0, k = 0.06 + 0.1 * Math.min(1, p.mf / m.home[0]); tint = [a[0] * k + w, a[1] * k + w, a[2] * k + w]; }
         if (p.bo && (s.frame >> 3) & 1) tint = [tint[0] - 0.18, tint[1] - 0.18, tint[2] - 0.12];
         if (s.freeze > 0 && s.frzWho === i) tint = [0.5, 0.35, 0.1];
         applyPose(r, fp, p.face, fl, tint);
@@ -675,7 +686,9 @@ const R = (function () {
         { r.pt = r.pt == null ? 99 : r.pt + 1; r.boT = p.bo ? 1 : 0; const gx = p.x / F, vx0 = gx - (r.lx == null ? gx : r.lx); r.lx = gx; r.vel = (r.vel || 0) * 0.7 + vx0 * 0.3;
           if (m && m.home && p.mf >= m.home[0] && !p.contact && !p.hmE && p.hs <= 0) { fx.push({ k: 'echo', x: gx - vx0, y: p.y / F + 30, t: 0, c: CSSA[p.ch], c2: CSSB[p.ch] }); if (tick % 3 === 0) fx.push({ k: 'ripple', x: gx - vx0 * 2, y: p.y / F + 34, t: 0, c: CSSA[p.ch], r: 12 }); }
           if (Math.abs(vx0) > 2.2 && (tick & 1)) fx.push({ k: 'echo', x: gx - vx0 * 2, y: p.y / F + 34, t: 0, c: CSSB[p.ch], c2: CSSA[p.ch] });
-          if (p.st === 'parry' && tick % 6 === 0) fx.push({ k: 'ripple', x: gx + p.face * 8, y: p.y / F + 38, t: 0, c: CSSA[p.ch], r: 24 }); }
+          if (p.st === 'parry' && tick % 6 === 0) fx.push({ k: 'ripple', x: gx + p.face * 8, y: p.y / F + 38, t: 0, c: CSSA[p.ch], r: 30 });
+          if (p.st === 'parry' && tick % 3 === 0) fx.push({ k: 'echo', x: gx + (hsh(tick * 7 + i) - 0.5) * 16, y: p.y / F + 36, t: 0, c: CSSA[p.ch], c2: '#ffffff' });
+          if (p.bo && tick % 14 === 0 && p.st !== 'kd') fx.push({ k: 'ripple', x: gx + (hsh(tick + i * 3) - 0.5) * 20, y: p.y / F + 30 + hsh(tick * 3 + i) * 40, t: 0, c: '#8a8e98', r: 9 }); }
         shadows[i].visible = true; shadows[i].position.x = p.x / F; const sc = Math.max(0.45, 1 - p.y / F / 220); shadows[i].scale.set(sc * (p.st === 'kd' ? 1.8 : 1), sc, 1);
       }
       // projectiles
