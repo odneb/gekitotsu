@@ -70,6 +70,11 @@ const SIM = (function () {
     N('jBK', { n: 'Back Lash', air: 1, su: 7, t: 999, g: 'h', landRec: 3, dd: 250, sg: 50, hits: [{ s: 6, e: 11, hb: [-56, 22, 50, 26], d: 60, stun: 20, bstun: 15, air: [460, 520], kb: 450, lvl: 1, hsp: 11, g: 'h' }] });
     // down + special in the air: a dive that spikes an airborne opponent into the floor and bounces off them so the juggle can go on
     N('ASPK', { n: 'Falling Star', sp: 1, air: 1, su: 9, t: 999, rise: [8, 400, -1150], landRec: 12, dd: 300, sg: 60, hits: [{ s: 8, e: 34, hb: [-4, -22, 44, 56], d: 80, stun: 26, bstun: 18, launch: [90, 1050], air: [70, -1500], gb: 1, reb: 780, kb: 300, lvl: 2, hsp: 13 }] });
+    // Slipstream: back + special. The body lets go of its shape and pours itself at the opponent wherever they are. On hit it pops them up and
+    // leaves you beside them with every air option back. Blocked, parried or missed it is a long helpless fall.
+    const hm = (k, o) => N(k, Object.assign({ n: 'Slipstream', sp: 1, t: 999, landRec: 30, dd: 300, sg: 60 }, o, { hits: [{ s: o.home[0] + 1, e: o.home[1], hb: [-6, 12, 46, 50], d: o.od ? 60 : 50, stun: 24, bstun: 12, launch: [30, 820], air: [30, 820], free: 1, np: 1, kb: 200, lvl: 2, hsp: 12 }] }));
+    hm('HOME', { su: 14, home: [12, 46, 840] }); hm('HOME_OD', { od: 1, su: 10, home: [8, 44, 980], pinv: [0, 44] });
+    hm('AHOME', { air: 1, su: 10, home: [8, 42, 840], hover: 8 }); hm('AHOME_OD', { air: 1, od: 1, su: 8, home: [6, 42, 980], hover: 6, pinv: [0, 42] });
     N('njHK', { n: 'Neutral Jump Heavy Kick', air: 1, su: 6, ac: 6, t: 999, g: 'h', d: 90, fs: 21, fb: 17, xh: 1, hb: [9, 28, 33, 34], kb: 500, hsp: 13, lvl: 1, dd: 400, sg: 100, landRec: 3, an: { w: 'jhkW', s: 'jhkS' } });
     N('throw', { n: 'Throw', su: 5, ac: 3, rc: 23, thr: 1, hits: [], an: { w: 'grabW', s: 'grabS' } });
     N('DI', { n: 'Drive Impact', su: 26, ac: 2, rc: 35, d: 80, arm: 2, di: 1, ba: -3, xh: 1, hb: [4, 30, 49, 44], kb: 1500, launch: [650, 540], air: [650, 540], wb: 1, lvl: 2, hsp: 16, dd: 500, ss: 1, xm: 1, mv: [[16, 26, 620]], an: { k: [[0, 'idle'], [14, 'diW'], [24, 'diW'], [26, 'diS'], [40, 'diS'], [62, 'idle']] } });
@@ -140,15 +145,25 @@ const SIM = (function () {
     N('SA3', { n: 'Shinryu Reppa', sup: 1, sa: 3, su: 7, t: 999, frz: 60, inv: [0, 17], minScale: 50, partAt: 10, rise: [41, 100, 1280], landRec: 19, dd: 900, mv: [[1, 6, 1100]], stopOnHit: 1,
       hits: [{ s: 6, e: 9, hb: [0, 6, 70, 110], d: 60, stun: 34, kb: 0, air: [0, 260], lvl: 1, hsp: 7, bstun: 20 }, fl(14), fl(22), fl(30), { s: 40, e: 44, hb: big, d: 160, launch: [150, 1450], air: [150, 1450], lvl: 2, hsp: 22, bstun: 20 }],
       an: { k: [[0, 'cupW'], [6, 'srS'], [11, 'cupW'], [14, 'srS'], [19, 'cupW'], [22, 'srS'], [27, 'cupW'], [30, 'srS'], [36, 'cupW'], [40, 'srS'], [56, 'srS2'], [80, 'jump']], spin: [40, 70, 1080] } });
+    // Critical Art: the Level 3 at a quarter health or less. Same opening and the same frame data, but it carries them to the top of the screen and drives them back into the floor.
+    const ck = st => ({ s: st, e: st + 1, hb: big, d: 15, stun: 34, kb: 0, air: [0, 300], lvl: 1, hsp: 6, bstun: 20, req: 1, lk: 1, carry: [20, 8] });
+    N('CA', { n: 'Abyssal Tide', sup: 1, sa: 3, ca: 1, su: 7, t: 999, frz: 84, inv: [0, 17], minScale: 50, partAt: 10, rise: [41, 100, 1280], landRec: 19, dd: 900, mv: [[1, 6, 1100]], stopOnHit: 1,
+      hits: [{ s: 6, e: 9, hb: [0, 6, 70, 110], d: 60, stun: 34, kb: 0, air: [0, 260], lvl: 1, hsp: 7, bstun: 20 }, fl(14), fl(22), fl(30), { s: 40, e: 44, hb: big, d: 100, launch: [150, 1450], air: [150, 1450], lvl: 2, hsp: 16, bstun: 20 },
+        ck(49), ck(54), ck(59), { s: 65, e: 67, hb: [-20, -30, 96, 130], d: 65, stun: 34, air: [40, -2400], gb: 1, lvl: 2, hsp: 24, req: 1, fin: 1 }] });
     return {
       name: 'RET', jp: '裂', title: 'THE PALE TIDE', hp: 1000, walkF: 230, walkB: 157, jx: 245, jxB: 196, runV: 430, mv: mv,
-      sp: [{ dir: 6, k: 'SRK_M', od: 'SRK_OD' }, { dir: 4, k: 'DL_H', od: 'DL_OD' }, { dir: 2, k: 'JIN_M', od: 'JIN_OD' }, { dir: 5, k: 'HAD_H', od: 'HAD_OD' }, { air: 1, adir: 2, k: 'ASPK', od: 'ASPK' }, { air: 1, adir: 8, k: 'AUP', od: 'AUP' }, { air: 1, adir: 4, k: 'ABK', od: 'ABK' }, { air: 1, fwd: 1, k: 'ATAT', od: 'ATAT_OD' }],
+      sp: [{ dir: 6, k: 'SRK_M', od: 'SRK_OD' }, { dir: 4, k: 'HOME', od: 'HOME_OD' }, { dir: 2, k: 'JIN_M', od: 'JIN_OD' }, { dir: 5, k: 'HAD_H', od: 'HAD_OD' }, { air: 1, adir: 2, k: 'ASPK', od: 'ASPK' }, { air: 1, adir: 8, k: 'AUP', od: 'AUP' }, { air: 1, adir: 4, k: 'ABK', od: 'ABK' }, { air: 1, fwd: 1, adir: 6, k: 'ATAT', od: 'ATAT_OD' }, { air: 1, k: 'AHOME', od: 'AHOME_OD' }],
       mo: [{ m: '623', L: 'SRK_L', M: 'SRK_M', H: 'SRK_H', OD: 'SRK_OD' }, { m: '214', L: 'TAT_L', M: 'TAT_M', H: 'TAT_H', OD: 'TAT_OD' }, { m: '236', L: 'JIN_L', M: 'JIN_M', H: 'JIN_H', OD: 'JIN_OD' }, { m: '214', air: 1, fwd: 1, L: 'ATAT', M: 'ATAT', H: 'ATAT', OD: 'ATAT_OD' }],
       run: { L: 'STOP', M: 'TK', H: 'FSK', S6: 'QSRK', S5: 'QSRK', S2: 'QTAT', S4: 'QDL', m623: 'QSRK', m214: 'QTAT' },
       auto: { L: [['5LK'], ['JIN_L'], ['KAZE']], LC: [['2LK'], ['5LP'], ['JIN_L'], ['KAZE']], M: [['5MP'], ['CB2'], ['RUN'], ['QDL'], ['SA2', 'SRK_H']], H: [['5HP'], ['JIN_OD', 'JIN_M'], ['KAZE_OD', 'KAZE'], ['KASAI'], ['SA3']] },
-      cmd: [['Hadoken', 'SP', 'Heavy fireball. Assist+SP is the two-hit Overdrive.'], ['Shoryuken', '→ + SP   (623 + L/M/H)', 'Anti-air invincible. Only the Overdrive is fully invincible.'], ['Dragonlash Kick', '← + SP', 'Slow hopping kick, +1 on block. Goes over lows.'], ['Jinrai Kick', '↓ + SP   (236 + L/M/H)', 'Then ←SP low, ↓SP overhead, SP knockdown kick.'],
-        ['Tatsumaki Senpu-kyaku', '214 + L/M/H   (air: SP)', 'Motion only on the ground. Forward jump for the air version.'], ['Quick Dash', 'M + H', 'Run. L stops, M overhead, H step kick, SP specials.'],
-        ['Super Arts', 'H + SP   ← H + SP   ↓ H + SP', 'Dragonlash Flame, Shippu Jinrai-kyaku, Shinryu Reppa.'], ['Assist Combos', 'hold Assist, tap L / M / H', 'L x3, M x5 (ends in SA2), H x5 (ends in SA3).']]
+      cmd: [['Hadoken', 'SP', 'Heavy fireball. Assist+SP is the two-hit Overdrive.'], ['Shoryuken', '→ + SP   (623 + L/M/H)', 'Anti-air invincible. Only the Overdrive is fully invincible.'],
+        ['Slipstream', '← + SP   (air: SP)', 'Homes in. Hit = free air combo. Blocked or missed = long helpless fall.'], ['Jinrai Kick', '↓ + SP   (236 + L/M/H)', 'Then ←SP low, ↓SP overhead, SP knockdown kick.'],
+        ['Tatsumaki Senpu-kyaku', '214 + L/M/H   (air: → + SP)', 'Motion only on the ground. Air: forward jump, → + SP.'], ['Quick Dash', 'M + H', 'Run. L stops, M overhead, H step kick, SP specials (←SP Dragonlash).'],
+        ['Super Arts', 'H + SP   ← H + SP   ↓ H + SP', 'Dragonlash Flame, Shippu Jinrai-kyaku, Shinryu Reppa.'], ['Critical Art', '↓ H + SP   at 25% health or less', 'Abyssal Tide replaces Level 3 when nearly dead. More damage, ends in a slam.']],
+      cmd2: [['Air Normals', '↑ L/M/H   ↓ M/H   ← L/M/H', 'Rising Lash launches. Falling Heel spikes. Back Lash hits behind.'], ['Air Specials', 'SP   ↑ SP   ↓ SP   ← SP', 'Slipstream, Riptide, Falling Star (spike), Undertow (behind).'],
+        ['Air Movement', '↑ again   ↑ at the wall   ← →', 'Double jump, wall jump, drift. Hold ↓ to fall fast.'], ['Air Cancels', 'after an air normal hits', '↑ jump-cancels it; SP cancels it into an air special.'],
+        ['Juggle Loop', 'launch, ← + SP, air combo, ↓ + SP', 'Slipstream pops them up twice per combo; the spike bounces them once.'], ['Grab', 'L + M   then any attack button', 'Holds them. Pummel up to five times before throwing.'],
+        ['Throws', '→   ←   ↑   ↓   while holding', 'Forward, back, straight up (juggle), slam into a ground bounce.'], ['Assist Combos', 'hold Assist, tap L / M / H', 'L x3, M x5 (ends in SA2), H x5 (ends in SA3, or the Critical Art).']]
     };
   }
   function ren() { return Object.assign(ken(), { name: 'ARD', jp: '闇', title: 'THE BLACK TIDE' }); }
@@ -160,7 +175,7 @@ const SIM = (function () {
     return { ch: ch, x: (i ? 80 : -80) * F, y: 0, vx: 0, vy: 0, pv: 0, face: i ? -1 : 1, hp: CH[ch].hp, sa: 0, dr: DMAX, bo: 0, drT: 0, st: 'idle', sub: 'stand', sf: 0, subf: 0,
       mv: '', mf: 0, hitMask: 0, contact: 0, hitOK: 0, hs: 0, stun: 0, buf: b, prev: 0, age: [99, 99, 99, 99, 99, 99, 99], d66: 99, d44: 99, combo: 0, comboDmg: 0, jug: 0,
       wbUsed: 0, gbUsed: 0, wbPend: 0, gbPend: 0, jd: 0, rec: 0, cb: 0, hitHi: 1, tinv: 0, wins: 0, back: 0, red: CH[ch].hp, redT: 0, air2: 0, noTech: 0,
-      ca: 0, rq: 99, part: 0, jg: 0, cxSeq: -1, fuq: '', fum: 0, pd: [0, 0, 0, 0, 0, 0, 0], mseq: 0, cs: 0, lastSeq: -1, acq: 0, rcn: 0, sshift: 0, drs: 0, pok: 0, roll: 0, hard: 0, arm: 0, armHit: 0, drb: 0, mod: 0, ac: '', aci: 0, crum: 0, pp: 0, plock: 0, half: 0 };
+      ca: 0, rq: 99, part: 0, jg: 0, cxSeq: -1, fuq: '', fum: 0, pd: [0, 0, 0, 0, 0, 0, 0], mseq: 0, cs: 0, lastSeq: -1, acq: 0, rcn: 0, sshift: 0, drs: 0, pok: 0, roll: 0, hard: 0, arm: 0, armHit: 0, drb: 0, mod: 0, ac: '', aci: 0, crum: 0, pp: 0, plock: 0, half: 0, hm: 0, hmc: 0, fr: 0, hmE: 0, dj: 0, wj: 0, aa: 0 };
   }
   function newMatch(cfg) {
     const s = { frame: 0, slow: 0, phase: 'intro', pt: 0, kx: 0, round: 1, time: 99 * 60, freeze: 0, frzWho: 0, proj: [], ev: [], winner: -1, rw: -1, koType: '', cfg: { training: !!cfg.training, chars: cfg.chars.slice(), rounds: cfg.rounds || 2 }, p: [] };
@@ -224,14 +239,15 @@ const SIM = (function () {
   function cur(p) { return p.st === 'atk' ? CH[p.ch].mv[p.mv] : null; }
   function toIdle(p) { p.st = 'idle'; p.sf = 0; p.mv = ''; p.vx = 0; p.sub = 'stand'; p.air2 = 0; p.arm = 0; }
   function start(s, p, key, i, opt) {
+    if (key === 'SA3' && CH[p.ch].mv.CA && p.hp * 4 <= CH[p.ch].hp) key = 'CA';
     const m = CH[p.ch].mv[key], fromDr = p.st === 'drush', pm = p.st === 'atk' ? CH[p.ch].mv[p.mv] : null, o = s.p[1 - i];
     if (m.sup || (pm && pm.thru)) { if (o.x > p.x) p.face = 1; else if (o.x < p.x) p.face = -1; }
     p.st = 'atk'; p.mv = key; p.mseq++; p.mf = 0; p.sf = 0; p.hitMask = 0; p.contact = 0; p.hitOK = 0; p.arm = m.arm || 0; p.armHit = 0;
     p.drb = fromDr && !m.sp && !m.sup && !m.thr ? 1 : 0; if (fromDr) p.pv = p.face * 480;
-    p.mod = opt && opt.mod ? 1 : 0; p.fuq = ''; p.part = 0; p.ca = (m.sa === 3 && p.hp * 4 <= CH[p.ch].hp) ? 1 : 0; if (!(opt && opt.auto)) { p.ac = ''; p.aci = 0; }
+    p.mod = opt && opt.mod ? 1 : 0; p.fuq = ''; p.part = 0; p.ca = m.ca ? 1 : 0; p.fr = 0; p.hmE = 0; if (m.home) p.hm = 1; if (!(opt && opt.auto)) { p.ac = ''; p.aci = 0; }
     if (!m.isAir) { p.vx = 0; if (p.y > 0) { p.y = 0; p.vy = 0; p.air2 = 0; p.jg = 0; } }
     if (m.sa) p.sa -= m.sa * 1000; else if (m.sp) p.sa = Math.min(3000, p.sa + 10);
-    if (m.frz) { s.freeze = m.frz; s.frzWho = i; s.ev.push({ t: 'super', who: i, lv: m.sa, ca: p.ca }); }
+    if (m.frz) { s.freeze = m.frz; s.frzWho = i; s.ev.push({ t: 'super', who: i, lv: m.sa, ca: p.ca, k: key }); }
     else if (m.od) s.ev.push({ t: 'ex', who: i });
     else if (m.di) s.ev.push({ t: 'di', who: i });
     if (m.sp || m.sup) s.ev.push({ t: 'special', who: i, k: key });
@@ -252,10 +268,10 @@ const SIM = (function () {
     if (m) {
       ok = p.contact && p.mf <= m.lastAct + 10;
       kara = !m.sp && !m.sup && !m.thr && !m.di && p.mf <= 2 && !p.contact;
-      canSp = (ok && (m.can & C_SP)) || kara;
+      canSp = (ok && (m.can & C_SP)) || kara || (ok && m.isAir && !m.sp && p.hitOK);   // any air normal that hits cancels into an air special
       canSu = (ok && (m.can & C_SU)) || kara || (m.fc && p.mf >= m.fc[0] && p.mf <= m.fc[1] && (m.can & C_SU));
       chain = (ok && (m.can & C_CH)) ? m.chain : null; canN = false;
-      if (m.sup) return false;
+      if (m.sup || m.home) return false;
     }
     const bi = spb ? 3 : hv ? 2 : md ? 1 : 0, pin = (p.pd[bi] & 15) | (inp & 256) | (p.pd[bi] & 256);
     const h = hdir(pin, p.face), v = vdir(pin), as = (pin & 256) !== 0;
@@ -280,7 +296,7 @@ const SIM = (function () {
       if (spb) {
         const d = v < 0 ? 2 : (air && v > 0) ? 8 : h > 0 ? 6 : h < 0 ? 4 : 5;
         for (const sp of C.sp) {
-          if (!!sp.air !== air || (!air && sp.dir !== d) || (air && sp.adir && sp.adir !== d) || (sp.fwd && p.jd <= 0)) continue;
+          if (!!sp.air !== air || (!air && sp.dir !== d) || (air && sp.adir && sp.adir !== d) || (sp.fwd && p.jd <= 0) || (C.mv[sp.k].home && p.hm)) continue;
           if (as && canOD && !(C.mv[sp.od].proj && myProj)) { spend(s, p, i, 2 * BAR, 120); return start(s, p, sp.od, i, { mod: 1 }); }
           if (C.mv[sp.k].proj && myProj) continue;
           return start(s, p, sp.k, i, { mod: 1 });
@@ -361,6 +377,15 @@ const SIM = (function () {
       if (p.y <= 0 && !p.air2) p.vx = p.face * vx; else if (on) p.vx = p.face * vx;
     }
     if (m.hover && f < m.hover) { p.vx = 0; p.vy = GRAV; }
+    if (m.home && f >= m.home[0] && !p.contact && !p.hmE) {
+      if (f === m.home[0]) { if (p.y <= 0) p.y = 1; p.air2 = 1; p.jg = 0; s.ev.push({ t: 'home', who: i, x: p.x, y: p.y, od: m.od ? 1 : 0 }); }
+      if (f <= m.home[1]) {
+        const dx = o.x - p.x, dy = (o.y > 0 ? o.y : 14 * F) - p.y, len = tr(Math.sqrt(dx * dx + dy * dy)), sp = m.home[2];
+        if (dx > 20 * F) p.face = 1; else if (dx < -20 * F) p.face = -1;
+        if (len > sp) { p.vx = tr(dx * sp / len); p.vy = tr(dy * sp / len) + GRAV; }
+        else { p.hmE = 1; p.vx = tr(p.vx / 3); }   // arrived and nothing to hit (they were invulnerable): the flight is over
+      } else { p.hmE = 1; p.vx = tr(p.vx / 3); }
+    }
     if (m.rise && f === m.rise[0] && !(m.wEnd && !p.hitOK)) { p.jg = 0; p.vx = p.face * m.rise[1]; p.vy = m.rise[2]; if (p.y <= 0) p.y = 1; p.air2 = 1; s.ev.push({ t: 'rise', who: i }); }
     if (m.proj && f === m.proj.f) {
       s.proj.push({ o: i, ch: p.ch, k: p.mv, x: p.x + p.face * 30 * F, y: p.y + m.proj.y * F, dir: p.face, left: m.proj.hits, cd: 0, pause: 0, life: 0, mod: p.mod });
@@ -426,10 +451,11 @@ const SIM = (function () {
         break;
       case 'prec': if (p.sf >= 33) { toIdle(p); neutral(s, p, o, inp, i); } break;
       case 'atk': {
+        if (p.fr) { if (p.fr === 1) { p.vy = 900; p.vx = p.face * 30; p.dj = 0; s.ev.push({ t: 'jump', who: i, dj: 1 }); } p.fr = 0; p.st = 'jump'; p.mv = ''; p.sf = 10; p.jg = 1; p.jd = 1; p.air2 = 0; p.aa = 0; tryAttack(s, p, o, inp, i); break; }
         p.mf++; let m = C.mv[p.mv];
         if (m.isAir && p.y > 0) { const pv = p.buf[p.buf.length - 2] || 0, hx = (inp & 8 ? 1 : 0) - (inp & 4 ? 1 : 0);
           if (!m.sp && hx) { p.vx += hx * 16; const mx = tr(C.jx * 11 / 10); if (p.vx > mx) p.vx = mx; if (p.vx < -mx) p.vx = -mx; }
-          if ((inp & 1) && !(pv & 1) && p.contact && !p.dj) { p.dj = 1; p.vy = 800; p.vx = hx * tr(C.jx * 8 / 10); p.jg = 1; p.st = 'jump'; p.mv = ''; p.sf = 0; s.ev.push({ t: 'jump', who: i, dj: 1 }); break; } }
+          if ((inp & 1) && !(pv & 1) && p.contact && !p.dj && !m.home) { p.dj = 1; p.vy = 800; p.vx = hx * tr(C.jx * 8 / 10); p.jg = 1; p.st = 'jump'; p.mv = ''; p.sf = 0; s.ev.push({ t: 'jump', who: i, dj: 1 }); break; } }
         if (m.t < 900 && p.mf >= m.t + (m.wr && !p.contact ? m.wr : 0)) { toIdle(p); neutral(s, p, o, inp, i); break; }
         autoPress(p, inp); if (p.acq && autoStep(s, p, o, i)) { if (p.st === 'atk') atkFrame(s, p, o, C.mv[p.mv], i); break; }
         if (m.fu && p.mf <= m.fu.w[1]) { if (!p.fuq && p.mf >= m.su - 1) { const r = fuKey(p, m, inp); if (r && r.k) { p.fuq = r.k; p.fum = r.mod; p.age = [99, 99, 99, 99, 99, 99, 99]; } } if (p.fuq && p.mf >= m.fu.w[0]) { const k = p.fuq; start(s, p, k, i, { mod: p.fum, auto: 1 }); atkFrame(s, p, o, C.mv[k], i); break; } }
@@ -480,7 +506,7 @@ const SIM = (function () {
     }
   }
   function land(s, p, i) {
-    p.dj = 0; p.wj = 0; p.aa = 0;
+    p.dj = 0; p.wj = 0; p.aa = 0; p.hm = 0; p.fr = 0;
     p.y = 0; p.vy = 0; p.air2 = 0; p.jg = 0;
     if (p.st === 'ahit') {
       if (p.gbPend && !p.gbUsed && p.hp > 0) { p.gbUsed = 1; p.gbPend = 0; p.y = 1; p.vy = 880; p.vx = tr(p.vx / 3); p.hs = 5; s.ev.push({ t: 'gbounce', x: p.x, y: 0, who: i }); return; }
@@ -508,7 +534,7 @@ const SIM = (function () {
   }
   function pushboxes(s) {
     const a = s.p[0], b = s.p[1], lim = STAGE - PW;
-    const thru = (p, q) => p.st === 'atk' && CH[p.ch].mv[p.mv].thru && q.st === 'ahit';
+    const thru = (p, q) => p.st === 'atk' && ((CH[p.ch].mv[p.mv].thru && q.st === 'ahit') || (CH[p.ch].mv[p.mv].home && p.y > 0 && (q.st === 'kd' || q.st === 'getup')));
     const skip = a.st === 'thrown' || b.st === 'thrown' || a.st === 'throwing' || b.st === 'throwing' || thru(a, b) || thru(b, a);
     if (!skip && a.y < b.y + 70 * F && b.y < a.y + 70 * F) {
       let dx = b.x - a.x; const ov = 2 * PW - Math.abs(dx);
@@ -585,6 +611,7 @@ const SIM = (function () {
     const side = d.x > fromX ? 1 : d.x < fromX ? -1 : -d.face;
     const special = !!(m.sp || m.sup), drb = !isProj && a.drb ? 4 : 0;
     let hsp = h.hsp; if (!isProj) a.drb = 0;
+    if (h.free && !isProj && how !== 'hit') { a.vx = -a.face * 110; a.vy = 520; }
     if (how === 'parry') {
       const bk = (dinp & (side > 0 ? 8 : 4)) !== 0, cr = (dinp & 2) !== 0;
       const perfect = d.sf <= 2 && d.plock === 0 && (isProj || (bk && !(h.g === 'l' && !cr) && !(h.g === 'h' && cr && !m.isAir)));
@@ -610,9 +637,9 @@ const SIM = (function () {
       return;
     }
     const inCombo = d.combo > 0 && (d.st === 'hit' || d.st === 'ahit');
-    if (inCombo) d.combo++; else { d.combo = 1; d.comboDmg = 0; d.jug = 0; d.wbUsed = 0; d.gbUsed = 0; d.half = d.pp > 0 ? 1 : 0; }
+    if (inCombo) d.combo++; else { d.combo = 1; d.comboDmg = 0; d.jug = 0; d.wbUsed = 0; d.gbUsed = 0; d.hmc = 0; d.half = d.pp > 0 ? 1 : 0; }
     const seq = isProj ? -2 - ai : a.mseq; if (!inCombo) { d.sshift = m.ss || 0; d.drs = 0; d.cs = 1; d.lastSeq = seq; } else if (seq !== d.lastSeq) { d.cs++; d.lastSeq = seq; } if (drb) d.drs = 1; if (m.cx === 1 && seq !== d.cxSeq) { d.cxSeq = seq; d.sshift++; } let pct = SCALE[Math.min(d.cs - 1 + (d.cs > 1 ? d.sshift : 0), 9)]; if (d.drs && d.cs > 1) pct = tr(pct * 85 / 100); if (m.cx === 2 && seq !== d.cxSeq) { d.cxSeq = seq; d.sshift++; } if (m.minScale && pct < m.minScale) pct = m.minScale;
-    let dmg = tr((h.d + (a.ca && m.sa === 3 && h.launch ? 50 : 0)) * pct / 100); if (kind) dmg = tr(dmg * 120 / 100); if (mod) dmg = tr(dmg * 80 / 100); if (a.part && m.sup && !isProj) dmg = tr(dmg * 6 / 10); if (d.half) dmg = tr(dmg / 2); if (a.bo) dmg = tr(dmg * 90 / 100); if (dmg < 1) dmg = 1;
+    let dmg = tr(h.d * pct / 100); if (kind) dmg = tr(dmg * 120 / 100); if (mod) dmg = tr(dmg * 80 / 100); if (a.part && m.sup && !isProj) dmg = tr(dmg * 6 / 10); if (d.half) dmg = tr(dmg / 2); if (a.bo) dmg = tr(dmg * 90 / 100); if (dmg < 1) dmg = 1;
     d.hp = Math.max(s.cfg.training ? 1 : 0, d.hp - dmg); d.comboDmg += dmg; d.redT = 50;
     const ko = d.hp <= 0, wasAir = d.y > 0 || d.st === 'ahit';
     let launch = (isProj && last && h.launchLast) ? h.launchLast : h.launch;
@@ -630,8 +657,13 @@ const SIM = (function () {
       if (ko && d.jug > 2) d.jug = 2;
       if (h.lk) { const pp = h.pop || [24, 430]; d.vx = 0; d.vy = pp[1]; if (d.y < pp[0] * F) d.y = pp[0] * F; } else d.jug++;
       if (h.xup && wasAir) a.vx = a.face * h.xup;
-      if (h.reb && a.y > 0) { a.vy = h.reb; a.vx = a.face * 90; }
+      if (h.reb && a.y > 0) { a.vy = h.reb; a.vx = a.face * 90; a.fr = 2; }   // bounce off them and get your air options back
       if (h.carry) { d.x = a.x + a.face * h.carry[0] * F; d.y = a.y + h.carry[1] * F; d.vx = a.vx; d.vy = a.vy; }
+      if (h.free && !isProj) {
+        // the first two in a combo pop them and hand the attacker a fresh jump; after that it is just a knock-away
+        if ((d.hmc || 0) < 2 && !ko) { d.hmc = (d.hmc || 0) + 1; a.fr = 1; a.vx = 0; a.vy = GRAV; d.x = a.x + a.face * 24 * F; { const lm = STAGE - PW; if (d.x > lm) { a.x -= d.x - lm; d.x = lm; } else if (d.x < -lm) { a.x += -lm - d.x; d.x = -lm; } } if (d.y < a.y + 8 * F) d.y = a.y + 8 * F; d.vx = a.face * 30; d.vy = 960; d.gbPend = 0; }
+        else { a.vx = tr(a.vx / 4); d.vx = side * 540; d.vy = 560; }
+      }
       d.pv = 0; d.hard = (m.sup || m.hardKd) ? 1 : 0;
       d.wbPend = ((h.wb || (isProj && last && h.wbLast)) && !d.wbUsed) ? 1 : 0; d.gbPend = (h.gb && !d.gbUsed) ? 1 : 0;
     } else {
@@ -640,7 +672,7 @@ const SIM = (function () {
     d.hs = hsp; if (!isProj) { a.hs = hsp; a.contact = 1; a.hitOK = 1; }
     a.sa = Math.min(3000, a.sa + (m.sup ? 0 : m.sg != null ? tr(m.sg / Math.max(1, m.hits.length || (m.proj ? m.proj.hits : 1))) : tr(dmg * 7 / 10))); d.sa = Math.min(3000, d.sa + tr(dmg * 3 / 10));
     if (!a.bo) a.dr = Math.min(DMAX, a.dr + tr(dmg * 3 / 2));
-    s.ev.push({ t: 'hit', x: cx, y: cy, lvl: h.lvl, who: ai, dmg: dmg, combo: d.combo, total: d.comboDmg, ch: kind, ko: ko ? 1 : 0, sp: special ? 1 : 0, di: m.di ? 1 : 0, crum: crumple ? 1 : 0, wrong: wrong });
+    s.ev.push({ t: 'hit', x: cx, y: cy, lvl: h.lvl, who: ai, dmg: dmg, combo: d.combo, total: d.comboDmg, ch: kind, ko: ko ? 1 : 0, sp: special ? 1 : 0, di: m.di ? 1 : 0, crum: crumple ? 1 : 0, wrong: wrong, free: a.fr === 1 ? 1 : 0, fin: h.fin ? 1 : 0 });
   }
   function kindOf(d) { if (d.st === 'prec' || d.st === 'parry') return 2; if (d.st === 'run' || d.st === 'drush' || d.st === 'dashf' || d.st === 'dashb') return 1; if (d.st !== 'atk') return 0; const m = CH[d.ch].mv[d.mv]; return d.mf > m.lastAct ? 2 : 1; }
   function resolveHits(s) {
@@ -689,7 +721,8 @@ const SIM = (function () {
     }
     for (const q of P) {
       if (q.left <= 0 || q.cd > 0 || q.pause > 0) continue;
-      const d = s.p[1 - q.o], m = CH[q.ch].mv[q.k], pr = m.proj, b = pbox(q);
+      const d = s.p[1 - q.o], m = CH[q.ch].mv[q.k], pr = m.proj, b = pbox(q), dm = d.st === 'atk' ? CH[d.ch].mv[d.mv] : null;
+      if (dm && dm.pinv && d.mf >= dm.pinv[0] && d.mf <= dm.pinv[1]) continue;
       for (const u of hurt(d)) if (ovl(b, u)) {
         q.left--; const last = q.left <= 0, fx = q.x - q.dir * 50 * F;
         applyHit(s, q.o, pr, fx, (Math.max(b[0], u[0]) + Math.min(b[2], u[2])) >> 1, q.y, answer(d, pr, fx, m, true), true, last, kindOf(d), m, q.mod);
