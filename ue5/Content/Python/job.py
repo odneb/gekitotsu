@@ -88,7 +88,7 @@ float3 b = Base;
 float rd = saturate((b.r - max(b.g, b.b)) / max(b.r, 0.05) * 1.7); float lum = dot(b, float3(0.3, 0.5, 0.2));
 float3 pale = lerp(lum * lerp(float3(0.55, 1.0, 2.6), float3(1, 1, 1), smoothstep(0.3, 0.62, lum)), lerp(float3(0.5, 0.6, 0.82), float3(1, 1, 1), smoothstep(0.1, 0.65, b.r)), rd);
 b = lerp(b, pale, Theme);
-b = lerp(b, b * b * 1.25, 0.25) * 1.2 + 0.012;
+b = lerp(b, b * b * 1.25, 0.2) * 1.5 + 0.03;
 float3 lit = b * lerp(Shadow.rgb, Light.rgb, t);
 float fres = 1.0 - saturate(dot(n, normalize(Vw)));
 float rim = smoothstep(0.58, 0.66, fres) * smoothstep(-0.5, 0.2, dot(n, normalize(RimDir.xyz)));
@@ -101,8 +101,8 @@ def mk_toon(base_tex):
     tex = node(m, unreal.MaterialExpressionTextureSampleParameter2D, -700, -300, parameter_name='BaseTex', texture=base_tex)
     n = node(m, unreal.MaterialExpressionVertexNormalWS, -700, -100)
     v = node(m, unreal.MaterialExpressionCameraVectorWS, -700, -40)
-    L = vparam(m, 'LightDir', C(-0.75, 0.35, 0.55), 40); li = vparam(m, 'Light', C(1.15, 1.0, 0.92), 240); sh = vparam(m, 'Shadow', C(0.34, 0.2, 0.36), 440)
-    rd = vparam(m, 'RimDir', C(-1, 0, 0.25), 640); rc = vparam(m, 'Rim', C(3.2, 0.9, 0.5), 840); th = sparam(m, 'Theme', 0.0, 1040)
+    L = vparam(m, 'LightDir', C(0.62, -0.25, 0.6), 40); li = vparam(m, 'Light', C(1.5, 1.3, 1.2), 240); sh = vparam(m, 'Shadow', C(0.42, 0.22, 0.4), 440)
+    rd = vparam(m, 'RimDir', C(-1, 0, 0.25), 640); rc = vparam(m, 'Rim', C(2.4, 0.5, 0.25), 840); th = sparam(m, 'Theme', 0.0, 1040)
     c = custom(m, TOON, [('Base', tex, 'RGB'), ('N', n, ''), ('Vw', v, ''), ('L', L, ''), ('Light', li, ''), ('Shadow', sh, ''), ('RimDir', rd, ''), ('Rim', rc, ''), ('Theme', th, '')])
     MEL.connect_material_property(c, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     return done(m)
@@ -154,6 +154,22 @@ def mk_floor():
     return done(m)
 
 
+SKY = '''
+float h = saturate(normalize(WP - Cam).z); float g = pow(1.0 - h, 3.0);
+float3 top = float3(0.035, 0.012, 0.07), mid = float3(0.5, 0.04, 0.09), low = float3(1.9, 0.32, 0.1);
+float3 c = lerp(top, mid, smoothstep(0.0, 0.75, g)); c = lerp(c, low, smoothstep(0.72, 1.0, g));
+float band = sin(h * 46.0 + sin(WP.y * 0.00003) * 3.0) * 0.5 + 0.5; c *= 0.88 + 0.24 * smoothstep(0.55, 0.9, band) * smoothstep(0.02, 0.2, h) * (1.0 - smoothstep(0.2, 0.5, h));
+return c;
+'''
+
+
+def mk_sky():
+    m = mat('M_Sky'); sp(m, shading_model=unreal.MaterialShadingModel.MSM_UNLIT, two_sided=True)
+    wp = node(m, unreal.MaterialExpressionWorldPosition, -700, 0); cp = node(m, unreal.MaterialExpressionCameraPositionWS, -700, 150)
+    MEL.connect_material_property(custom(m, SKY, [('WP', wp, ''), ('Cam', cp, '')]), '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    return done(m)
+
+
 def inst(name, parent, scalars=None, vectors=None):
     p = '/Game/Mat/' + name
     mi = EAL.load_asset(p) if EAL.does_asset_exist(p) else AT.create_asset(name, '/Game/Mat', unreal.MaterialInstanceConstant, unreal.MaterialInstanceConstantFactoryNew())
@@ -189,11 +205,12 @@ def lantern(tag, x, y, s, stone, glow):
     shape(tag + '_box', 'Cube', (x, y, 150 * s), (0.62 * s, 0.62 * s, 0.56 * s), glow)
     shape(tag + '_cap', 'Cone', (x, y, 198 * s), (1.25 * s, 1.25 * s, 0.5 * s), stone)
     l = ELL.spawn_actor_from_class(unreal.PointLight, V(x + 20, y, 150 * s), R(0, 0)); l.set_actor_label(tag + '_light')
-    sp(l.point_light_component, intensity=9000.0, light_color=unreal.Color(255, 150, 70), attenuation_radius=900.0, source_radius=18.0, cast_shadows=True, volumetric_scattering_intensity=2.0)
+    sp(l.point_light_component, intensity_units=unreal.LightUnits.CANDELAS, intensity=55.0, light_color=unreal.Color(255, 150, 70), attenuation_radius=900.0, source_radius=18.0, cast_shadows=True, volumetric_scattering_intensity=0.6)
 
 
 def fighter(tag, sk, anim, mi, ink, y, yaw, t, scale):
-    a = ELL.spawn_actor_from_class(unreal.SkeletalMeshActor, V(0, y, 0), R(0, yaw)); a.set_actor_label(tag); a.set_actor_scale3d(V(scale, scale, scale))
+    cy = CEN[1] * scale * (1 if yaw == 0 else -1); cx = CEN[0] * scale * (1 if yaw == 0 else -1)
+    a = ELL.spawn_actor_from_class(unreal.SkeletalMeshActor, V(-cx, y - cy, 0), R(0, yaw)); a.set_actor_label(tag); a.set_actor_scale3d(V(scale, scale, scale))
     c = a.skeletal_mesh_component
     try: c.set_skinned_asset_and_update(sk)
     except Exception:
@@ -205,7 +222,7 @@ def fighter(tag, sk, anim, mi, ink, y, yaw, t, scale):
         try:
             c.set_animation_mode(unreal.AnimationMode.ANIMATION_SINGLE_NODE)
             d = unreal.SingleAnimationPlayData(); sp(d, anim_to_play=anim, saved_position=t, saved_play_rate=0.0, saved_looping=False, saved_playing=False)
-            sp(c, animation_data=d, update_animation_in_editor=True)
+            sp(c, animation_data=d)
         except Exception as e: log('anim', e)
     return a
 
@@ -220,11 +237,11 @@ def build():
     scale = 92.0 / max(1e-3, ext.z)
 
     toon = mk_toon(base); ink = mk_outline()
-    kagu = inst('MI_Kagu', toon, {'Theme': 0.0}); shiro = inst('MI_Shiro', toon, {'Theme': 1.0}, {'Rim': C(0.9, 1.6, 3.4), 'Shadow': C(0.3, 0.32, 0.62)})
+    kagu = inst('MI_Kagu', toon, {'Theme': 0.0}); shiro = inst('MI_Shiro', toon, {'Theme': 1.0}, {'Rim': C(0.6, 1.1, 2.6), 'Shadow': C(0.34, 0.36, 0.66), 'LightDir': C(0.62, 0.25, 0.6)})
     ink_k = inst('MI_Ink', ink, {'Width': 0.5 / scale})
     stone = mk_lit('M_Stone', C(0.05, 0.045, 0.055), 0.75); red = mk_lit('M_Lacquer', C(0.55, 0.035, 0.03), 0.32); dark = mk_lit('M_DarkWood', C(0.02, 0.014, 0.018), 0.5)
-    glow = mk_lit('M_Paper', C(0.8, 0.5, 0.25), 0.9, emis=C(22.0, 8.5, 2.2)); sun = mk_lit('M_Sun', C(1, 0, 0), unlit=True, emis=C(9.0, 0.5, 0.18)); mount = mk_lit('M_Mountain', C(0.03, 0.012, 0.03), 0.95)
-    floor = mk_floor()
+    glow = mk_lit('M_Paper', C(0.8, 0.5, 0.25), 0.9, emis=C(22.0, 8.5, 2.2)); sun = mk_lit('M_Sun', C(1, 0, 0), unlit=True, emis=C(3.2, 0.16, 0.07)); mount = mk_lit('M_Mountain', C(0.03, 0.012, 0.03), 0.95)
+    floor = mk_floor(); sky = mk_sky()
 
     les = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
     if EAL.does_asset_exist('/Game/Maps/Arena'):
@@ -236,17 +253,17 @@ def build():
 
     # --- light: a low red sun behind the stage throwing long light toward the camera, sky, fog you can see shafts in
     s = ELL.spawn_actor_from_class(unreal.DirectionalLight, V(0, 0, 800), R(-7.5, 8)); s.set_actor_label('Sun')
-    sp(s.light_component, intensity=7.0, light_color=unreal.Color(255, 92, 50), atmosphere_sun_light=True, volumetric_scattering_intensity=3.0, enable_light_shaft_bloom=True, bloom_scale=0.25, bloom_tint=unreal.Color(255, 60, 40), light_source_angle=2.0, cast_shadows=True)
+    sp(s.light_component, intensity=3.2, light_color=unreal.Color(255, 92, 50), atmosphere_sun_light=True, volumetric_scattering_intensity=3.0, enable_light_shaft_bloom=True, bloom_scale=0.25, bloom_tint=unreal.Color(255, 60, 40), light_source_angle=2.0, cast_shadows=True)
     k = ELL.spawn_actor_from_class(unreal.DirectionalLight, V(0, 0, 900), R(-38, 150)); k.set_actor_label('Fill')
-    sp(k.light_component, intensity=1.1, light_color=unreal.Color(150, 120, 255), atmosphere_sun_light=False, cast_shadows=False)
-    ELL.spawn_actor_from_class(unreal.SkyAtmosphere, V(0, 0, 0), R(0, 0)).set_actor_label('Sky')
-    sl = ELL.spawn_actor_from_class(unreal.SkyLight, V(0, 0, 500), R(0, 0)); sp(sl.light_component, real_time_capture=True, intensity=1.4)
+    sp(k.light_component, intensity=0.45, light_color=unreal.Color(150, 110, 255), atmosphere_sun_light=False, cast_shadows=False, volumetric_scattering_intensity=0.0)
+    shape('SkyDome', 'Sphere', (0, 0, 0), (-2400, 2400, 2400), sky)
+    sl = ELL.spawn_actor_from_class(unreal.SkyLight, V(0, 0, 500), R(0, 0)); sp(sl.light_component, real_time_capture=True, intensity=0.7)
     fg = ELL.spawn_actor_from_class(unreal.ExponentialHeightFog, V(0, 0, 0), R(0, 0))
-    sp(fg.component, fog_density=0.035, fog_height_falloff=0.12, fog_inscattering_color=C(0.5, 0.06, 0.07), volumetric_fog=True, volumetric_fog_scattering_distribution=0.75, volumetric_fog_extinction_scale=1.6, volumetric_fog_albedo=unreal.Color(255, 190, 190), fog_max_opacity=0.92, start_distance=300.0)
+    sp(fg.component, fog_density=0.012, fog_height_falloff=0.1, fog_inscattering_luminance=C(0.22, 0.03, 0.05), enable_volumetric_fog=True, volumetric_fog_scattering_distribution=0.75, volumetric_fog_extinction_scale=0.8, volumetric_fog_albedo=unreal.Color(255, 190, 190), fog_max_opacity=0.92, start_distance=300.0)
     pp = ELL.spawn_actor_from_class(unreal.PostProcessVolume, V(0, 0, 0), R(0, 0)); sp(pp, unbound=True)
     st = pp.get_editor_property('settings')
-    for kk, vv in dict(bloom_intensity=1.35, bloom_threshold=0.2, auto_exposure_method=unreal.AutoExposureMethod.AEM_MANUAL, auto_exposure_bias=10.4, auto_exposure_apply_physical_camera_exposure=False, vignette_intensity=0.55,
-                       scene_fringe_intensity=1.2, film_grain_intensity=0.12, color_saturation=unreal.Vector4(1.12, 1.0, 1.08, 1.0), color_contrast=unreal.Vector4(1.1, 1.08, 1.1, 1.0),
+    for kk, vv in dict(bloom_intensity=1.35, bloom_threshold=0.2, auto_exposure_method=unreal.AutoExposureMethod.AEM_MANUAL, auto_exposure_bias=-0.2, auto_exposure_apply_physical_camera_exposure=False, vignette_intensity=0.55,
+                       scene_fringe_intensity=0.25, film_grain_intensity=0.12, color_saturation=unreal.Vector4(1.12, 1.0, 1.08, 1.0), color_contrast=unreal.Vector4(1.1, 1.08, 1.1, 1.0),
                        color_gamma_shadows=unreal.Vector4(0.96, 0.9, 1.06, 1.0), lens_flare_intensity=0.35, ambient_occlusion_intensity=0.7).items():
         try: st.set_editor_property('override_' + kk, True); st.set_editor_property(kk, vv)
         except Exception as e: log('  pp', kk, str(e)[:90])
@@ -268,14 +285,16 @@ def build():
     shape('Steps1', 'Cube', (-1250, 0, 12), (5, 30, 0.24), stone); shape('Steps2', 'Cube', (-1500, 0, 36), (5, 26, 0.24), stone)
 
     # --- fighters, mid-rush at each other
-    a = fighter('KAGU', sk, anim, kagu, ink_k, -175, 0, 0.18, scale); b = fighter('SHIRO', sk, anim, shiro, ink_k, 175, 180, 0.52, scale)
+    W, Lc = ref_pose(); skel = (kg.get('Skeleton') or [None])[0]
+    reed = bake('P_Reed', POSES['P_Reed'], W, Lc, skel); coil = bake('P_Coil', POSES['P_Coil'], W, Lc, skel)
+    a = fighter('KAGU', sk, reed, kagu, ink_k, 150, 180, 0.0, scale); b = fighter('SHIRO', sk, coil, shiro, ink_k, -150, 0, 0.0, scale)
 
-    cam = ELL.spawn_actor_from_class(unreal.CineCameraActor, V(1020, 0, 78), R(4.5, 180)); cam.set_actor_label('MatchCam')
+    cam = ELL.spawn_actor_from_class(unreal.CineCameraActor, V(600, 0, 92), R(2.5, 180)); cam.set_actor_label('MatchCam')
     cc = cam.get_cine_camera_component()
     try:
         fb = cc.get_editor_property('filmback'); sp(fb, sensor_width=36.0, sensor_height=20.25); sp(cc, filmback=fb)
-        fs = cc.get_editor_property('focus_settings'); sp(fs, focus_method=unreal.CameraFocusMethod.MANUAL, manual_focus_distance=1020.0); sp(cc, focus_settings=fs)
-        sp(cc, current_focal_length=27.0, current_aperture=2.8)
+        fs = cc.get_editor_property('focus_settings'); sp(fs, focus_method=unreal.CameraFocusMethod.MANUAL, manual_focus_distance=600.0); sp(cc, focus_settings=fs)
+        sp(cc, current_focal_length=30.0, current_aperture=8.0)
     except Exception as e: log('cam', e)
     try: les.pilot_level_actor(cam)
     except Exception as e: log('pilot', e)
@@ -287,7 +306,137 @@ def build():
             try: unreal.AutomationLibrary.take_high_res_screenshot(1920, 1080, 'look_%s.png' % n, cam); log('shot', n)
             except Exception: log(traceback.format_exc())
         return f
-    later(20, shot('a')); later(90, shot('b')); later(240, shot('c'))
+    later(12, shot('a')); later(45, shot('b'))
+
+
+# ------------------------------------------------------------------ poses authored for this fighter
+# A pose is written as targets in the fighter's own space (x = his left, y = the way he faces, z = up, centimetres,
+# measured from the point between his feet): where the hips are, how the spine leans and turns, where each hand and
+# foot is. Limbs are solved with two-bone IK, and the result is baked into an animation asset.
+ML = unreal.MathLibrary
+PARENT = {'Spine02': 'Hips', 'Spine01': 'Spine02', 'Spine': 'Spine01', 'neck': 'Spine', 'Head': 'neck', 'head_end': 'Head', 'headfront': 'Head',
+          'LeftShoulder': 'Spine', 'LeftArm': 'LeftShoulder', 'LeftForeArm': 'LeftArm', 'LeftHand': 'LeftForeArm', 'RightShoulder': 'Spine', 'RightArm': 'RightShoulder', 'RightForeArm': 'RightArm', 'RightHand': 'RightForeArm',
+          'LeftUpLeg': 'Hips', 'LeftLeg': 'LeftUpLeg', 'LeftFoot': 'LeftLeg', 'LeftToeBase': 'LeftFoot', 'RightUpLeg': 'Hips', 'RightLeg': 'RightUpLeg', 'RightFoot': 'RightLeg', 'RightToeBase': 'RightFoot'}
+ORDER = ['Hips', 'Spine02', 'Spine01', 'Spine', 'neck', 'Head', 'head_end', 'headfront', 'LeftShoulder', 'LeftArm', 'LeftForeArm', 'LeftHand', 'RightShoulder', 'RightArm', 'RightForeArm', 'RightHand',
+         'LeftUpLeg', 'LeftLeg', 'LeftFoot', 'LeftToeBase', 'RightUpLeg', 'RightLeg', 'RightFoot', 'RightToeBase']
+CEN = (5.7, 15.3)
+
+
+def vadd(a, b): return V(a.x + b.x, a.y + b.y, a.z + b.z)
+def vsub(a, b): return V(a.x - b.x, a.y - b.y, a.z - b.z)
+def vmul(a, k): return V(a.x * k, a.y * k, a.z * k)
+def vlen(a): return math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z)
+def vnorm(a):
+    l = vlen(a); return V(a.x / l, a.y / l, a.z / l) if l > 1e-6 else V(0, 0, 1)
+def vcross(a, b): return V(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x)
+def vdot(a, b): return a.x * b.x + a.y * b.y + a.z * b.z
+def frame(d, h): return ML.make_rot_from_xz(vnorm(d), vnorm(h)).quaternion()
+def rotz(v, deg):
+    a = math.radians(deg); c, s_ = math.cos(a), math.sin(a); return V(v.x * c - v.y * s_, v.x * s_ + v.y * c, v.z)
+
+
+def ik2(a, t, l1, l2, pole):
+    d = vsub(t, a); L = max(1e-3, min(vlen(d), (l1 + l2) * 0.999)); dn = vnorm(d)
+    x = (l1 * l1 - l2 * l2 + L * L) / (2 * L); h = math.sqrt(max(0.0, l1 * l1 - x * x))
+    side = vsub(pole, vmul(dn, vdot(pole, dn))); side = vnorm(side) if vlen(side) > 1e-4 else V(0, 0, -1)
+    mid = vadd(vadd(a, vmul(dn, x)), vmul(side, h)); return mid, vadd(a, vmul(dn, L))
+
+
+def ref_pose():
+    anim = EAL.load_asset('/Game/Kagu/Kagu_Run_Anim'); X = unreal.AnimPoseExtensions
+    pose = X.get_anim_pose_at_frame(anim, 0, unreal.AnimPoseEvaluationOptions())
+    W = {}; Lc = {}
+    for n in ORDER:
+        W[n] = X.get_ref_bone_pose(pose, n, unreal.AnimPoseSpaces.WORLD); Lc[n] = X.get_ref_bone_pose(pose, n, unreal.AnimPoseSpaces.LOCAL)
+    return W, Lc
+
+
+def solve(P, W):
+    """joint positions for a pose, in component space"""
+    c = V(CEN[0], CEN[1], 0); J = {}
+    rp = lambda n: W[n].translation
+    fwd = rotz(V(0, 1, 0), P.get('pt', 0)); cf = rotz(V(0, 1, 0), P.get('tw', 0)); cl = rotz(V(1, 0, 0), P.get('tw', 0)); pl = rotz(V(1, 0, 0), P.get('pt', 0))
+    hips = vadd(c, V(*P['hip'])); J['Hips'] = hips
+    def lean(deg, side, f, l):
+        a, b = math.radians(deg), math.radians(side); return vnorm(vadd(vadd(vmul(f, math.sin(a)), vmul(l, math.sin(b))), V(0, 0, math.cos(a) * math.cos(b))))
+    d1 = lean(P.get('ln', 0) * 0.5, P.get('sd', 0) * 0.5, fwd, pl); d2 = lean(P.get('ln', 0), P.get('sd', 0), cf, cl); d3 = lean(P.get('ln2', P.get('ln', 0)), P.get('sd', 0), cf, cl)
+    dh = lean(P.get('ln2', P.get('ln', 0)) * 0.4 + P.get('hd', 0), P.get('hs', 0), rotz(cf, P.get('hy', 0)), rotz(cl, P.get('hy', 0)))
+    seg = lambda a, b: vlen(vsub(rp(b), rp(a)))
+    J['Spine02'] = vadd(hips, vmul(d1, seg('Hips', 'Spine02'))); J['Spine01'] = vadd(J['Spine02'], vmul(d2, seg('Spine02', 'Spine01'))); J['Spine'] = vadd(J['Spine01'], vmul(d3, seg('Spine01', 'Spine')))
+    J['neck'] = vadd(J['Spine'], vmul(d3, seg('Spine', 'neck'))); J['Head'] = vadd(J['neck'], vmul(dh, seg('neck', 'Head')))
+    hf = rotz(cf, P.get('hy', 0)); J['_headF'] = hf; J['_headU'] = dh; J['_chestF'] = cf; J['_chestU'] = d3; J['_pelvF'] = fwd; J['_pelvU'] = d1
+    chestL = vnorm(vcross(d3, cf)); chestL = vmul(chestL, -1) if vdot(chestL, cl) < 0 else chestL
+    pelvL = vnorm(vcross(d1, fwd)); pelvL = vmul(pelvL, -1) if vdot(pelvL, pl) < 0 else pelvL
+    for S, sg_ in (('Left', 1), ('Right', -1)):
+        k = 'L' if sg_ > 0 else 'R'
+        ro = vsub(rp(S + 'Arm'), rp('Spine')); sh = vadd(J['Spine'], vadd(vadd(vmul(chestL, abs(ro.x) * sg_), vmul(d3, ro.z)), vmul(cf, ro.y)))
+        ros = vsub(rp(S + 'Shoulder'), rp('Spine')); J[S + 'Shoulder'] = vadd(J['Spine'], vadd(vadd(vmul(chestL, abs(ros.x) * sg_), vmul(d3, ros.z)), vmul(cf, ros.y))); J[S + 'Arm'] = sh
+        pole = V(*P.get('e' + k, (sg_ * 0.5, -0.5, -1)))
+        el, wr = ik2(sh, vadd(c, V(*P['h' + k])), seg(S + 'Arm', S + 'ForeArm'), seg(S + 'ForeArm', S + 'Hand'), pole); J[S + 'ForeArm'] = el; J[S + 'Hand'] = wr
+        rh = vsub(rp(S + 'UpLeg'), rp('Hips')); hj = vadd(hips, vadd(vadd(vmul(pelvL, abs(rh.x) * sg_), vmul(d1, rh.z)), vmul(fwd, rh.y))); J[S + 'UpLeg'] = hj
+        kp = V(*P.get('k' + k, (sg_ * 0.35, 1, 0.2)))
+        kn, an = ik2(hj, vadd(c, V(*P['f' + k])), seg(S + 'UpLeg', S + 'Leg'), seg(S + 'Leg', S + 'Foot'), kp); J[S + 'Leg'] = kn; J[S + 'Foot'] = an
+        td = V(*P.get('t' + k, (sg_ * 0.25, 1, -0.55))); J[S + 'ToeBase'] = vadd(an, vmul(vnorm(td), seg(S + 'Foot', S + 'ToeBase')))
+    return J
+
+
+CHILD = {'Hips': 'Spine02', 'Spine02': 'Spine01', 'Spine01': 'Spine', 'Spine': 'neck', 'neck': 'Head', 'LeftShoulder': 'LeftArm', 'LeftArm': 'LeftForeArm', 'LeftForeArm': 'LeftHand', 'RightShoulder': 'RightArm', 'RightArm': 'RightForeArm', 'RightForeArm': 'RightHand',
+         'LeftUpLeg': 'LeftLeg', 'LeftLeg': 'LeftFoot', 'LeftFoot': 'LeftToeBase', 'RightUpLeg': 'RightLeg', 'RightLeg': 'RightFoot', 'RightFoot': 'RightToeBase'}
+
+
+def hint_of(n, J, ref):
+    """a second axis for each bone so its roll is defined: the body's forward for the trunk, the bend plane for limbs"""
+    g = (lambda k: J[k]) if not ref else None
+    if n in ('Hips', 'Spine02'): return V(0, 1, 0) if ref else J['_pelvF']
+    if n in ('Spine01', 'Spine', 'LeftShoulder', 'RightShoulder'): return V(0, 1, 0) if ref else J['_chestF']
+    if n in ('neck', 'Head'): return V(0, 1, 0) if ref else J['_headF']
+    S = 'Left' if n.startswith('Left') else 'Right'
+    if 'Arm' in n:
+        a, b, c_ = J[S + 'Arm'], J[S + 'ForeArm'], J[S + 'Hand']; x = vcross(vsub(b, a), vsub(c_, b)); return x if vlen(x) > 0.5 else V(0, 0, 1)
+    if n.endswith('Foot'): return V(0, 0, 1)
+    a, b, c_ = J[S + 'UpLeg'], J[S + 'Leg'], J[S + 'Foot']; x = vcross(vsub(b, a), vsub(c_, b)); return x if vlen(x) > 0.5 else V(1, 0, 0)
+
+
+def bake(name, P, W, Lc, skel):
+    J = solve(P, W); Jr = {n: W[n].translation for n in ORDER}
+    NW = {}; keys = {}
+    for n in ORDER:
+        par = PARENT.get(n)
+        if n in CHILD:
+            c_ = CHILD[n]; Qt = frame(vsub(J[c_], J[n]), hint_of(n, J, False)); Qb = frame(vsub(Jr[c_], Jr[n]), hint_of(n, Jr, True))
+            NW[n] = Qt * Qb.inversed() * W[n].rotation
+        else: NW[n] = NW[par] * Lc[n].rotation if par else W[n].rotation
+        lr = NW[par].inversed() * NW[n] if par else NW[n]
+        keys[n] = (J['Hips'] if n == 'Hips' else Lc[n].translation, lr)
+    path = '/Game/Kagu/Anim/' + name
+    if EAL.does_asset_exist(path): seq = EAL.load_asset(path)
+    else:
+        f = unreal.AnimSequenceFactory(); f.set_editor_property('target_skeleton', skel); seq = AT.create_asset(name, '/Game/Kagu/Anim', unreal.AnimSequence, f)
+    ct = seq.controller; ct.open_bracket(unreal.Text('pose'), False); ct.set_frame_rate(unreal.FrameRate(30, 1), False); ct.set_number_of_frames(unreal.FrameNumber(1), False); ct.remove_all_bone_tracks(False)
+    for n in ORDER:
+        ct.add_bone_curve(n, False); p_, q = keys[n]; ct.set_bone_track_keys(n, [p_, p_], [q, q], [V(1, 1, 1), V(1, 1, 1)], False)
+    ct.close_bracket(False); EAL.save_loaded_asset(seq); log('baked', name); return seq
+
+
+POSES = {
+    # KAGU: upright and loose, weight on the back leg, the lead hand raised open like an offered cup, the other trailing low behind
+    'P_Reed': dict(hip=(0, -7, 83), ln=-7, ln2=2, tw=-52, pt=-34, hd=6, hy=42, hL=(13, 46, 132), eL=(0.3, -0.2, -1), hR=(-25, -18, 80), eR=(-0.8, -0.6, 0.2), fL=(9, 26, 9), fR=(-13, -27, 9), kL=(0.5, 1, 0), kR=(-0.9, 0.6, 0), tL=(0.1, 1, -0.5), tR=(-0.8, 0.5, -0.5)),
+    # SHIRO: low and coiled, fingertips to the floor, the other arm swept back like a drawn blade
+    'P_Coil': dict(hip=(0, -10, 54), ln=38, ln2=46, tw=-36, pt=-24, hd=-34, hy=26, hL=(10, 44, 12), eL=(0.6, 0.2, 0.5), hR=(-30, -40, 100), eR=(-0.6, -0.6, 0.6), fL=(13, 34, 9), fR=(-16, -40, 12), kL=(0.7, 1, 0.3), kR=(-0.9, 0.5, 0.2), tL=(0.2, 1, -0.5), tR=(-0.6, 0.7, -0.75)),
+}
+
+
+def probe():
+    try:
+        anim = EAL.load_asset('/Game/Kagu/Kagu_Run_Anim'); X = unreal.AnimPoseExtensions
+        pose = X.get_anim_pose_at_frame(anim, 0, unreal.AnimPoseEvaluationOptions())
+        names = [str(n) for n in X.get_bone_names(pose)]; log('BONES', len(names), names)
+        for n in names:
+            w = X.get_ref_bone_pose(pose, n, unreal.AnimPoseSpaces.WORLD); l = X.get_ref_bone_pose(pose, n, unreal.AnimPoseSpaces.LOCAL)
+            log('REF', n, [round(v, 2) for v in (w.translation.x, w.translation.y, w.translation.z)], [round(v, 3) for v in (l.rotation.x, l.rotation.y, l.rotation.z, l.rotation.w)], [round(v, 2) for v in (l.translation.x, l.translation.y, l.translation.z)])
+        log('CTRL', [m for m in dir(anim.controller) if not m.startswith('_')])
+        log('SEQFAC', [m for m in dir(unreal.AnimSequenceFactory) if not m.startswith('_')][:40])
+    except Exception: log(traceback.format_exc())
 
 
 build()

@@ -1,11 +1,27 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "5.1",
+	"EngineAssociation": "5.8",
 	"Category": "",
 	"Description": "GEKITOTSU - 1v1 fighting game",
 	"Plugins": [
-		{ "Name": "PythonScriptPlugin", "Enabled": true },
-		{ "Name": "EditorScriptingUtilities", "Enabled": true },
-		{ "Name": "Niagara", "Enabled": true }
+		{
+			"Name": "PythonScriptPlugin",
+			"Enabled": true
+		},
+		{
+			"Name": "EditorScriptingUtilities",
+			"Enabled": true
+		},
+		{
+			"Name": "Niagara",
+			"Enabled": true
+		}
+	],
+	"Modules": [
+		{
+			"Name": "Gekitotsu",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
 	]
 }
