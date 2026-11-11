@@ -68,12 +68,23 @@ for c in range(len(sizes)):
 print('bones',len(bones),'chains',len(chains),'cloth verts',cloth.sum())
 # ---- per original vertex skin
 SI=np.zeros((len(pos),4),int); SWt=np.zeros((len(pos),4))
+KNEE={}; fixed=0
+for S in ['Left','Right']:
+    k=J[N[S+'Leg']]; ax=J[N[S+'Foot']]-k; KNEE[S]=(N[S+'UpLeg'],N[S+'Leg'],k,ax/np.linalg.norm(ax))
 for v in range(len(pos)):
     w=inv[v]
     if cloth[w]: SI[v]=newSI[w]; SWt[v]=newSW[w]
     else:
-        o=np.argsort(-jw[v])[:4]; SI[v]=ji[v][o]; SWt[v]=jw[v][o]
-SWt/=SWt.sum(1,keepdims=True); sw8=np.round(SWt*255).astype(int)
+        dw=np.zeros(NB); np.add.at(dw,ji[v],jw[v])
+        # The auto-rig put the thigh-to-shin blend 10 cm below the knee joint, so the top of the shin followed the thigh and tore
+        # away from the cuff when the knee bent. Re-centre that blend on the joint itself, the way the elbows and ankles already are.
+        for S in KNEE:
+            u,l,k,ax=KNEE[S]; tt=dw[u]+dw[l]
+            if tt>0.05:
+                sp=(pos[v]-k)@ax; rr=np.linalg.norm((pos[v]-k)-sp*ax)
+                if rr<0.3: f=np.clip((sp+0.06)/0.13,0,1); f=f*f*(3-2*f); dw[u]=tt*(1-f); dw[l]=tt*f; fixed+=1
+        o=np.argsort(-dw)[:4]; SI[v]=o; SWt[v]=dw[o]
+print('knee re-weighted',fixed); SWt/=SWt.sum(1,keepdims=True); sw8=np.round(SWt*255).astype(int)
 for v in range(len(pos)): sw8[v,np.argmax(sw8[v])]+=255-sw8[v].sum()
 assert len(bones)<256
 # ---- texture: pad chart edges so nothing bleeds, lift the blacks to a dark plum, shrink
