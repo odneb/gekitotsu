@@ -79,6 +79,11 @@ t('air drift: holding a direction steers a neutral jump',[],()=>{const a=sim1([[
 t('wall jump: Up against the wall kicks off it',[],()=>{const r=sim1([[3,U|Lf],[14,Lf],[2,U|Lf],[10,0]],s=>{s.p[0].x=-S.STAGE+2000;s.p[1].x=-S.STAGE+22000;});return r.ev.includes('walljump')&&r.s.p[0].vx>0;});
 t('air up+attack = Rising Lash',[w,[3,U],[14,0],[2,U|M],[40,0]],'jUP');
 t('air down+H = Falling Heel',[w,[3,U],[14,0],[2,D|H],[40,0]],'jDN');
+t('air up+SP = Riptide',[w,[3,U],[14,0],[2,U|SP],[60,0]],'AUP');
+t('air back+SP = Undertow',[w,[3,U],[14,0],[2,Lf|SP],[60,0]],'ABK');
+t('Riptide rises and carries an airborne opponent up',[],()=>{const r=sim1([[2,U|SP],[50,0]],s=>{const a=s.p[0],d=s.p[1];a.st='jump';a.y=40*S.F;a.vy=0;a.sf=20;d.st='ahit';d.y=50*S.F;d.x=a.x+1500;d.vy=200;d.vx=0;});return r.maxY>120*S.F&&r.maxDY>150*S.F&&r.ev.filter(e=>e==='hit').length>=4;});
+t('Undertow sends a grounded opponent behind flying',[],()=>{const r=sim1([[2,Lf|SP],[50,0]],s=>{const a=s.p[0],d=s.p[1];a.st='jump';a.y=28*S.F;a.vy=300;a.sf=20;d.x=a.x-4200;});return r.ev.includes('hit')&&r.s.p[1].x<r.s.p[0].x-90*S.F;});
+t('fast fall: holding down on the way down lands sooner',[],()=>{const f=(hold)=>{const s=S.newMatch({chars:[0,1],training:false});for(let k=0;k<S.INTRO+4;k++)S.step(s,0,0);let n=0;for(let k=0;k<3;k++)S.step(s,U,0);for(let k=0;k<120;k++){S.step(s,k>18&&hold?D:0,0);n++;if(s.p[0].y<=0&&k>6)break;}return n;};return f(1)<f(0)-3;});
 t('air back+attack = Back Lash',[w,[3,U|R],[14,0],[2,Lf|M],[40,0]],'jBK');
 t('air down+SP = Falling Star',[w,[3,U|R],[14,0],[2,D|SP],[60,0]],'ASPK');
 t('Falling Star spikes an airborne opponent into a ground bounce',[],()=>{const r=sim1([[2,D|SP],[70,0]],s=>{const a=s.p[0],d=s.p[1];a.st='jump';a.y=130*S.F;a.vy=0;a.sf=20;a.jd=1;d.st='ahit';d.y=95*S.F;d.x=a.x+2600;d.vy=300;d.vx=0;});return r.ev.includes('gbounce')&&r.ev.includes('hit')&&r.maxDY>40*S.F;});

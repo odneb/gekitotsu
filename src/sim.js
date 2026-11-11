@@ -61,7 +61,11 @@ const SIM = (function () {
     N('jMK', { n: 'Jumping Medium Kick', air: 1, su: 7, ac: 6, t: 999, g: 'h', d: 50, fs: 18, fb: 14, xh: 1, hb: [-31, 14, 76, 27], kb: 450, hsp: 11, lvl: 1, dd: 250, sg: 50, landRec: 3, an: { w: 'jump', s: 'jlkS' } });
     N('jHP', { n: 'Jumping Heavy Punch', air: 1, su: 9, ac: 6, t: 999, g: 'h', d: 80, fs: 20, fb: 16, xh: 1, hb: [2, -6, 24, 30], kb: 500, hsp: 13, lvl: 1, dd: 400, sg: 100, landRec: 3, an: { w: 'jhpW', s: 'jhpS' } });
     // directional aerials: up launches, down spikes into a ground bounce, back hits behind
-    N('jUP', { n: 'Rising Lash', air: 1, su: 6, t: 999, g: 'h', landRec: 3, dd: 200, sg: 50, hits: [{ s: 5, e: 10, hb: [-8, 56, 40, 52], d: 50, stun: 18, bstun: 14, launch: [40, 1000], air: [40, 1000], kb: 300, lvl: 1, hsp: 10, g: 'h' }] });
+    N('jUP', { n: 'Rising Lash', air: 1, su: 5, t: 999, g: 'h', landRec: 2, dd: 200, sg: 50, hits: [{ s: 4, e: 6, hb: [4, 40, 42, 50], d: 34, stun: 18, bstun: 14, launch: [30, 960], air: [30, 960], kb: 300, lvl: 1, hsp: 8, g: 'h' }, { s: 7, e: 11, hb: [-34, 56, 52, 50], d: 34, stun: 18, bstun: 14, launch: [-20, 1000], air: [-20, 1000], kb: 300, lvl: 1, hsp: 8, g: 'h' }] });
+    // up + special: a rising spin that drags them up with it and flicks them off the top; no more actions until landing
+    N('AUP', { n: 'Riptide', sp: 1, air: 1, su: 5, t: 999, rise: [4, 150, 1080], landRec: 16, dd: 300, sg: 60, hits: [4, 8, 12, 16].map(f => ({ s: f, e: f + 2, hb: [-24, -6, 56, 76], d: 14, stun: 20, bstun: 12, launch: [0, 620], air: [0, 300], lk: 1, carry: [14, 10], kb: 0, lvl: 1, hsp: 4 })).concat([{ s: 21, e: 24, hb: [-26, 0, 60, 86], d: 50, stun: 24, bstun: 16, launch: [150, 1050], air: [150, 1050], kb: 300, lvl: 2, hsp: 12 }]) });
+    // back + special: a slow, enormous swing behind. Clean it sends them flying; caught low on the way down it spikes
+    N('ABK', { n: 'Undertow', sp: 1, air: 1, su: 14, t: 999, landRec: 18, dd: 500, sg: 100, hits: [{ s: 13, e: 16, hb: [-70, 14, 64, 70], d: 130, stun: 30, bstun: 22, launch: [640, 580], air: [720, 500], wb: 1, kb: 700, lvl: 2, hsp: 17 }, { s: 17, e: 21, hb: [-60, -20, 52, 44], d: 110, stun: 28, bstun: 20, launch: [300, 760], air: [110, -1500], gb: 1, kb: 500, lvl: 2, hsp: 15 }] });
     N('jDN', { n: 'Falling Heel', air: 1, su: 9, t: 999, g: 'h', landRec: 4, dd: 300, sg: 60, hits: [{ s: 8, e: 14, hb: [-6, -16, 34, 42], d: 60, stun: 22, bstun: 16, air: [60, -1300], gb: 1, kb: 400, lvl: 2, hsp: 12, g: 'h' }] });
     N('jBK', { n: 'Back Lash', air: 1, su: 7, t: 999, g: 'h', landRec: 3, dd: 250, sg: 50, hits: [{ s: 6, e: 11, hb: [-56, 22, 50, 26], d: 60, stun: 20, bstun: 15, air: [460, 520], kb: 450, lvl: 1, hsp: 11, g: 'h' }] });
     // down + special in the air: a dive that spikes an airborne opponent into the floor and bounces off them so the juggle can go on
@@ -138,7 +142,7 @@ const SIM = (function () {
       an: { k: [[0, 'cupW'], [6, 'srS'], [11, 'cupW'], [14, 'srS'], [19, 'cupW'], [22, 'srS'], [27, 'cupW'], [30, 'srS'], [36, 'cupW'], [40, 'srS'], [56, 'srS2'], [80, 'jump']], spin: [40, 70, 1080] } });
     return {
       name: 'RET', jp: '裂', title: 'THE PALE TIDE', hp: 1000, walkF: 230, walkB: 157, jx: 245, jxB: 196, runV: 430, mv: mv,
-      sp: [{ dir: 6, k: 'SRK_M', od: 'SRK_OD' }, { dir: 4, k: 'DL_H', od: 'DL_OD' }, { dir: 2, k: 'JIN_M', od: 'JIN_OD' }, { dir: 5, k: 'HAD_H', od: 'HAD_OD' }, { air: 1, adir: 2, k: 'ASPK', od: 'ASPK' }, { air: 1, fwd: 1, k: 'ATAT', od: 'ATAT_OD' }],
+      sp: [{ dir: 6, k: 'SRK_M', od: 'SRK_OD' }, { dir: 4, k: 'DL_H', od: 'DL_OD' }, { dir: 2, k: 'JIN_M', od: 'JIN_OD' }, { dir: 5, k: 'HAD_H', od: 'HAD_OD' }, { air: 1, adir: 2, k: 'ASPK', od: 'ASPK' }, { air: 1, adir: 8, k: 'AUP', od: 'AUP' }, { air: 1, adir: 4, k: 'ABK', od: 'ABK' }, { air: 1, fwd: 1, k: 'ATAT', od: 'ATAT_OD' }],
       mo: [{ m: '623', L: 'SRK_L', M: 'SRK_M', H: 'SRK_H', OD: 'SRK_OD' }, { m: '214', L: 'TAT_L', M: 'TAT_M', H: 'TAT_H', OD: 'TAT_OD' }, { m: '236', L: 'JIN_L', M: 'JIN_M', H: 'JIN_H', OD: 'JIN_OD' }, { m: '214', air: 1, fwd: 1, L: 'ATAT', M: 'ATAT', H: 'ATAT', OD: 'ATAT_OD' }],
       run: { L: 'STOP', M: 'TK', H: 'FSK', S6: 'QSRK', S5: 'QSRK', S2: 'QTAT', S4: 'QDL', m623: 'QSRK', m214: 'QTAT' },
       auto: { L: [['5LK'], ['JIN_L'], ['KAZE']], LC: [['2LK'], ['5LP'], ['JIN_L'], ['KAZE']], M: [['5MP'], ['CB2'], ['RUN'], ['QDL'], ['SA2', 'SRK_H']], H: [['5HP'], ['JIN_OD', 'JIN_M'], ['KAZE_OD', 'KAZE'], ['KASAI'], ['SA3']] },
@@ -274,7 +278,7 @@ const SIM = (function () {
         return start(s, p, hv ? sp.H : md ? sp.M : sp.L, i);
       }
       if (spb) {
-        const d = v < 0 ? 2 : h > 0 ? 6 : h < 0 ? 4 : 5;
+        const d = v < 0 ? 2 : (air && v > 0) ? 8 : h > 0 ? 6 : h < 0 ? 4 : 5;
         for (const sp of C.sp) {
           if (!!sp.air !== air || (!air && sp.dir !== d) || (air && sp.adir && sp.adir !== d) || (sp.fwd && p.jd <= 0)) continue;
           if (as && canOD && !(C.mv[sp.od].proj && myProj)) { spend(s, p, i, 2 * BAR, 120); return start(s, p, sp.od, i, { mod: 1 }); }
@@ -379,6 +383,7 @@ const SIM = (function () {
       case 'jump': {
         // steer in the air; Up again for one weak second jump; Up against the wall to kick off it
         const pv = p.buf[p.buf.length - 2] || 0, upNew = (inp & 1) && !(pv & 1), hx = (inp & 8 ? 1 : 0) - (inp & 4 ? 1 : 0), lim = STAGE - PW;
+        if ((inp & 2) && p.vy < 0 && p.vy > -1700) p.vy -= 55;                                          // hold down on the way down to fall faster
         if (hx) { p.vx += hx * 22; const mx = tr(C.jx * 11 / 10); if (p.vx > mx) p.vx = mx; if (p.vx < -mx) p.vx = -mx; }
         if (upNew && p.sf > 5 && !(inp & 240)) {
           const wall = p.x >= lim - 2 * F ? 1 : p.x <= -lim + 2 * F ? -1 : 0;
@@ -659,7 +664,7 @@ const SIM = (function () {
       if (d.y > 0 || d.tinv > 0) continue;
       if (['idle', 'atk', 'dashf', 'land', 'parry', 'prec', 'drush', 'run'].indexOf(d.st) < 0 && !(d.st === 'dashb' && d.sf >= 15)) continue;
       if (d.st === 'atk' && CH[d.ch].mv[d.mv].inv && invul(d)) continue;
-      if (Math.abs(d.x - a.x) > 47 * F) continue;
+      if (Math.abs(d.x - a.x) > 58 * F) continue;   // the ribbons reach further than arms would
       g[i] = true;
     }
     if (g[0] && g[1]) { for (let i = 0; i < 2; i++) { const p = s.p[i]; p.st = 'tech'; p.sf = 0; p.mv = ''; p.pv = -p.face * 620; } s.ev.push({ t: 'tech', x: (s.p[0].x + s.p[1].x) >> 1, y: 60 * F }); return; }

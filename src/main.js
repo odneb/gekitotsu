@@ -249,13 +249,15 @@
   // touch: a floating stick for the left thumb, a cluster of round buttons for the right. A touch that lands between two buttons presses both.
   (function () {
     const el = document.getElementById('touch'), T = INP.touch, B = SIM.BT; if (!el) return;
-    const DEF = [['L', B.LT, 6.3, 1.7, 1], ['M', B.MD, 3.9, 1.7, 1], ['H', B.HV, 1.5, 1.7, 1], ['AS', B.AS, 5.1, 3.85, 0.92], ['SP', B.SP, 2.7, 3.85, 0.92], ['PA', B.PA, 8.5, 2.9, 0.82], ['DI', B.DI, 7.4, 5, 0.78],
-      ['GRAB', B.LT | B.MD, 5.1, 6, 0.7, 1], ['RUN', B.MD | B.HV, 2.7, 6, 0.7, 1], ['II', 4096, 1.3, -1, 0.6, 1]];
+    // eight attack buttons for one thumb: L M H SP along the bottom, and directly above each one its Assist version (AL AM AH AS)
+    const DEF = [['L', B.LT, 7.65, 1.7, 0.92], ['M', B.MD, 5.6, 1.7, 0.92], ['H', B.HV, 3.55, 1.7, 0.92], ['SP', B.SP, 1.5, 1.7, 0.92],
+      ['AL', B.AS | B.LT, 7.65, 3.85, 0.86, 2], ['AM', B.AS | B.MD, 5.6, 3.85, 0.86, 2], ['AH', B.AS | B.HV, 3.55, 3.85, 0.86, 2], ['AS', B.AS | B.SP, 1.5, 3.85, 0.86, 2],
+      ['PA', B.PA, 9.9, 2.5, 0.8], ['DI', B.DI, 9.5, 4.75, 0.74], ['GRAB', B.LT | B.MD, 6.6, 5.85, 0.66, 1], ['RUN', B.MD | B.HV, 4.55, 5.85, 0.66, 1], ['II', 4096, 1.3, -1, 0.6, 1]];
     let btn = [], R = 34, stick = null, base = null, knob = null, live = false; const ptr = new Map();
     function layout() {
       const W = innerWidth, H = innerHeight, port = H > W; R = Math.max(24, Math.min(44, Math.min(W, H) * 0.086)); if (port) R = Math.max(24, Math.min(40, W * 0.062));
       const sr = Math.max(8, R * 0.3); el.innerHTML = ''; btn = [];
-      for (const d of DEF) { const b = document.createElement('div'), r = R * d[4]; b.className = 'tb' + (d[5] ? ' sm' : ''); b.textContent = d[0]; b.style.width = b.style.height = r * 2 + 'px'; b.style.fontSize = Math.max(7, r * (d[0].length > 2 ? 0.34 : 0.5)) + 'px';
+      for (const d of DEF) { const b = document.createElement('div'), r = R * d[4]; b.className = 'tb' + (d[5] === 1 ? ' sm' : d[5] === 2 ? ' au' : ''); b.textContent = d[0]; b.style.width = b.style.height = r * 2 + 'px'; b.style.fontSize = Math.max(7, r * (d[0].length > 2 ? 0.34 : 0.5)) + 'px';
         const x = W - sr - d[2] * R, y = d[3] < 0 ? sr + R * 0.9 : H - sr - d[3] * R; b.style.left = x + 'px'; b.style.top = y + 'px'; el.appendChild(b); btn.push({ el: b, bits: d[1], x, y, r }); }
       base = document.createElement('div'); base.className = 'stk'; base.style.width = base.style.height = R * 3.6 + 'px'; knob = document.createElement('div'); knob.className = 'knob'; knob.style.width = knob.style.height = R * 1.5 + 'px'; el.appendChild(base); el.appendChild(knob); rest();
     }

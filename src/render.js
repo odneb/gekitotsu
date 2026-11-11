@@ -39,6 +39,13 @@ const R = (function () {
     pryH: s({ hip: [-5, 33], ln: -40, ln2: -54, hd: 22, tw: -80, hL: [22, 72], hR: [-10, 36], eL: 0.6, fL: [17, 4], fR: [-15, 4], kL: 0.5, kR: 0.5 }), pryH2: s({ hip: [-2, 22], ln: 52, ln2: 70, hd: -50, tw: -20, hL: [26, 50], hR: [12, 8], eL: 0.8, fL: [19, 4], fR: [-17, 4], kL: 0.8, kR: 0.8 }),
     pryM: s({ hip: [-4, 36], ln: 4, ln2: -6, hd: 8, tw: 105, pt: 60, hL: [26, 48], hR: [-4, 30], eL: 0.2, fL: [10, 4], fR: [-14, 4] }), pryM2: s({ hip: [-7, 38], ln: -18, ln2: 10, hd: -10, tw: -110, pt: -80, hL: [8, 30], hR: [24, 52], eR: 0.2, fL: [12, 4], fR: [-16, 4] }),
     pryL: s({ hip: [-3, 42], ln: 10, ln2: 22, hd: -12, tw: -60, hL: [24, 20], hR: [8, 44], fL: [12, 26], fR: [-10, 4], kL: 0.2 }), pryL2: s({ hip: [-4, 46], ln: -8, ln2: 6, hd: -4, tw: -70, hL: [10, 52], hR: [20, 16], fL: [6, 30], fR: [-8, 12] }),
+    tHold: s({ hip: [-2, 40], ln: -4, ln2: 8, hd: -16, tw: -72, hL: [20, 34], hR: [0, 30], eL: -0.4, eR: -0.4, fL: [16, 4], fR: [-15, 4] }), tReach: s({ hip: [5, 34], ln: 36, ln2: 48, hd: -36, tw: -40, hL: [22, 22], hR: [4, 18], fL: [19, 4], fR: [-17, 4] }),
+    tBite: s({ hip: [4, 38], ln: 22, ln2: 40, hd: -44, tw: -30, hL: [30, 44], hR: [22, 38], eL: 0.2, eR: 0.2 }),
+    jupB: j({ hip: [0, 48], ln: -30, ln2: -40, hd: 26, tw: -80, rot: -170, fL: [10, 92], fR: [-6, 70], hL: [14, 40], hR: [-10, 36], eL: 0, eR: 0 }), jumpR: j({ rot: -360 }),
+    jupK: j({ hip: [0, 46], ln: -16, ln2: -24, hd: 16, tw: -80, rot: -50, fL: [30, 80], aim: 'fL', up: 1, fR: [-4, 30], hL: [6, 50], hR: [-12, 44] }),
+    abkW: j({ hip: [0, 46], ln: 32, ln2: 46, hd: -32, tw: -30, hL: [26, 88], hR: [18, 94], eL: 0.6, eR: 0.6, fL: [10, 20], fR: [-8, 24] }),
+    abkS: j({ hip: [0, 46], ln: -46, ln2: -62, hd: 36, tw: 150, pt: 100, hL: [-56, 44], hR: [-62, 30], eL: 0.2, eR: 0.2, fL: [18, 30], fR: [6, 14] }),
+    abkS2: j({ hip: [0, 46], ln: -30, ln2: -30, hd: 30, tw: 160, pt: 110, hL: [-48, 4], hR: [-54, -6], fL: [16, 34], fR: [8, 18] }),
     thUp: s({ hip: [2, 44], ln: -8, ln2: -14, hd: 14, hL: [14, 96], hR: [6, 92], eL: 0.6, eR: 0.6 }),
     jupS: j({ hip: [0, 46], ln: -22, ln2: -32, hd: 22, tw: -70, hL: [12, 100], aim: 'hL', up: 1, hR: [-10, 58], fL: [6, 20], fR: [-10, 26] }),
     jdnS: j({ hip: [0, 50], ln: 12, hd: -10, fL: [6, 0], aim: 'fL', ay: 0.25, fR: [-8, 32], hL: [18, 74], hR: [-16, 70], eL: 0.4, eR: 0.4 }),
@@ -118,9 +125,10 @@ const R = (function () {
     '5LP': Q('idle', 'jabS'), '5MP': A('idle', 'mpW', 'mpS'), '5HP': A('idle', 'hpW', 'hpS'), '5LK': A('idle', 'lkW', 'lkS'), '5MK': A('idle', 'mkW', 'mkS'), '5HK': A('idle', 'hkW', 'hkS'),
     '2LP': Q('crouch', 'cjabS'), '2LK': Q('crouch', 'clkS'), '2MK': A('crouch', 'cmkW', 'cmkS'), '2HP': A('crouch', 'cupW', 'cupS'), '2HK': A('crouch', 'cmkW', 'swS'),
     TK: A('idle', 'axW', 'axS'), FSK: A('idle', 'fskW', 'fskS'), CB2: A('mpS', 'cbW', 'cbS'), TFK2: A('mkS', 'tf2W', 'tf2S'), TFK3: A('tf2S', 'mkW', 'tf3S'),
-    jUP: Q('jump', 'jupS'), jDN: A('jump', 'jhpW', 'jdnS'), jBK: Q('jump', 'jbkS'), ASPK: Q('jump', 'aspkS'),
+    jUP: { k: [[0, 'jump'], [1, 'jupK', 'i'], [1.5, 'jupB'], [2, 'jupB'], [2.6, 'jumpR'], [3, 'jumpR']] }, AUP: { k: [[0, 'jump'], [1, 'tatS', 'i'], [1.8, 'tatS'], [2, 'srS', 'i'], [3, 'fall']], spin: 1 }, ABK: { k: [[0, 'jump'], [0.7, 'abkW', 'o'], [1, 'abkS', 'i'], [1.5, 'abkS'], [2, 'abkS2'], [3, 'jump']] },
+    throw: A('idle', 'tHold', 'tReach'), jDN: A('jump', 'jhpW', 'jdnS'), jBK: Q('jump', 'jbkS'), ASPK: Q('jump', 'aspkS'),
     jLP: Q('jump', 'jlpS'), jMP: Q('jump', 'jmpS'), jHP: A('jump', 'jhpW', 'jhpS'), jLK: Q('jump', 'jlkS'), jMK: Q('jump', 'jmkS'), jHK: Q('jump', 'jhkS'), njHK: Q('jump', 'njhkS'),
-    throw: A('idle', 'grabW', 'grabS'),
+
     DI: { k: [[0, 'idle'], [0.55, 'diW', 'o'], [0.9, 'diW'], [1, 'diS', 'i'], [2, 'diS'], [2.3, 'diR', 'o'], [2.7, 'diR'], [3, 'idle']] },
     DREV: { k: [[0, 'blockS'], [0.6, 'diW', 'o'], [1, 'diS', 'i'], [2, 'diS'], [2.4, 'diR', 'o'], [3, 'idle']] },
     HAD: { k: [[0, 'idle'], [0.6, 'hadW', 'o'], [1, 'hadS', 'i'], [2.6, 'hadS'], [3, 'idle']] },
@@ -165,11 +173,11 @@ const R = (function () {
       case 'tech': po = mix(P('hitHi'), P('idle'), sm(p.sf / 22)); break;
       case 'win': po = mix(P('idle'), P('win'), sm(p.sf / 16)); break;
       case 'throwing': {
-        if (!p.tk) po = p.sf < 8 ? mix(P('grabS'), P('thPull'), sm(p.sf / 8)) : p.pmT > 0 ? mix(P('thPull'), P('thKnee'), Math.sin(p.pmT / 11 * Math.PI)) : P('thPull');
-        else { const t = p.tf; po = norm(p.tk === 2 ? kf([[0, 'thPull'], [4, 'bthTuck', 'i'], [10, 'bthToss'], [18, 'situp'], [30, 'idle']], t) : p.tk === 3 ? kf([[0, 'thPull'], [5, 'cupW', 'o'], [10, 'thUp', 'i'], [18, 'thUp'], [30, 'idle']], t) : p.tk === 4 ? kf([[0, 'thPull'], [5, 'thUp', 'o'], [10, 'thSlam', 'i'], [18, 'thSlam'], [30, 'idle']], t) : kf([[0, 'thPull'], [5, 'thKnee'], [10, 'thKick', 'i'], [17, 'thKick'], [30, 'idle']], t), ST);
+        if (!p.tk) po = p.sf < 8 ? mix(P('tReach'), P('tHold'), sm(p.sf / 8)) : p.pmT > 0 ? mix(P('tHold'), P('tBite'), Math.sin(p.pmT / 9 * Math.PI)) : P('tHold');
+        else { const t = p.tf; po = norm(p.tk === 2 ? kf([[0, 'tHold'], [4, 'bthTuck', 'i'], [10, 'bthToss'], [18, 'situp'], [30, 'idle']], t) : p.tk === 3 ? kf([[0, 'tHold'], [5, 'cupW', 'o'], [10, 'thUp', 'i'], [18, 'thUp'], [30, 'idle']], t) : p.tk === 4 ? kf([[0, 'tHold'], [5, 'thUp', 'o'], [10, 'thSlam', 'i'], [18, 'thSlam'], [30, 'idle']], t) : kf([[0, 'tHold'], [5, 'tReach'], [10, 'thKick', 'i'], [17, 'thKick'], [30, 'idle']], t), ST);
           if (p.tk === 2) po.rot = -200 * Math.max(0, Math.min(1, (t - 3) / 8)) * (t < 14 ? 1 : Math.max(0, 1 - (t - 14) / 6)); }
         break; }
-      case 'thrown': { po = norm(P('thrown'), ST); po.rot = o.tk ? -Math.min(120, (o.tf || 0) * 12) : -8 - (o.pmT > 0 ? 12 * Math.sin(o.pmT / 11 * Math.PI) : 0); break; }
+      case 'thrown': { po = norm(P('thrown'), ST); po.hip[1] += 9 + 2 * Math.sin(sFrame * 0.2); po.fL[1] += 6; po.fR[1] += 8; po.rot = o.tk ? -Math.min(120, (o.tf || 0) * 12) : -8 - (o.pmT > 0 ? 12 * Math.sin(o.pmT / 11 * Math.PI) : 0); break; }
       case 'atk': {
         const m = C.mv[p.mv], an = anOf(p.mv), f = p.mf, base = m.isAir ? 'jump' : m.crouch ? 'crouch' : 'idle';
         if (!an) { po = P(base); break; }
@@ -353,10 +361,15 @@ const R = (function () {
   if (typeof window !== 'undefined') window.__rigs = () => rigs;
   function trailStep(rig, face) {
     if (!rig.trails) return; rig.G.updateMatrixWorld(true); const gx = rig.G.position.x, gy = rig.G.position.y;
-    for (const t of rig.trails) {
-      const a = t.par.localToWorld(_tv.copy(t.off)), n = t.pts.length;
+    for (let ti = 0; ti < rig.trails.length; ti++) { const t = rig.trails[ti];
+      const a = t.par.localToWorld(_tv.copy(t.off)), n = t.pts.length, gr = rig.grab && ti < 3 ? rig.grab : null;
       if (!t.init || t.pts[0].distanceToSquared(a) > 4900) { for (let i = 0; i < n; i++) t.pts[i].set(a.x - face * t.len * i * 0.7, a.y + t.len * i * 0.1, a.z); t.init = 1; }
       t.pts[0].copy(a);
+      if (gr) { const sgn = ti === 1 ? -1 : 1, rad = (gr.wrap ? 9 - gr.sq * 4 : 0);
+        for (let i = 1; i < n; i++) { const u = i / (n - 1), k = Math.min(1, u * 1.35), p = t.pts[i]; let x = a.x + (gr.x - a.x) * k, y = a.y + (gr.y - a.y) * k + Math.sin(Math.min(1, k) * Math.PI) * 13 * sgn * (ti === 2 ? 0.4 : 1), z = a.z;
+          if (gr.wrap && u > 0.6) { const an = (u - 0.6) * 15 * sgn + tick * 0.22 * sgn + ti * 2; x = gr.x + Math.cos(an) * rad; y = gr.y - 6 + (u - 0.6) * 44 - ti * 5 + Math.sin(an) * 3; z = a.z + Math.sin(an) * rad; }
+          _tr.set(x, y, z); p.lerp(_tr, 0.5); }
+      } else
       for (let i = 1; i < n; i++) { const p = t.pts[i], q = t.pts[i - 1], wv = Math.sin(tick * 0.09 + i * 0.7 + t.len) * 0.5;
         _tr.set(q.x - face * t.len * 0.62 * t.back + WIND * 3, q.y - t.len * 0.3 + wv * 2, q.z); p.lerp(_tr, 0.085); p.y -= t.grav; p.x += WIND * (0.5 + i * 0.07); p.y += wv * 0.35; p.z += (a.z - p.z) * 0.2;
         _tr.subVectors(p, q); const L = _tr.length() || 1; p.copy(q).addScaledVector(_tr, t.len / L); if (p.y < 1.5) p.y = 1.5; }
@@ -637,7 +650,9 @@ const R = (function () {
         if (p.bo && (s.frame >> 3) & 1) tint = [tint[0] - 0.18, tint[1] - 0.18, tint[2] - 0.12];
         if (s.freeze > 0 && s.frzWho === i) tint = [0.5, 0.35, 0.1];
         applyPose(r, fp, p.face, fl, tint);
-        r.G.position.set(p.x / F + jx, p.y / F, i === 0 ? 2 : -2); trailStep(r, p.face);
+        r.G.position.set(p.x / F + jx, p.y / F, i === 0 ? 2 : -2);
+        { const o = s.p[1 - i], m0 = p.st === 'atk' && p.mv === 'throw' ? SIM.CH[p.ch].mv.throw : null; r.grab = p.st === 'throwing' && o.st === 'thrown' ? { x: o.x / F, y: o.y / F + 50, wrap: 1, sq: p.pmT > 0 ? Math.sin(p.pmT / 9 * Math.PI) : 0 } : m0 && p.mf >= 1 && p.mf <= m0.su + 7 ? { x: p.x / F + p.face * (10 + 46 * Math.min(1, p.mf / m0.su)), y: p.y / F + 54, wrap: 0, sq: 0 } : null; }
+        trailStep(r, p.face);
         { r.pt = r.pt == null ? 99 : r.pt + 1; r.boT = p.bo ? 1 : 0; const gx = p.x / F, vx0 = gx - (r.lx == null ? gx : r.lx); r.lx = gx; r.vel = (r.vel || 0) * 0.7 + vx0 * 0.3;
           if (Math.abs(vx0) > 2.2 && (tick & 1)) fx.push({ k: 'echo', x: gx - vx0 * 2, y: p.y / F + 34, t: 0, c: CSSB[p.ch], c2: CSSA[p.ch] });
           if (p.st === 'parry' && tick % 6 === 0) fx.push({ k: 'ripple', x: gx + p.face * 8, y: p.y / F + 38, t: 0, c: CSSA[p.ch], r: 24 }); }

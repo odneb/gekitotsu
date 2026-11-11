@@ -31,6 +31,7 @@ body.mob #touch{display:block;position:fixed;inset:0;z-index:5;touch-action:none
 body.mob #touch .tb{position:absolute;border-radius:50%;border:2px solid rgba(244,240,224,.55);background:rgba(18,11,16,.34);color:rgba(244,240,224,.9);font-family:var(--pix);display:flex;align-items:center;justify-content:center;pointer-events:none;transform:translate(-50%,-50%);box-sizing:border-box}
 body.mob #touch .tb.on{background:rgba(244,240,224,.85);color:#120b10;border-color:#fff}
 body.mob #touch .tb.sm{border-style:dashed;font-size:7px}
+body.mob #touch .tb.au{border-color:rgba(74,168,255,.8);color:rgba(190,224,255,.95);background:rgba(20,40,70,.36)}
 body.mob #touch .stk{position:absolute;border-radius:50%;border:2px solid rgba(244,240,224,.4);background:rgba(18,11,16,.22);pointer-events:none;transform:translate(-50%,-50%);box-sizing:border-box}
 body.mob #touch .knob{position:absolute;border-radius:50%;background:rgba(244,240,224,.75);pointer-events:none;transform:translate(-50%,-50%)}
 @media (orientation:portrait){body.mob #stagebox{align-items:flex-start;flex:0 0 auto}}
@@ -47,7 +48,7 @@ function fit(){const fs=document.fullscreenElement===c,W=fs?innerWidth:b.clientW
 addEventListener('resize',fit);document.addEventListener('fullscreenchange',fit);fit();setTimeout(fit,50);})();
 </script>
 <script>
-window.GK_BUILD='1110-2351 UTC';
+window.GK_BUILD='1111-0141 UTC';
 // ===================================================================
 // GEKITOTSU deterministic simulation core. Integer math only, no RNG,
 // no wall-clock, no floats. state = step(state, inputP1, inputP2).
@@ -111,7 +112,11 @@ const SIM = (function () {
     N('jMK', { n: 'Jumping Medium Kick', air: 1, su: 7, ac: 6, t: 999, g: 'h', d: 50, fs: 18, fb: 14, xh: 1, hb: [-31, 14, 76, 27], kb: 450, hsp: 11, lvl: 1, dd: 250, sg: 50, landRec: 3, an: { w: 'jump', s: 'jlkS' } });
     N('jHP', { n: 'Jumping Heavy Punch', air: 1, su: 9, ac: 6, t: 999, g: 'h', d: 80, fs: 20, fb: 16, xh: 1, hb: [2, -6, 24, 30], kb: 500, hsp: 13, lvl: 1, dd: 400, sg: 100, landRec: 3, an: { w: 'jhpW', s: 'jhpS' } });
     // directional aerials: up launches, down spikes into a ground bounce, back hits behind
-    N('jUP', { n: 'Rising Lash', air: 1, su: 6, t: 999, g: 'h', landRec: 3, dd: 200, sg: 50, hits: [{ s: 5, e: 10, hb: [-8, 56, 40, 52], d: 50, stun: 18, bstun: 14, launch: [40, 1000], air: [40, 1000], kb: 300, lvl: 1, hsp: 10, g: 'h' }] });
+    N('jUP', { n: 'Rising Lash', air: 1, su: 5, t: 999, g: 'h', landRec: 2, dd: 200, sg: 50, hits: [{ s: 4, e: 6, hb: [4, 40, 42, 50], d: 34, stun: 18, bstun: 14, launch: [30, 960], air: [30, 960], kb: 300, lvl: 1, hsp: 8, g: 'h' }, { s: 7, e: 11, hb: [-34, 56, 52, 50], d: 34, stun: 18, bstun: 14, launch: [-20, 1000], air: [-20, 1000], kb: 300, lvl: 1, hsp: 8, g: 'h' }] });
+    // up + special: a rising spin that drags them up with it and flicks them off the top; no more actions until landing
+    N('AUP', { n: 'Riptide', sp: 1, air: 1, su: 5, t: 999, rise: [4, 150, 1080], landRec: 16, dd: 300, sg: 60, hits: [4, 8, 12, 16].map(f => ({ s: f, e: f + 2, hb: [-24, -6, 56, 76], d: 14, stun: 20, bstun: 12, launch: [0, 620], air: [0, 300], lk: 1, carry: [14, 10], kb: 0, lvl: 1, hsp: 4 })).concat([{ s: 21, e: 24, hb: [-26, 0, 60, 86], d: 50, stun: 24, bstun: 16, launch: [150, 1050], air: [150, 1050], kb: 300, lvl: 2, hsp: 12 }]) });
+    // back + special: a slow, enormous swing behind. Clean it sends them flying; caught low on the way down it spikes
+    N('ABK', { n: 'Undertow', sp: 1, air: 1, su: 14, t: 999, landRec: 18, dd: 500, sg: 100, hits: [{ s: 13, e: 16, hb: [-70, 14, 64, 70], d: 130, stun: 30, bstun: 22, launch: [640, 580], air: [720, 500], wb: 1, kb: 700, lvl: 2, hsp: 17 }, { s: 17, e: 21, hb: [-60, -20, 52, 44], d: 110, stun: 28, bstun: 20, launch: [300, 760], air: [110, -1500], gb: 1, kb: 500, lvl: 2, hsp: 15 }] });
     N('jDN', { n: 'Falling Heel', air: 1, su: 9, t: 999, g: 'h', landRec: 4, dd: 300, sg: 60, hits: [{ s: 8, e: 14, hb: [-6, -16, 34, 42], d: 60, stun: 22, bstun: 16, air: [60, -1300], gb: 1, kb: 400, lvl: 2, hsp: 12, g: 'h' }] });
     N('jBK', { n: 'Back Lash', air: 1, su: 7, t: 999, g: 'h', landRec: 3, dd: 250, sg: 50, hits: [{ s: 6, e: 11, hb: [-56, 22, 50, 26], d: 60, stun: 20, bstun: 15, air: [460, 520], kb: 450, lvl: 1, hsp: 11, g: 'h' }] });
     // down + special in the air: a dive that spikes an airborne opponent into the floor and bounces off them so the juggle can go on
@@ -188,7 +193,7 @@ const SIM = (function () {
       an: { k: [[0, 'cupW'], [6, 'srS'], [11, 'cupW'], [14, 'srS'], [19, 'cupW'], [22, 'srS'], [27, 'cupW'], [30, 'srS'], [36, 'cupW'], [40, 'srS'], [56, 'srS2'], [80, 'jump']], spin: [40, 70, 1080] } });
     return {
       name: 'RET', jp: '裂', title: 'THE PALE TIDE', hp: 1000, walkF: 230, walkB: 157, jx: 245, jxB: 196, runV: 430, mv: mv,
-      sp: [{ dir: 6, k: 'SRK_M', od: 'SRK_OD' }, { dir: 4, k: 'DL_H', od: 'DL_OD' }, { dir: 2, k: 'JIN_M', od: 'JIN_OD' }, { dir: 5, k: 'HAD_H', od: 'HAD_OD' }, { air: 1, adir: 2, k: 'ASPK', od: 'ASPK' }, { air: 1, fwd: 1, k: 'ATAT', od: 'ATAT_OD' }],
+      sp: [{ dir: 6, k: 'SRK_M', od: 'SRK_OD' }, { dir: 4, k: 'DL_H', od: 'DL_OD' }, { dir: 2, k: 'JIN_M', od: 'JIN_OD' }, { dir: 5, k: 'HAD_H', od: 'HAD_OD' }, { air: 1, adir: 2, k: 'ASPK', od: 'ASPK' }, { air: 1, adir: 8, k: 'AUP', od: 'AUP' }, { air: 1, adir: 4, k: 'ABK', od: 'ABK' }, { air: 1, fwd: 1, k: 'ATAT', od: 'ATAT_OD' }],
       mo: [{ m: '623', L: 'SRK_L', M: 'SRK_M', H: 'SRK_H', OD: 'SRK_OD' }, { m: '214', L: 'TAT_L', M: 'TAT_M', H: 'TAT_H', OD: 'TAT_OD' }, { m: '236', L: 'JIN_L', M: 'JIN_M', H: 'JIN_H', OD: 'JIN_OD' }, { m: '214', air: 1, fwd: 1, L: 'ATAT', M: 'ATAT', H: 'ATAT', OD: 'ATAT_OD' }],
       run: { L: 'STOP', M: 'TK', H: 'FSK', S6: 'QSRK', S5: 'QSRK', S2: 'QTAT', S4: 'QDL', m623: 'QSRK', m214: 'QTAT' },
       auto: { L: [['5LK'], ['JIN_L'], ['KAZE']], LC: [['2LK'], ['5LP'], ['JIN_L'], ['KAZE']], M: [['5MP'], ['CB2'], ['RUN'], ['QDL'], ['SA2', 'SRK_H']], H: [['5HP'], ['JIN_OD', 'JIN_M'], ['KAZE_OD', 'KAZE'], ['KASAI'], ['SA3']] },
@@ -324,7 +329,7 @@ const SIM = (function () {
         return start(s, p, hv ? sp.H : md ? sp.M : sp.L, i);
       }
       if (spb) {
-        const d = v < 0 ? 2 : h > 0 ? 6 : h < 0 ? 4 : 5;
+        const d = v < 0 ? 2 : (air && v > 0) ? 8 : h > 0 ? 6 : h < 0 ? 4 : 5;
         for (const sp of C.sp) {
           if (!!sp.air !== air || (!air && sp.dir !== d) || (air && sp.adir && sp.adir !== d) || (sp.fwd && p.jd <= 0)) continue;
           if (as && canOD && !(C.mv[sp.od].proj && myProj)) { spend(s, p, i, 2 * BAR, 120); return start(s, p, sp.od, i, { mod: 1 }); }
@@ -429,6 +434,7 @@ const SIM = (function () {
       case 'jump': {
         // steer in the air; Up again for one weak second jump; Up against the wall to kick off it
         const pv = p.buf[p.buf.length - 2] || 0, upNew = (inp & 1) && !(pv & 1), hx = (inp & 8 ? 1 : 0) - (inp & 4 ? 1 : 0), lim = STAGE - PW;
+        if ((inp & 2) && p.vy < 0 && p.vy > -1700) p.vy -= 55;                                          // hold down on the way down to fall faster
         if (hx) { p.vx += hx * 22; const mx = tr(C.jx * 11 / 10); if (p.vx > mx) p.vx = mx; if (p.vx < -mx) p.vx = -mx; }
         if (upNew && p.sf > 5 && !(inp & 240)) {
           const wall = p.x >= lim - 2 * F ? 1 : p.x <= -lim + 2 * F ? -1 : 0;
@@ -709,7 +715,7 @@ const SIM = (function () {
       if (d.y > 0 || d.tinv > 0) continue;
       if (['idle', 'atk', 'dashf', 'land', 'parry', 'prec', 'drush', 'run'].indexOf(d.st) < 0 && !(d.st === 'dashb' && d.sf >= 15)) continue;
       if (d.st === 'atk' && CH[d.ch].mv[d.mv].inv && invul(d)) continue;
-      if (Math.abs(d.x - a.x) > 47 * F) continue;
+      if (Math.abs(d.x - a.x) > 58 * F) continue;   // the ribbons reach further than arms would
       g[i] = true;
     }
     if (g[0] && g[1]) { for (let i = 0; i < 2; i++) { const p = s.p[i]; p.st = 'tech'; p.sf = 0; p.mv = ''; p.pv = -p.face * 620; } s.ev.push({ t: 'tech', x: (s.p[0].x + s.p[1].x) >> 1, y: 60 * F }); return; }
@@ -855,6 +861,13 @@ const R = (function () {
     pryH: s({ hip: [-5, 33], ln: -40, ln2: -54, hd: 22, tw: -80, hL: [22, 72], hR: [-10, 36], eL: 0.6, fL: [17, 4], fR: [-15, 4], kL: 0.5, kR: 0.5 }), pryH2: s({ hip: [-2, 22], ln: 52, ln2: 70, hd: -50, tw: -20, hL: [26, 50], hR: [12, 8], eL: 0.8, fL: [19, 4], fR: [-17, 4], kL: 0.8, kR: 0.8 }),
     pryM: s({ hip: [-4, 36], ln: 4, ln2: -6, hd: 8, tw: 105, pt: 60, hL: [26, 48], hR: [-4, 30], eL: 0.2, fL: [10, 4], fR: [-14, 4] }), pryM2: s({ hip: [-7, 38], ln: -18, ln2: 10, hd: -10, tw: -110, pt: -80, hL: [8, 30], hR: [24, 52], eR: 0.2, fL: [12, 4], fR: [-16, 4] }),
     pryL: s({ hip: [-3, 42], ln: 10, ln2: 22, hd: -12, tw: -60, hL: [24, 20], hR: [8, 44], fL: [12, 26], fR: [-10, 4], kL: 0.2 }), pryL2: s({ hip: [-4, 46], ln: -8, ln2: 6, hd: -4, tw: -70, hL: [10, 52], hR: [20, 16], fL: [6, 30], fR: [-8, 12] }),
+    tHold: s({ hip: [-2, 40], ln: -4, ln2: 8, hd: -16, tw: -72, hL: [20, 34], hR: [0, 30], eL: -0.4, eR: -0.4, fL: [16, 4], fR: [-15, 4] }), tReach: s({ hip: [5, 34], ln: 36, ln2: 48, hd: -36, tw: -40, hL: [22, 22], hR: [4, 18], fL: [19, 4], fR: [-17, 4] }),
+    tBite: s({ hip: [4, 38], ln: 22, ln2: 40, hd: -44, tw: -30, hL: [30, 44], hR: [22, 38], eL: 0.2, eR: 0.2 }),
+    jupB: j({ hip: [0, 48], ln: -30, ln2: -40, hd: 26, tw: -80, rot: -170, fL: [10, 92], fR: [-6, 70], hL: [14, 40], hR: [-10, 36], eL: 0, eR: 0 }), jumpR: j({ rot: -360 }),
+    jupK: j({ hip: [0, 46], ln: -16, ln2: -24, hd: 16, tw: -80, rot: -50, fL: [30, 80], aim: 'fL', up: 1, fR: [-4, 30], hL: [6, 50], hR: [-12, 44] }),
+    abkW: j({ hip: [0, 46], ln: 32, ln2: 46, hd: -32, tw: -30, hL: [26, 88], hR: [18, 94], eL: 0.6, eR: 0.6, fL: [10, 20], fR: [-8, 24] }),
+    abkS: j({ hip: [0, 46], ln: -46, ln2: -62, hd: 36, tw: 150, pt: 100, hL: [-56, 44], hR: [-62, 30], eL: 0.2, eR: 0.2, fL: [18, 30], fR: [6, 14] }),
+    abkS2: j({ hip: [0, 46], ln: -30, ln2: -30, hd: 30, tw: 160, pt: 110, hL: [-48, 4], hR: [-54, -6], fL: [16, 34], fR: [8, 18] }),
     thUp: s({ hip: [2, 44], ln: -8, ln2: -14, hd: 14, hL: [14, 96], hR: [6, 92], eL: 0.6, eR: 0.6 }),
     jupS: j({ hip: [0, 46], ln: -22, ln2: -32, hd: 22, tw: -70, hL: [12, 100], aim: 'hL', up: 1, hR: [-10, 58], fL: [6, 20], fR: [-10, 26] }),
     jdnS: j({ hip: [0, 50], ln: 12, hd: -10, fL: [6, 0], aim: 'fL', ay: 0.25, fR: [-8, 32], hL: [18, 74], hR: [-16, 70], eL: 0.4, eR: 0.4 }),
@@ -934,9 +947,10 @@ const R = (function () {
     '5LP': Q('idle', 'jabS'), '5MP': A('idle', 'mpW', 'mpS'), '5HP': A('idle', 'hpW', 'hpS'), '5LK': A('idle', 'lkW', 'lkS'), '5MK': A('idle', 'mkW', 'mkS'), '5HK': A('idle', 'hkW', 'hkS'),
     '2LP': Q('crouch', 'cjabS'), '2LK': Q('crouch', 'clkS'), '2MK': A('crouch', 'cmkW', 'cmkS'), '2HP': A('crouch', 'cupW', 'cupS'), '2HK': A('crouch', 'cmkW', 'swS'),
     TK: A('idle', 'axW', 'axS'), FSK: A('idle', 'fskW', 'fskS'), CB2: A('mpS', 'cbW', 'cbS'), TFK2: A('mkS', 'tf2W', 'tf2S'), TFK3: A('tf2S', 'mkW', 'tf3S'),
-    jUP: Q('jump', 'jupS'), jDN: A('jump', 'jhpW', 'jdnS'), jBK: Q('jump', 'jbkS'), ASPK: Q('jump', 'aspkS'),
+    jUP: { k: [[0, 'jump'], [1, 'jupK', 'i'], [1.5, 'jupB'], [2, 'jupB'], [2.6, 'jumpR'], [3, 'jumpR']] }, AUP: { k: [[0, 'jump'], [1, 'tatS', 'i'], [1.8, 'tatS'], [2, 'srS', 'i'], [3, 'fall']], spin: 1 }, ABK: { k: [[0, 'jump'], [0.7, 'abkW', 'o'], [1, 'abkS', 'i'], [1.5, 'abkS'], [2, 'abkS2'], [3, 'jump']] },
+    throw: A('idle', 'tHold', 'tReach'), jDN: A('jump', 'jhpW', 'jdnS'), jBK: Q('jump', 'jbkS'), ASPK: Q('jump', 'aspkS'),
     jLP: Q('jump', 'jlpS'), jMP: Q('jump', 'jmpS'), jHP: A('jump', 'jhpW', 'jhpS'), jLK: Q('jump', 'jlkS'), jMK: Q('jump', 'jmkS'), jHK: Q('jump', 'jhkS'), njHK: Q('jump', 'njhkS'),
-    throw: A('idle', 'grabW', 'grabS'),
+
     DI: { k: [[0, 'idle'], [0.55, 'diW', 'o'], [0.9, 'diW'], [1, 'diS', 'i'], [2, 'diS'], [2.3, 'diR', 'o'], [2.7, 'diR'], [3, 'idle']] },
     DREV: { k: [[0, 'blockS'], [0.6, 'diW', 'o'], [1, 'diS', 'i'], [2, 'diS'], [2.4, 'diR', 'o'], [3, 'idle']] },
     HAD: { k: [[0, 'idle'], [0.6, 'hadW', 'o'], [1, 'hadS', 'i'], [2.6, 'hadS'], [3, 'idle']] },
@@ -981,11 +995,11 @@ const R = (function () {
       case 'tech': po = mix(P('hitHi'), P('idle'), sm(p.sf / 22)); break;
       case 'win': po = mix(P('idle'), P('win'), sm(p.sf / 16)); break;
       case 'throwing': {
-        if (!p.tk) po = p.sf < 8 ? mix(P('grabS'), P('thPull'), sm(p.sf / 8)) : p.pmT > 0 ? mix(P('thPull'), P('thKnee'), Math.sin(p.pmT / 11 * Math.PI)) : P('thPull');
-        else { const t = p.tf; po = norm(p.tk === 2 ? kf([[0, 'thPull'], [4, 'bthTuck', 'i'], [10, 'bthToss'], [18, 'situp'], [30, 'idle']], t) : p.tk === 3 ? kf([[0, 'thPull'], [5, 'cupW', 'o'], [10, 'thUp', 'i'], [18, 'thUp'], [30, 'idle']], t) : p.tk === 4 ? kf([[0, 'thPull'], [5, 'thUp', 'o'], [10, 'thSlam', 'i'], [18, 'thSlam'], [30, 'idle']], t) : kf([[0, 'thPull'], [5, 'thKnee'], [10, 'thKick', 'i'], [17, 'thKick'], [30, 'idle']], t), ST);
+        if (!p.tk) po = p.sf < 8 ? mix(P('tReach'), P('tHold'), sm(p.sf / 8)) : p.pmT > 0 ? mix(P('tHold'), P('tBite'), Math.sin(p.pmT / 9 * Math.PI)) : P('tHold');
+        else { const t = p.tf; po = norm(p.tk === 2 ? kf([[0, 'tHold'], [4, 'bthTuck', 'i'], [10, 'bthToss'], [18, 'situp'], [30, 'idle']], t) : p.tk === 3 ? kf([[0, 'tHold'], [5, 'cupW', 'o'], [10, 'thUp', 'i'], [18, 'thUp'], [30, 'idle']], t) : p.tk === 4 ? kf([[0, 'tHold'], [5, 'thUp', 'o'], [10, 'thSlam', 'i'], [18, 'thSlam'], [30, 'idle']], t) : kf([[0, 'tHold'], [5, 'tReach'], [10, 'thKick', 'i'], [17, 'thKick'], [30, 'idle']], t), ST);
           if (p.tk === 2) po.rot = -200 * Math.max(0, Math.min(1, (t - 3) / 8)) * (t < 14 ? 1 : Math.max(0, 1 - (t - 14) / 6)); }
         break; }
-      case 'thrown': { po = norm(P('thrown'), ST); po.rot = o.tk ? -Math.min(120, (o.tf || 0) * 12) : -8 - (o.pmT > 0 ? 12 * Math.sin(o.pmT / 11 * Math.PI) : 0); break; }
+      case 'thrown': { po = norm(P('thrown'), ST); po.hip[1] += 9 + 2 * Math.sin(sFrame * 0.2); po.fL[1] += 6; po.fR[1] += 8; po.rot = o.tk ? -Math.min(120, (o.tf || 0) * 12) : -8 - (o.pmT > 0 ? 12 * Math.sin(o.pmT / 11 * Math.PI) : 0); break; }
       case 'atk': {
         const m = C.mv[p.mv], an = anOf(p.mv), f = p.mf, base = m.isAir ? 'jump' : m.crouch ? 'crouch' : 'idle';
         if (!an) { po = P(base); break; }
@@ -1169,10 +1183,15 @@ const R = (function () {
   if (typeof window !== 'undefined') window.__rigs = () => rigs;
   function trailStep(rig, face) {
     if (!rig.trails) return; rig.G.updateMatrixWorld(true); const gx = rig.G.position.x, gy = rig.G.position.y;
-    for (const t of rig.trails) {
-      const a = t.par.localToWorld(_tv.copy(t.off)), n = t.pts.length;
+    for (let ti = 0; ti < rig.trails.length; ti++) { const t = rig.trails[ti];
+      const a = t.par.localToWorld(_tv.copy(t.off)), n = t.pts.length, gr = rig.grab && ti < 3 ? rig.grab : null;
       if (!t.init || t.pts[0].distanceToSquared(a) > 4900) { for (let i = 0; i < n; i++) t.pts[i].set(a.x - face * t.len * i * 0.7, a.y + t.len * i * 0.1, a.z); t.init = 1; }
       t.pts[0].copy(a);
+      if (gr) { const sgn = ti === 1 ? -1 : 1, rad = (gr.wrap ? 9 - gr.sq * 4 : 0);
+        for (let i = 1; i < n; i++) { const u = i / (n - 1), k = Math.min(1, u * 1.35), p = t.pts[i]; let x = a.x + (gr.x - a.x) * k, y = a.y + (gr.y - a.y) * k + Math.sin(Math.min(1, k) * Math.PI) * 13 * sgn * (ti === 2 ? 0.4 : 1), z = a.z;
+          if (gr.wrap && u > 0.6) { const an = (u - 0.6) * 15 * sgn + tick * 0.22 * sgn + ti * 2; x = gr.x + Math.cos(an) * rad; y = gr.y - 6 + (u - 0.6) * 44 - ti * 5 + Math.sin(an) * 3; z = a.z + Math.sin(an) * rad; }
+          _tr.set(x, y, z); p.lerp(_tr, 0.5); }
+      } else
       for (let i = 1; i < n; i++) { const p = t.pts[i], q = t.pts[i - 1], wv = Math.sin(tick * 0.09 + i * 0.7 + t.len) * 0.5;
         _tr.set(q.x - face * t.len * 0.62 * t.back + WIND * 3, q.y - t.len * 0.3 + wv * 2, q.z); p.lerp(_tr, 0.085); p.y -= t.grav; p.x += WIND * (0.5 + i * 0.07); p.y += wv * 0.35; p.z += (a.z - p.z) * 0.2;
         _tr.subVectors(p, q); const L = _tr.length() || 1; p.copy(q).addScaledVector(_tr, t.len / L); if (p.y < 1.5) p.y = 1.5; }
@@ -1453,7 +1472,9 @@ const R = (function () {
         if (p.bo && (s.frame >> 3) & 1) tint = [tint[0] - 0.18, tint[1] - 0.18, tint[2] - 0.12];
         if (s.freeze > 0 && s.frzWho === i) tint = [0.5, 0.35, 0.1];
         applyPose(r, fp, p.face, fl, tint);
-        r.G.position.set(p.x / F + jx, p.y / F, i === 0 ? 2 : -2); trailStep(r, p.face);
+        r.G.position.set(p.x / F + jx, p.y / F, i === 0 ? 2 : -2);
+        { const o = s.p[1 - i], m0 = p.st === 'atk' && p.mv === 'throw' ? SIM.CH[p.ch].mv.throw : null; r.grab = p.st === 'throwing' && o.st === 'thrown' ? { x: o.x / F, y: o.y / F + 50, wrap: 1, sq: p.pmT > 0 ? Math.sin(p.pmT / 9 * Math.PI) : 0 } : m0 && p.mf >= 1 && p.mf <= m0.su + 7 ? { x: p.x / F + p.face * (10 + 46 * Math.min(1, p.mf / m0.su)), y: p.y / F + 54, wrap: 0, sq: 0 } : null; }
+        trailStep(r, p.face);
         { r.pt = r.pt == null ? 99 : r.pt + 1; r.boT = p.bo ? 1 : 0; const gx = p.x / F, vx0 = gx - (r.lx == null ? gx : r.lx); r.lx = gx; r.vel = (r.vel || 0) * 0.7 + vx0 * 0.3;
           if (Math.abs(vx0) > 2.2 && (tick & 1)) fx.push({ k: 'echo', x: gx - vx0 * 2, y: p.y / F + 34, t: 0, c: CSSB[p.ch], c2: CSSA[p.ch] });
           if (p.st === 'parry' && tick % 6 === 0) fx.push({ k: 'ripple', x: gx + p.face * 8, y: p.y / F + 38, t: 0, c: CSSA[p.ch], r: 24 }); }
@@ -2145,13 +2166,15 @@ const NET = (function () {
   // touch: a floating stick for the left thumb, a cluster of round buttons for the right. A touch that lands between two buttons presses both.
   (function () {
     const el = document.getElementById('touch'), T = INP.touch, B = SIM.BT; if (!el) return;
-    const DEF = [['L', B.LT, 6.3, 1.7, 1], ['M', B.MD, 3.9, 1.7, 1], ['H', B.HV, 1.5, 1.7, 1], ['AS', B.AS, 5.1, 3.85, 0.92], ['SP', B.SP, 2.7, 3.85, 0.92], ['PA', B.PA, 8.5, 2.9, 0.82], ['DI', B.DI, 7.4, 5, 0.78],
-      ['GRAB', B.LT | B.MD, 5.1, 6, 0.7, 1], ['RUN', B.MD | B.HV, 2.7, 6, 0.7, 1], ['II', 4096, 1.3, -1, 0.6, 1]];
+    // eight attack buttons for one thumb: L M H SP along the bottom, and directly above each one its Assist version (AL AM AH AS)
+    const DEF = [['L', B.LT, 7.65, 1.7, 0.92], ['M', B.MD, 5.6, 1.7, 0.92], ['H', B.HV, 3.55, 1.7, 0.92], ['SP', B.SP, 1.5, 1.7, 0.92],
+      ['AL', B.AS | B.LT, 7.65, 3.85, 0.86, 2], ['AM', B.AS | B.MD, 5.6, 3.85, 0.86, 2], ['AH', B.AS | B.HV, 3.55, 3.85, 0.86, 2], ['AS', B.AS | B.SP, 1.5, 3.85, 0.86, 2],
+      ['PA', B.PA, 9.9, 2.5, 0.8], ['DI', B.DI, 9.5, 4.75, 0.74], ['GRAB', B.LT | B.MD, 6.6, 5.85, 0.66, 1], ['RUN', B.MD | B.HV, 4.55, 5.85, 0.66, 1], ['II', 4096, 1.3, -1, 0.6, 1]];
     let btn = [], R = 34, stick = null, base = null, knob = null, live = false; const ptr = new Map();
     function layout() {
       const W = innerWidth, H = innerHeight, port = H > W; R = Math.max(24, Math.min(44, Math.min(W, H) * 0.086)); if (port) R = Math.max(24, Math.min(40, W * 0.062));
       const sr = Math.max(8, R * 0.3); el.innerHTML = ''; btn = [];
-      for (const d of DEF) { const b = document.createElement('div'), r = R * d[4]; b.className = 'tb' + (d[5] ? ' sm' : ''); b.textContent = d[0]; b.style.width = b.style.height = r * 2 + 'px'; b.style.fontSize = Math.max(7, r * (d[0].length > 2 ? 0.34 : 0.5)) + 'px';
+      for (const d of DEF) { const b = document.createElement('div'), r = R * d[4]; b.className = 'tb' + (d[5] === 1 ? ' sm' : d[5] === 2 ? ' au' : ''); b.textContent = d[0]; b.style.width = b.style.height = r * 2 + 'px'; b.style.fontSize = Math.max(7, r * (d[0].length > 2 ? 0.34 : 0.5)) + 'px';
         const x = W - sr - d[2] * R, y = d[3] < 0 ? sr + R * 0.9 : H - sr - d[3] * R; b.style.left = x + 'px'; b.style.top = y + 'px'; el.appendChild(b); btn.push({ el: b, bits: d[1], x, y, r }); }
       base = document.createElement('div'); base.className = 'stk'; base.style.width = base.style.height = R * 3.6 + 'px'; knob = document.createElement('div'); knob.className = 'knob'; knob.style.width = knob.style.height = R * 1.5 + 'px'; el.appendChild(base); el.appendChild(knob); rest();
     }
