@@ -131,7 +131,7 @@ const R = (function () {
     dashb: s({ hip: [-7, 46], ln: -10, ln2: -4, hd: 4, tw: -70, hL: [24, 54], hR: [8, 44], fL: [12, 10], fR: [-12, 7], eL: -0.2, eR: -0.6 }),
     win: s({ hip: [0, 49], ln: -2, ln2: -4, tw: -80, pt: -60, hd: 6, hL: [10, 40], hR: [-8, 62], eL: -0.6, eR: 0.4, fL: [7, 4], fR: [-8, 4], kL: 0, kR: 0.2 })
   };
-  const P = n => (PCH === 1 && PZK[n]) || PZ[n] || ST;
+  const P = n => ((PCH === 1 || KM) && PZK[n]) || PZ[n] || ST;
   function kf(keys, t) {
     if (t <= keys[0][0]) return P(keys[0][1]);
     for (let i = 1; i < keys.length; i++) if (t <= keys[i][0]) { const a = keys[i - 1], b = keys[i], e = b[2]; let u = (t - a[0]) / Math.max(1e-6, b[0] - a[0]); u = e === 'i' ? u * u * u : e === 'o' ? 1 - (1 - u) * (1 - u) * (1 - u) : e === 'l' ? u : sm(u); return mix(P(a[1]), P(b[1]), u); }
@@ -552,30 +552,38 @@ const R = (function () {
     z0 /= l; z1 /= l; z2 /= l; out[0] = x0; out[1] = x1; out[2] = x2; out[3] = z1 * x2 - z2 * x1; out[4] = z2 * x0 - z0 * x2; out[5] = z0 * x1 - z1 * x0; out[6] = z0; out[7] = z1; out[8] = z2; return out;
   }
   const DITH = 'if (uDith > 0.0) { vec2 dp = mod(floor(gl_FragCoord.xy), 2.0); float dt = (dp.x + dp.y * 2.0 == 0.0) ? 0.2 : (dp.x + dp.y * 2.0 == 3.0) ? 0.4 : (dp.x + dp.y * 2.0 == 1.0) ? 0.6 : 0.8; if (uDith > dt) discard; }\n';
-  function buildRigS(ch, alt) {
+  // Colour themes for the shared body. 0 is the model as painted. The others re-colour it in the shader: the red cloth becomes a ramp
+  // from shade to light, the dark cloth takes a tint, and the pale mask is left alone.
+  const THEMES = [
+    { ghost: 0x9c1420, pts: 0xff4a36, parry: [1, 0.18, 0.59], home: [1, 0.47, 0.74] },
+    { swap: 1, ghost: 0x2a4a9c, pts: 0x5a8cff, parry: [1, 0.18, 0.59], home: [1, 0.47, 0.74] },
+    { a: [0.74, 0.93, 1.0], b: [0.2, 0.45, 0.95], d: [0.4, 1.3, 4.6], ghost: 0x6fa8ff, pts: 0x9fd0ff, parry: [0.12, 0.49, 1], home: [0.35, 0.68, 1] },
+    { a: [0.78, 1.0, 0.9], b: [0.12, 0.6, 0.56], d: [0.5, 1.7, 1.5], ghost: 0x3fb9a6, pts: 0x9fffe0, parry: [0.12, 0.49, 1], home: [0.35, 0.68, 1] }];
+  function buildRigS(ch, alt) { const TH = THEMES[(ch === 0 ? 2 : 0) + (alt ? 1 : 0)];
     const G = new THREE.Group(), M = new THREE.Group(), R = new THREE.Group(), W = new THREE.Group(), T = new THREE.Group(); G.add(M); M.add(R); R.add(W); R.rotation.order = 'ZYX'; W.rotation.y = Math.PI / 2; W.scale.setScalar(MSK);
     if (!KM.tex) { const img = new Image(), tx = new THREE.Texture(img); tx.flipY = false; tx.magFilter = THREE.NearestFilter; img.onload = () => { tx.needsUpdate = true; }; img.src = MDK.tex; KM.tex = tx; }
     const ramp = new THREE.DataTexture(new Uint8Array([96, 96, 96, 255, 176, 176, 176, 255, 255, 255, 255, 255]), 3, 1, THREE.RGBAFormat); ramp.minFilter = ramp.magFilter = THREE.NearestFilter; ramp.needsUpdate = true;
-    const U = { rim: { value: new THREE.Color(0x000000) }, flat: { value: new THREE.Vector4(1, 1, 1, 0) }, grey: { value: 0 }, swap: { value: alt ? 1 : 0 }, dith: { value: 0 } };
-    const mat = new THREE.MeshToonMaterial({ map: KM.tex, gradientMap: ramp, skinning: true, transparent: true, opacity: 1, side: THREE.DoubleSide }); mat.color.setRGB(0.78, 0.84, 0.86);
+    const U = { rim: { value: new THREE.Color(0x000000) }, flat: { value: new THREE.Vector4(1, 1, 1, 0) }, grey: { value: 0 }, swap: { value: TH.swap ? 1 : 0 }, dith: { value: 0 }, th: { value: TH.a ? 1 : 0 }, thA: { value: new THREE.Vector3().fromArray(TH.a || [1, 1, 1]) }, thB: { value: new THREE.Vector3().fromArray(TH.b || [1, 1, 1]) }, thD: { value: new THREE.Vector3().fromArray(TH.d || [1, 1, 1]) } };
+    const mat = new THREE.MeshToonMaterial({ map: KM.tex, gradientMap: ramp, skinning: true, transparent: true, opacity: 1, side: THREE.DoubleSide }); if (TH.a) mat.color.setRGB(0.9, 0.93, 0.95); else mat.color.setRGB(0.78, 0.84, 0.86);
     // an edge light off the stage's backlight, a flat state colour (parry, Slipstream), burnout grey, and a colour swap for the mirror match
-    mat.onBeforeCompile = sh => { sh.uniforms.uRim = U.rim; sh.uniforms.uFlat = U.flat; sh.uniforms.uGrey = U.grey; sh.uniforms.uSwap = U.swap; sh.uniforms.uDith = U.dith;
-      sh.fragmentShader = 'uniform vec3 uRim; uniform vec4 uFlat; uniform float uGrey; uniform float uSwap; uniform float uDith;\n' + sh.fragmentShader.replace('#include <tonemapping_fragment>',
-        DITH + 'float rimK = pow(1.0 - clamp(dot(normalize(vViewPosition), normal), 0.0, 1.0), 2.4);\n gl_FragColor.rgb = mix(gl_FragColor.rgb, gl_FragColor.bgr, uSwap);\n gl_FragColor.rgb += uRim * smoothstep(0.42, 0.5, rimK) * (0.28 + 1.5 * max(gl_FragColor.r, gl_FragColor.b));\n gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(dot(gl_FragColor.rgb, vec3(0.3, 0.5, 0.2))) * vec3(0.8, 0.86, 0.96) + 0.04, uGrey);\n gl_FragColor.rgb = mix(gl_FragColor.rgb, uFlat.rgb * (0.62 + 0.38 * smoothstep(0.2, 0.3, rimK) + 0.3 * step(0.2, dot(gl_FragColor.rgb, vec3(0.34)))), uFlat.a);\n#include <tonemapping_fragment>'); };
+    mat.onBeforeCompile = sh => { sh.uniforms.uRim = U.rim; sh.uniforms.uFlat = U.flat; sh.uniforms.uGrey = U.grey; sh.uniforms.uSwap = U.swap; sh.uniforms.uDith = U.dith; sh.uniforms.uTh = U.th; sh.uniforms.uThA = U.thA; sh.uniforms.uThB = U.thB; sh.uniforms.uThD = U.thD;
+      sh.fragmentShader = 'uniform vec3 uRim; uniform vec4 uFlat; uniform float uGrey; uniform float uSwap; uniform float uDith; uniform float uTh; uniform vec3 uThA; uniform vec3 uThB; uniform vec3 uThD;\n' + sh.fragmentShader.replace('#include <map_fragment>',
+        '#include <map_fragment>\n if (uTh > 0.5) { vec3 tc = texture2D(map, vUv).rgb; float rd = clamp((tc.r - max(tc.g, tc.b)) / max(tc.r, 0.05) * 1.7, 0.0, 1.0); float tl = dot(tc, vec3(0.3, 0.5, 0.2)); vec3 dk = vec3(tl) * mix(uThD, vec3(1.0), smoothstep(0.3, 0.62, tl)); diffuseColor.rgb = diffuse * mix(dk, mix(uThB, uThA, smoothstep(0.12, 0.7, tc.r)), rd); }\n').replace('#include <tonemapping_fragment>',
+        DITH + 'float rimK = pow(1.0 - clamp(dot(normalize(vViewPosition), normal), 0.0, 1.0), 2.4);\n gl_FragColor.rgb = mix(gl_FragColor.rgb, gl_FragColor.bgr, uSwap);\n gl_FragColor.rgb += uRim * smoothstep(0.42, 0.5, rimK) * min(1.0, 0.28 + 1.5 * max(gl_FragColor.r, gl_FragColor.b));\n gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(dot(gl_FragColor.rgb, vec3(0.3, 0.5, 0.2))) * vec3(0.8, 0.86, 0.96) + 0.04, uGrey);\n gl_FragColor.rgb = mix(gl_FragColor.rgb, uFlat.rgb * (0.62 + 0.38 * smoothstep(0.2, 0.3, rimK) + 0.3 * step(0.2, dot(gl_FragColor.rgb, vec3(0.34)))), uFlat.a);\n#include <tonemapping_fragment>'); };
     const bones = [], inv = []; for (let i = 0; i < KM.nb; i++) { const o = new THREE.Bone(), b = KM.bp[i]; o.matrixAutoUpdate = false; o.matrix.makeTranslation(b[0], b[1], b[2]); bones.push(o); inv.push(new THREE.Matrix4().makeTranslation(-b[0], -b[1], -b[2])); (i < 24 ? W : T).add(o); }
     const mesh = new THREE.SkinnedMesh(KM.geo, mat); mesh.frustumCulled = false; W.add(mesh); mesh.bind(new THREE.Skeleton(bones, inv), new THREE.Matrix4());
     const chains = KM.chains.map((c, k) => { const n = c.j.length, P = [], Q = [], Tg = [], len = [0], dir = []; for (let i = 0; i < n; i++) { P.push(new THREE.Vector3()); Q.push(new THREE.Vector3()); Tg.push(new THREE.Vector3()); const a = KM.bp[c.j[i]];
         if (i) { const b = KM.bp[c.j[i - 1]]; len.push(Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) * MSK); dir.push(new THREE.Vector3(a[0] - b[0], a[1] - b[1], a[2] - b[2]).normalize()); } }
       return { a: c.a, j: c.j, kind: c.kind, p: P, q: Q, t: Tg, len: len, dir: dir, ph: k * 1.37, init: 0 }; });
     const NP = 12, pg = new THREE.BufferGeometry(), pp = new Float32Array(NP * 3); pg.setAttribute('position', new THREE.BufferAttribute(pp, 3));
-    const pts = new THREE.Points(pg, new THREE.PointsMaterial({ color: alt ? 0x5a8cff : 0xff4a36, size: 2, sizeAttenuation: false, transparent: true, opacity: 0.9, depthWrite: false })); pts.frustumCulled = false; T.add(pts);
+    const pts = new THREE.Points(pg, new THREE.PointsMaterial({ color: TH.pts, size: 2, sizeAttenuation: false, transparent: true, opacity: 0.9, depthWrite: false })); pts.frustumCulled = false; T.add(pts);
     const sparks = []; for (let i = 0; i < NP; i++) { sparks.push({ life: 0, vx: 0, vy: 0 }); pp[i * 3 + 1] = -99; }
-    const ghosts = []; for (let g = 0; g < 4; g++) { const gu = { dith: { value: 1 } }, gm = new THREE.MeshBasicMaterial({ color: alt ? 0x2a4a9c : 0x9c1420, skinning: true, side: THREE.DoubleSide });
+    const ghosts = []; for (let g = 0; g < 4; g++) { const gu = { dith: { value: 1 } }, gm = new THREE.MeshBasicMaterial({ color: TH.ghost, skinning: true, side: THREE.DoubleSide });
       gm.onBeforeCompile = sh => { sh.uniforms.uDith = gu.dith; sh.fragmentShader = 'uniform float uDith;\n' + sh.fragmentShader.replace('#include <tonemapping_fragment>', DITH + '#include <tonemapping_fragment>'); };
       const gb = [], gi = []; for (let i = 0; i < KM.nb; i++) { const o = new THREE.Bone(), b = KM.bp[i]; o.matrixAutoUpdate = false; gb.push(o); gi.push(inv[i]); T.add(o); }
       const ms = new THREE.SkinnedMesh(KM.geo, gm); ms.frustumCulled = false; ms.visible = false; T.add(ms); ms.bind(new THREE.Skeleton(gb, gi), new THREE.Matrix4()); ghosts.push({ ms: ms, gb: gb, u: gu, life: 0, max: 1 }); }
     mat.userData.o = 1; G.traverse(o => o.layers.enable(1));
-    return { G, M, R, T, W, mesh, bones, ghosts, gn: 0, skin: 1, ch, U, chains, trails: [], mats: { body: mat }, lit: {}, allM: [mat], pts, pp, sparks, seed: ch * 977 + 13, acc: 0xff4a36, emit: [bones[KM.id.Spine01], bones[KM.id.Hips]], sc: { R: [], F: [], p: {}, r: {} } };
+    return { G, M, R, T, W, mesh, bones, ghosts, gn: 0, skin: 1, ch, th: TH, U, chains, trails: [], mats: { body: mat }, lit: {}, allM: [mat], pts, pp, sparks, seed: ch * 977 + 13, acc: TH.pts, emit: [bones[KM.id.Spine01], bones[KM.id.Hips]], sc: { R: [], F: [], p: {}, r: {} } };
   }
   const _kF = [], _white = new THREE.Color(0xffffff);
   function applyPoseS(rig, fp, face, flashK, tint) {
@@ -617,7 +625,7 @@ const R = (function () {
     }
     rig.R.position.set(hip[0], hip[1], 0); rig.R.rotation.set(0, (po.yaw + fp.yaw) * D, -po.rot * D); rig.M.scale.x = face;
     // state: parrying it is its accent colour outright, flying a Slipstream it goes pale, burnt out it drains to ash
-    const U = rig.U, md = rig.mode; if (md === 'parry') U.flat.value.set(1, 0.18, 0.59, 1); else if (md === 'home') U.flat.value.set(1, 0.47, 0.74, 0.85); else U.flat.value.w = 0;
+    const U = rig.U, md = rig.mode; if (md === 'parry') { const c = rig.th.parry; U.flat.value.set(c[0], c[1], c[2], 1); } else if (md === 'home') { const c = rig.th.home; U.flat.value.set(c[0], c[1], c[2], 0.85); } else U.flat.value.w = 0;
     U.grey.value = bk * ((tick % 53) < 2 && bk > 0.5 ? 0.2 : 0.92); if (rimL) U.rim.value.copy(rimL.color).lerp(_white, 0.55).multiplyScalar(Math.min(0.42, rimL.intensity * 0.26));
     U.dith.value = rig.phase || 0;
     rig.mats.body.emissive.setRGB(flashK + tint[0], flashK + tint[1], flashK + tint[2]);
@@ -918,7 +926,7 @@ const R = (function () {
   }
   function setFighters(chars) {
     for (const r of rigs) { scene.remove(r.G); if (r.T) scene.remove(r.T); } rigs = [];
-    for (let i = 0; i < 2; i++) { const r = (chars[i] === 1 ? (KM ? buildRigS : buildRigK) : buildRig)(chars[i], i === 1 && chars[0] === chars[1]); scene.add(r.G); scene.add(r.T); rigs.push(r); }
+    for (let i = 0; i < 2; i++) { const r = (KM ? buildRigS : chars[i] === 1 ? buildRigK : buildRig)(chars[i], i === 1 && chars[0] === chars[1]); scene.add(r.G); scene.add(r.T); rigs.push(r); }
     fx = []; combo[0] = combo[1] = null; msg = null; superFx = null; shake = 0; flash = 0;
   }
   // ----------------------------------------------------------- camera
