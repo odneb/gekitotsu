@@ -48,7 +48,7 @@ function fit(){const fs=document.fullscreenElement===c,W=fs?innerWidth:b.clientW
 addEventListener('resize',fit);document.addEventListener('fullscreenchange',fit);fit();setTimeout(fit,50);})();
 </script>
 <script>
-window.GK_BUILD='1111-1929 UTC';
+window.GK_BUILD='1111-1939 UTC';
 // ===================================================================
 // GEKITOTSU deterministic simulation core. Integer math only, no RNG,
 // no wall-clock, no floats. state = step(state, inputP1, inputP2).
@@ -977,7 +977,14 @@ const R = (function () {
     caS: j({ hip: [0, 50], ln: 30, ln2: 36, hd: -24, tw: 40, fL: [10, -4], aim: 'fL', ay: 0.2, fR: [-10, 36], hL: [22, 80], hR: [-18, 76], eL: 0.5, eR: 0.5 }),
     sa1S: j({ hip: [0, 48], ln: -26, hd: 20, tw: 140, pt: 120, fR: [58, 60], aim: 'fR', fL: [-4, 26], hL: [-8, 58], hR: [-18, 66] })
   };
-  const P = n => PZ[n] || ST;
+  // a fighter can bring its own version of a pose; anything it does not override is shared
+  let PCH = 0;
+  const PZK = {
+    idle: s({ hip: [-2, 34], ln: 13, ln2: 20, tw: -54, pt: -36, hd: -6, hL: [28, 35, 0], hR: [-8, 31, 0], eL: -0.5, eR: -0.9, fL: [22, 4, 0], fR: [-20, 4, 0], kL: 0.3, kR: 0.4 }),
+    idle2: s({ hip: [-2, 32.4], ln: 15, ln2: 23, tw: -54, pt: -36, hd: -8, hL: [29, 33, 0], hR: [-7, 32, 0], eL: -0.5, eR: -0.9, fL: [22, 4, 0], fR: [-20, 4, 0], kL: 0.3, kR: 0.4 }),
+    walkA: s({ hip: [1, 35], ln: 14, ln2: 20, tw: -50, hd: -6, fL: [22, 4], fR: [-8, 9], hL: [26, 36], hR: [-4, 30], eL: -0.5, eR: -0.9 }), walkB: s({ hip: [1, 33.5], ln: 14, ln2: 20, tw: -50, hd: -6, fL: [8, 9], fR: [-20, 4], hL: [28, 33], hR: [-8, 32], eL: -0.5, eR: -0.9 })
+  };
+  const P = n => (PCH === 1 && PZK[n]) || PZ[n] || ST;
   function kf(keys, t) {
     if (t <= keys[0][0]) return P(keys[0][1]);
     for (let i = 1; i < keys.length; i++) if (t <= keys[i][0]) { const a = keys[i - 1], b = keys[i], e = b[2]; let u = (t - a[0]) / Math.max(1e-6, b[0] - a[0]); u = e === 'i' ? u * u * u : e === 'o' ? 1 - (1 - u) * (1 - u) * (1 - u) : e === 'l' ? u : sm(u); return mix(P(a[1]), P(b[1]), u); }
@@ -1013,7 +1020,7 @@ const R = (function () {
   const react = ['', ''], RX = { L: 'hitHi', M: 'hitMid', H: 'hitBig', K: 'hitBig', LOW: 'hitLow', CR: 'hitCr' };
 
   function fighterPose(p, o, sFrame, idx) {
-    const C = SIM.CH[p.ch]; let po, hb = null, yaw = 0;
+    const C = SIM.CH[p.ch]; let po, hb = null, yaw = 0; PCH = p.ch;
     switch (p.st) {
       case 'idle':
         if (p.sub === 'crouch') po = mix(P('idle'), P('crouch'), sm((p.subf + 1) / 4));
@@ -1234,6 +1241,69 @@ const R = (function () {
   }
   const _tv = new THREE.Vector3(), _tr = new THREE.Vector3();
   if (typeof window !== 'undefined') window.__rigs = () => rigs;
+  // ----------------------------------------------------------- the masked one (defined-pixel build)
+  // Hard-edged and opaque: every part is a box or a low prism, flat-shaded in two tones, so at game resolution each plane lands
+  // as a clean block of pixels the way a sprite would be drawn. Black gi and hakama, crimson sash, obi and scarf, an ivory mask.
+  // Cloth (scarf tails, topknot ribbon, the torn panels at the waist) is simulated and has real thickness, so it holds up from any side.
+  const LOOKK = { body: 0x251922, body2: 0x3d2936, red: 0xd42c2f, red2: 0x9c1d27, red3: 0xf05a3c, mask: 0xf6ecde, mask2: 0xc9b3a4, eye: 0x140b11, acc: 0xff4a36, acc2: 0xff9a78, ink: 0x3c1622 };
+  const LOOKKALT = { red: 0x3d6fd8, red2: 0x284a9c, red3: 0x7aa6ff, acc: 0x5a8cff, acc2: 0x9fc0ff, ink: 0x1c2c56 };
+  function buildRigK(ch, alt) {
+    const lk = Object.assign({}, LOOKK, alt ? LOOKKALT : {}), mats = {}, lit = {};
+    const ramp = new THREE.DataTexture(new Uint8Array([120, 120, 120, 255, 255, 255, 255, 255]), 2, 1, THREE.RGBAFormat); ramp.minFilter = ramp.magFilter = THREE.NearestFilter; ramp.needsUpdate = true;
+    const mat = k => (k === 'eye' || k === 'acc') ? (lit[k] || (lit[k] = new THREE.MeshBasicMaterial({ color: lk[k], transparent: true, opacity: 1 }))) : mats[k] || (mats[k] = new THREE.MeshToonMaterial({ color: lk[k], gradientMap: ramp, flatShading: true, transparent: true, opacity: 1 }));
+    const inkN = new THREE.MeshBasicMaterial({ color: lk.ink, side: THREE.BackSide, transparent: true, opacity: 1 });
+    inkN.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', 'vec3 transformed = position + normal * 0.7;'); };
+    const G = new THREE.Group(), M = new THREE.Group(), R = new THREE.Group(), T = new THREE.Group(); G.add(M); M.add(R); R.rotation.order = 'ZYX';
+    const grp = par => { const g = new THREE.Group(); (par || R).add(g); return g; };
+    const put = (g, k, par, x, y, z, ink) => { const m = new THREE.Mesh(g, mat(k)); par.add(m); m.position.set(x || 0, y || 0, z || 0); if (ink) m.add(new THREE.Mesh(g, inkN)); return m; };
+    const box = (k, w, h, d, par, x, y, z, ink) => put(new THREE.BoxGeometry(w, h, d), k, par, x, y, z, ink);
+    const pri = (k, r0, r1, len, seg, par, ink) => { const g = new THREE.CylinderGeometry(r1, r0, len, seg); g.rotateY(Math.PI / seg); g.translate(0, len / 2, 0); return put(g, k, par, 0, 0, 0, ink); };
+    const b = {}, trails = [];
+    const trail = (par, off, n, len, grav, back, mk) => { const t = { par: par, off: new THREE.Vector3(off[0], off[1], off[2]), pts: [], segs: [], len: len, grav: grav, back: back, init: 0 }; for (let i = 0; i <= n; i++) t.pts.push(new THREE.Vector3()); for (let i = 0; i < n; i++) { const m = mk(i, n); T.add(m); t.segs.push(m); } trails.push(t); };
+    // cloth: a broad strip with a ragged edge that ends in a torn point; darker toward the end, with real thickness so it reads edge-on
+    const cloth = (par, off, n, len, grav, back, w0, k1, k2) => trail(par, off, n, len, grav, back, (i, nn) => { const m = new THREE.Group(), u = i / Math.max(1, nn - 1), w = Math.max(1.6, w0 * (1 - u * 0.5) * (i % 2 ? 0.8 : 1)), k = u > 0.5 ? (k2 || 'red2') : (k1 || 'red');
+      if (i === nn - 1) { const g = new THREE.ConeGeometry(w * 0.62, len + 2.4, 4); g.rotateY(Math.PI / 4); g.translate(0, (len + 2.4) / 2, 0); const c = put(g, k, m); c.scale.z = 0.45; }
+      else box(k, w, len + 0.9, Math.max(1.2, w * 0.4), m, (i % 2 ? 0.55 : -0.45), len / 2, 0);
+      return m; });
+    // torso
+    b.pel = grp(); box('body', 8.2, 8, 11.8, b.pel, 0, 0.2, 0, 1);
+    b.abd = grp(); const ab = pri('body', 4.6, 4.9, SP1 - 2, 6, b.abd, 1); ab.scale.set(0.8, 1, 1); box('red', 8.8, 4.8, 10.8, b.abd, 0, 3.2, 0); box('red3', 9, 1.1, 11, b.abd, 0, 5.2, 0); box('red2', 2.8, 3.6, 3.8, b.abd, -5, 3.4, 0);
+    b.chest = grp(); const cg = pri('body', 4.7, 7.1, SP2, 6, b.chest, 1); cg.scale.set(0.72, 1, 1); box('body', 6.2, 3.3, 15.8, b.chest, 0, SP2 - 1.3, 0, 1);
+    const s1 = box('red', 1.3, 21, 3.8, b.chest, 4.3, 8.2, 0); s1.rotation.x = 0.7; const s2 = box('red2', 1.3, 21, 3.8, b.chest, -4.3, 8.2, 0); s2.rotation.x = -0.7;
+    box('red', 9.4, 3.8, 10.4, b.chest, 0.2, SP2 + 0.9, 0); box('red3', 9.6, 1, 10.6, b.chest, 0.2, SP2 + 2.6, 0); box('red2', 3.6, 4.4, 5.4, b.chest, -4.8, SP2 + 1.4, 0);
+    // head: a cowl with a peak, the mask as a faceted face tapering to the chin, a topknot tied in red
+    const hd = b.head = grp(); const nk = pri('body', 2.3, 2.3, 6, 5, hd); nk.position.y = -3.4;
+    const sk = grp(hd); sk.position.set(0.9, 8.8, 0); sk.rotation.z = -0.3; sk.scale.set(1.1, 1.1, 1.1);
+    const hood = pri('body', 4.9, 4.4, 10.8, 6, sk, 1); hood.position.set(-1.7, -5.3, 0); hood.scale.set(1, 1, 0.92);
+    box('body', 4.6, 6.6, 7.8, sk, -4.9, -3.8, 0, 1); box('body', 5.4, 1.5, 8.6, sk, 0.4, 5.0, 0, 1);
+    const mk = pri('mask', 2.9, 4.6, 10.2, 6, sk); mk.position.set(2.3, -6.1, 0); mk.scale.set(0.86, 1, 0.86);
+    const mk2 = pri('mask2', 2.7, 3.3, 2.8, 6, sk); mk2.position.set(2.1, -6.4, 0); mk2.scale.set(0.86, 1, 0.86);
+    for (const z of [-1, 1]) { const e = box('eye', 0.9, 1.2, 2.3, sk, 5.2, 0.9, z * 1.65); e.rotation.y = -z * 0.52; e.rotation.x = z * 0.22; const r = box('red', 0.8, 2.6, 0.9, sk, 4.75, -2.3, z * 1.75); r.rotation.y = -z * 0.52; }
+    box('body', 3.2, 3.6, 3.2, sk, -2.6, 6.6, 0, 1); box('red', 3.9, 1.4, 3.9, sk, -2.6, 5.3, 0); const tuft = pri('body', 1.8, 0.3, 7.5, 4, sk, 1); tuft.position.set(-3.4, 7.6, 0); tuft.rotation.z = 1.2;
+    // scarf: two long torn tails off the back of the neck (the first three strips are also what reaches out on a grab)
+    cloth(b.chest, [-5, SP2 + 2.2, 2.6], 7, 8, 0.02, 2.0, 8.4, 'red', 'red2'); cloth(b.chest, [-5, SP2 + 0.8, -2.6], 6, 7.4, 0.06, 1.7, 7, 'red2', 'red2');
+    cloth(sk, [-3.8, 7, 0], 9, 6, -0.05, 2.3, 4.2, 'red3', 'red');
+    // the torn skirts of the obi: three strips of different lengths in front, two behind, one at the hip
+    cloth(b.pel, [4, 3, 3.4], 4, 6, 0.5, 0.28, 8.6, 'red', 'red2'); cloth(b.pel, [4.2, 3, -0.2], 3, 6, 0.5, 0.3, 7.4, 'red3', 'red'); cloth(b.pel, [3.8, 3, -3.6], 4, 5.4, 0.5, 0.34, 7, 'red2', 'red2');
+    cloth(b.pel, [-4.2, 3, 2.4], 5, 6, 0.42, 0.6, 9, 'red', 'red2'); cloth(b.pel, [-4.2, 3, -2.6], 4, 6, 0.42, 0.66, 7.6, 'red2', 'red2'); cloth(b.pel, [0.2, 3, 6.2], 3, 5.6, 0.5, 0.4, 6.4, 'red', 'red2');
+    for (const n of ['L', 'R']) { const sd = n === 'L' ? -1 : 1;
+      b['sh' + n] = put(new THREE.IcosahedronGeometry(3.5, 0), 'body', R, 0, 0, 0, 1);
+      b['ua' + n] = pri('body', 3.2, 2.9, UA / 2, 5, R, 1); b['ua' + n + 'b'] = pri('body', 2.9, 2.6, UA / 2, 5, R, 1);
+      b['fa' + n] = pri('body', 2.5, 2.7, FA / 2, 5, R, 1); const fb = b['fa' + n + 'b'] = pri('body2', 2.9, 3.2, FA / 2, 5, R, 1); const wb = pri('red', 3.5, 3.5, 1.8, 5, fb); wb.position.y = FA / 2 - 3.6;
+      const hnd = b['fi' + n] = grp(); box('body2', 2.9, 5.2, 3.6, hnd, 0, 2.6, 0, 1); box('body2', 1.5, 2.8, 1.5, hnd, -1.7, 1.9, 1.7 * sd);
+      // hakama: widening all the way down, then gathered into wraps at mid-shin
+      b['th' + n] = pri('body', 4.8, 5.3, TH / 2, 6, R, 1); b['th' + n + 'b'] = pri('body', 5.3, 6, TH / 2, 6, R, 1);
+      b['sn' + n] = pri('body', 6.3, 3.3, SHN / 2, 6, R, 1); const sb = b['sn' + n + 'b'] = pri('body2', 2.6, 2.2, SHN / 2, 5, R, 1); const tie = pri('red', 3.0, 3.0, 1.6, 5, sb); tie.position.y = 0.3;
+      const ft = b['ft' + n] = grp(); box('body2', 2.7, 8.8, 3.7, ft, 0.9, 3.5, 0, 1); box('body', 0.9, 9.4, 4, ft, 2.5, 3.6, 0);
+    }
+    // a few embers instead of the others' pool and spray
+    const NP = 14, pg = new THREE.BufferGeometry(), pp = new Float32Array(NP * 3); pg.setAttribute('position', new THREE.BufferAttribute(pp, 3));
+    const pts = new THREE.Points(pg, new THREE.PointsMaterial({ color: lk.acc, size: 2, sizeAttenuation: false, transparent: true, opacity: 0.9, depthWrite: false })); pts.frustumCulled = false; T.add(pts);
+    const sparks = []; for (let i = 0; i < NP; i++) { sparks.push({ life: 0, vx: 0, vy: 0 }); pp[i * 3 + 1] = -99; }
+    const allM = Object.values(mats).concat(Object.values(lit), [inkN]); for (const m of allM) { m.userData.o = m.opacity; m.userData.c = m.color.getHex(); }
+    G.traverse(o => o.layers.enable(1)); for (const t of trails) for (const sg of t.segs) sg.traverse(o => o.layers.enable(1));
+    return { G, M, R, T, b, mats, lit, lk, ink: inkN, ch, allM, trails, pts, pp, sparks, solid: 1, seed: ch * 977 + 13, acc: lk.acc, emit: [b.chest, b.pel, b.head] };
+  }
   function trailStep(rig, face) {
     if (!rig.trails) return; rig.G.updateMatrixWorld(true); const gx = rig.G.position.x, gy = rig.G.position.y;
     for (let ti = 0; ti < rig.trails.length; ti++) { const t = rig.trails[ti];
@@ -1277,7 +1347,7 @@ const R = (function () {
   }
   function applyPose(rig, fp, face, flashK, tint) {
     if (rig.sk) return applyPoseM(rig, fp, face, flashK, tint);
-    const lo = fp.loose == null ? 1 : fp.loose, s1 = Math.sin(tick * 0.052 + rig.seed), s2 = Math.sin(tick * 0.037 + rig.seed * 1.7), s3 = Math.sin(tick * 0.083 + rig.seed * 0.6), bk = rig.boK = (rig.boK || 0) + ((rig.boT || 0) - (rig.boK || 0)) * 0.14, vl = Math.max(-6, Math.min(6, (rig.vel || 0) * face)), po0 = fp.po,
+    const lo = (fp.loose == null ? 1 : fp.loose) * (rig.solid ? 0.28 : 1), s1 = Math.sin(tick * 0.052 + rig.seed), s2 = Math.sin(tick * 0.037 + rig.seed * 1.7), s3 = Math.sin(tick * 0.083 + rig.seed * 0.6), bk = rig.boK = (rig.boK || 0) + ((rig.boT || 0) - (rig.boK || 0)) * 0.14, vl = Math.max(-6, Math.min(6, (rig.vel || 0) * face)), po0 = fp.po,
       po = Object.assign({}, po0, { hip: [po0.hip[0] + s1 * 3.2 * lo, po0.hip[1] + s3 * 1.3 * lo - bk * 3, 0], ln: po0.ln + s2 * 6 * lo + bk * 9, ln2: po0.ln2 - s2 * 8 * lo + s3 * 3 + bk * 12, hd: po0.hd + s1 * 9 * lo - bk * 12, rot: po0.rot + s2 * 2.2 * lo + vl * 1.4, hL: [po0.hL[0] + s2 * 3.5 * lo, po0.hL[1] + s3 * 3 * lo - bk * 5, po0.hL[2]], hR: [po0.hR[0] - s1 * 3.5 * lo, po0.hR[1] + s2 * 3 * lo - bk * 5, po0.hR[2]] }), b = rig.b, hip = [po.hip[0], po.hip[1], 0];
     const a1 = po.ln * D, a2 = po.ln2 * D, cb = [hip[0] + Math.sin(a1) * SP1, hip[1] + Math.cos(a1) * SP1, 0], nk = [cb[0] + Math.sin(a2) * SP2, cb[1] + Math.cos(a2) * SP2, 0];
     const tw = po.tw * D, pt = po.pt * D, cax = [Math.sin(tw), 0, Math.cos(tw)], pax = [Math.sin(pt), 0, Math.cos(pt)], mid = [(cax[0] + pax[0]) / 2, 0, (cax[2] + pax[2]) / 2];
@@ -1301,7 +1371,7 @@ const R = (function () {
     const ha = a2 * 0.45 + po.hd * D, back = Math.max(0, Math.min(1, (Math.abs(po.tw) - 100) / 50)), hz = [-0.5 + back * 0.9 + cax[0] * 0.12, 0, 0.82];
     place(b.head, sub([nk[0], nk[1] + 1, 0]), sub([nk[0] + Math.sin(ha) * 10, nk[1] + 1 + Math.cos(ha) * 10, 0]), 0, hz);
     const wob = i => Math.sin(tick * 0.085 + rig.seed + i * 1.9), lo2 = 0.45 + 0.55 * lo;
-    const bend = (k, p0, p1, rest, amt) => { const dx = p1[0] - p0[0], dy = p1[1] - p0[1], L = Math.hypot(dx, dy) || 1, m = [(p0[0] + p1[0]) / 2 - dy / L * amt, (p0[1] + p1[1]) / 2 + dx / L * amt, (p0[2] + p1[2]) / 2]; place(b[k], sub(p0), sub(m), rest / 2, Zc); place(b[k + 'b'], sub(m), sub(p1), rest / 2, Zc); };
+    const bend = (k, p0, p1, rest, amt) => { if (rig.solid) amt = 0; const dx = p1[0] - p0[0], dy = p1[1] - p0[1], L = Math.hypot(dx, dy) || 1, m = [(p0[0] + p1[0]) / 2 - dy / L * amt, (p0[1] + p1[1]) / 2 + dx / L * amt, (p0[2] + p1[2]) / 2]; place(b[k], sub(p0), sub(m), rest / 2, Zc); place(b[k + 'b'], sub(m), sub(p1), rest / 2, Zc); };
     for (const n of ['L', 'R']) { const l = lim[n], sd = n === 'L' ? -1 : 1;
       place(b['sh' + n], sub(l.sh), sub(l.el), 0, cax, 0); bend('ua' + n, l.sh, l.el, UA, (2.6 * wob(sd) + 1.2 * sd) * lo2); bend('fa' + n, l.el, l.wr, FA, -2.8 * wob(sd + 2) * lo2);
       const fd = [l.wr[0] - l.el[0], l.wr[1] - l.el[1], l.wr[2] - l.el[2]]; place(b['fi' + n], sub(l.wr), sub([l.wr[0] + fd[0], l.wr[1] + fd[1], l.wr[2] + fd[2]]), 0, Zc, 0);
@@ -1312,7 +1382,10 @@ const R = (function () {
       const a0 = [l.an[0], l.an[1] - 0.4, l.an[2]]; place(b['ft' + n], sub(a0), sub([a0[0] + tx, a0[1] + ty, a0[2] + tz]), 0, [0, 0, 1], -3);
     }
     rig.R.position.set(hip[0], hip[1], 0); rig.R.rotation.set(0, (po.yaw + fp.yaw) * D, -po.rot * D); rig.M.scale.x = face;
-    { const sq = 1 + 0.035 * s3 * lo; rig.R.scale.set(1 / sq + Math.abs(vl) * 0.02, sq - Math.abs(vl) * 0.012, 1); if (rig.lk) {
+    if (rig.solid) { rig.R.scale.set(1, 1, 1);
+      const pc = rig.mode === 'parry' ? (rig.ch ? 0xff2f96 : 0x1f7dff) : rig.mode === 'home' ? (rig.ch ? 0xff78bc : 0x58aeff) : -1, fk = bk > 0.5 && (tick % 53) < 2 ? 0.2 : 1, g = bk * 0.94 * fk;
+      for (const m of rig.allM) { if (pc >= 0) m.color.setHex(m === rig.ink || m === rig.lit.eye ? 0xffffff : pc); else m.color.setHex(m.userData.c).lerp(m === rig.ink ? _gcA : m === rig.mats.body || m === rig.mats.body2 ? _gcB : _gc, m === rig.lit.eye ? 0 : g); }
+    } else { const sq = 1 + 0.035 * s3 * lo; rig.R.scale.set(1 / sq + Math.abs(vl) * 0.02, sq - Math.abs(vl) * 0.012, 1); if (rig.lk) {
         // the body says what state it is in: parrying it becomes its own accent colour outright (Ret all blue, Ard all pink),
         // flying a Slipstream it goes pale and bright, burnt out every colour drains to ash and the accents die
         const L = rig.lk, Mt = rig.mats, Lt = rig.lit, set = (m, hex) => { if (m) m.color.setHex(hex); };
@@ -1499,7 +1572,7 @@ const R = (function () {
   }
   function setFighters(chars) {
     for (const r of rigs) { scene.remove(r.G); if (r.T) scene.remove(r.T); } rigs = [];
-    for (let i = 0; i < 2; i++) { const r = buildRig(chars[i], i === 1 && chars[0] === chars[1]); scene.add(r.G); scene.add(r.T); rigs.push(r); }
+    for (let i = 0; i < 2; i++) { const r = (chars[i] === 1 ? buildRigK : buildRig)(chars[i], i === 1 && chars[0] === chars[1]); scene.add(r.G); scene.add(r.T); rigs.push(r); }
     fx = []; combo[0] = combo[1] = null; msg = null; superFx = null; shake = 0; flash = 0;
   }
   // ----------------------------------------------------------- camera
@@ -1595,7 +1668,7 @@ const R = (function () {
     let tx = 0, tw = 440, ty = 72;
     if (s) {
       const a = s.p[0], b = s.p[1], ax = a.x / F, bx = b.x / F;
-      const hy = Math.max(a.y, b.y) / F; tx = (ax + bx) / 2; tw = Math.max(236, Math.min(470, Math.abs(ax - bx) + 132), Math.min(600, (hy + 103) * 2.09)); ty = tw * 9 / 32 - 12;   // wide enough for the highest fighter's head to clear the bars, floor always in frame   // high juggles: pull back far enough to keep the floor and the top fighter in frame
+      const hy = Math.max(a.y, b.y) / F; tx = (ax + bx) / 2; tw = Math.max(236, Math.min(480, Math.abs(ax - bx) + 150), Math.min(600, (hy + 108) * 2.09)); ty = tw * 9 / 32 - 17;   // wide enough for the highest fighter's head to clear the bars, floor always in frame   // high juggles: pull back far enough to keep the floor and the top fighter in frame
       if (superFx && superFx.t < (superFx.ca ? 80 : 40)) { const p = s.p[superFx.who]; tx = p.x / F; tw = superFx.ca ? 226 : 240 - (superFx.lv || 1) * 6; ty = 54; }
       if (s.phase === 'ko' && s.pt < 150 && s.rw >= 0) { const l = s.p[1 - s.rw]; tx = l.x / F; tw = 214; ty = 40 + l.y / F * 0.6; }
       else if (s.phase === 'ko' && s.rw >= 0 && s.p[s.rw].st === 'win') { const w = s.p[s.rw]; tx = w.x / F; tw = 250; ty = 58; }
@@ -1642,7 +1715,8 @@ const R = (function () {
     let sx = 0, sy = 0; if (shake > 0) { sx = ((shake * 7919) % 5 - 2) * Math.min(3, shake * 0.35); sy = ((shake * 104729) % 5 - 2) * Math.min(3, shake * 0.35); shake--; }
     // photo mode for scenery shots: window.__bg = { cam: [x, y, z, lookX, lookY, lookZ, fov, roll] } hides the fighters and takes the camera
     const bgm = typeof window !== 'undefined' && window.__bg;
-    if (bgm) { for (const r of rigs) { r.G.visible = false; if (r.T) r.T.visible = false; } for (const sh of shadows) sh.visible = false; projMeshes.forEach(g => g.visible = false); fx.length = 0; }
+    if (bgm) { for (const r of rigs) { r.G.visible = false; if (r.T) r.T.visible = false; } for (const sh of shadows) sh.visible = false; projMeshes.forEach(g => g.visible = false); fx.length = 0;
+      if (bgm.show != null && rigs[bgm.show]) { rigs[bgm.show].G.visible = true; if (rigs[bgm.show].T) rigs[bgm.show].T.visible = true; } if (bgm.plain) { stage.visible = false; scene.background.setHex(bgm.plain); } }
     camApply(s, sx, sy, !!s);
     if (bgm && bgm.cam) { const c = bgm.cam; cam.fov = c[6] || FOV0; cam.updateProjectionMatrix(); cam.position.set(c[0], c[1], c[2]); cam.up.set(0, 1, 0); cam.lookAt(c[3], c[4], c[5]); if (c[7]) cam.rotateZ(c[7] * D); }
     ren.render(scene, cam);
