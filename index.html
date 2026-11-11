@@ -48,7 +48,7 @@ function fit(){const fs=document.fullscreenElement===c,W=fs?innerWidth:b.clientW
 addEventListener('resize',fit);document.addEventListener('fullscreenchange',fit);fit();setTimeout(fit,50);})();
 </script>
 <script>
-window.GK_BUILD='1111-0141 UTC';
+window.GK_BUILD='1111-0144 UTC';
 // ===================================================================
 // GEKITOTSU deterministic simulation core. Integer math only, no RNG,
 // no wall-clock, no floats. state = step(state, inputP1, inputP2).
@@ -1756,6 +1756,8 @@ const AI = (function () {
     const dist = Math.abs(o.x - p.x) / F / 0.7, r = n => ((R.hsh(s.frame * 31 + p.x + o.x * 7 + o.hp * 13 + n * 977) * 100) | 0);
     const om = o.st === 'atk' ? SIM.CH[o.ch].mv[o.mv] : null, grounded = p.y <= 0 && p.st === 'idle';
     const push = parts => { ai.q = seq(parts); return out(ai.q.shift()); };
+    // holding a grab: squeeze a few times, then pick a direction (up and down lead into air follow-ups)
+    if (p.st === 'throwing') { if (p.tk >= 3 && p.tf >= 18 && lv >= 2) return push([[0, 3], [U | FW, 3], [FW, 4]]); if (p.tk || p.sf < 10) return 0; if (p.pmN < Math.min(5, 1 + lv)) return (s.frame & 3) === 0 ? out(L) : 0; const k = r(30); return out(k < 40 ? U : k < 62 ? D : k < 82 ? FW : BK); }
     const kaito = true, drive = !p.bo && p.dr >= 2000, lowHit = om && om.hits[0] && om.hits[0].g === 'l', hiHit = (om && om.hits[0] && om.hits[0].g === 'h' && !om.isAir);
     const myProj = s.proj.some(q => q.o === me), incoming = s.proj.some(q => q.o !== me && Math.abs(q.x - p.x) < 160 * F && (q.x - p.x) * q.dir < 0);
     if (p.st === 'block') { if (lv >= 3 && drive && p.dr >= 3000 && r(9) < 6) return out(DI); return out(BK | (lowHit ? D : 0)); }
@@ -1768,8 +1770,22 @@ const AI = (function () {
       if (incoming && !om && drive && lv >= 2 && r(12) < 30) return push([[PA, 16]]);
       if (r(3) < [0, 35, 65, 92][lv]) return out(BK | (lowHit && !hiHit && o.y <= 0 ? D : 0));
     }
-    if (!grounded) { if (p.st === 'jump' && p.vy < 100 && dist < 90 && r(4) < 60 + lv * 10) return out(H); if (p.st === 'drush' && p.sf >= 10 && dist < 80) return push([[AS | M, 2], [AS, 9], [AS | M, 2], [AS, 12], [FW | SP, 2], [0, 12]]); return out(ai.hold); }
+    if (!grounded) {
+      // in the air: flick them upward, spike them, hit behind, follow with the second jump, kick off walls
+      if (p.y > 0 && (p.st === 'jump' || (p.st === 'atk' && p.contact))) {
+        const dy = (o.y - p.y) / F, ax = Math.abs(o.x - p.x) / F, behind = (o.x - p.x) * p.face < 0, up = o.y > 0 || o.st === 'ahit';
+        if (p.st === 'atk' && !p.dj && o.st === 'ahit' && dy > 30 && r(20) < 30 + lv * 20) return out(U | (behind ? BK : FW));
+        if (up && !behind && ax < 66 && dy > 14 && dy < 120 && r(21) < 40 + lv * 20) return out(U | M);
+        if (up && ax < 56 && dy < -6 && dy > -100 && r(22) < 35 + lv * 20) return out(lv >= 2 && r(23) < 50 ? D | SP : D | H);
+        if (up && lv >= 3 && !behind && ax < 60 && dy > 10 && p.vy > 0 && r(24) < 12) return out(U | SP);
+        if (behind && ax < 76 && Math.abs(dy) < 60 && r(25) < 45 + lv * 15) return out(lv >= 3 && ax > 30 && r(26) < 35 ? BK | SP : BK | M);
+        if (p.st === 'jump' && lv >= 2 && !p.wj && p.y > 30 * F && Math.abs(p.x) > SIM.STAGE - 20 * F && r(27) < 8) return out(U);
+        if (p.st === 'jump' && lv >= 2 && !p.dj && incoming && p.vy < 0 && r(28) < 25) return out(U);
+        if (o.st === 'ahit' && p.st === 'jump') { if (p.vy < 100 && dist < 90 && r(4) < 60 + lv * 10) return out(H); return out(behind ? BK : FW); }
+      }
+      if (p.st === 'jump' && p.vy < 100 && dist < 90 && r(4) < 60 + lv * 10) return out(H); if (p.st === 'drush' && p.sf >= 10 && dist < 80) return push([[AS | M, 2], [AS, 9], [AS | M, 2], [AS, 12], [FW | SP, 2], [0, 12]]); return out(ai.hold); }
     if (o.y > 20 * F && o.vy < 300 && dist < 105 && o.st !== 'ahit' && r(5) < [0, 20, 50, 85][lv]) return push(r(6) < 70 ? [[FW | SP, 2], [0, 6]] : [[D | H, 2], [0, 6]]);
+    if (o.st === 'ahit' && o.y > 40 * F && o.vy > -700 && dist < 150 && r(29) < [0, 35, 70, 95][lv]) return push([[U | FW, 3], [FW, 2]]);   // go up after a launched opponent
     const open = (om && !om.isAir && o.mf > om.lastAct + 1 && om.t - o.mf > 9) || (o.st === 'land' && o.rec > 6) || o.st === 'prec' || (o.st === 'hit' && o.crum && o.stun > 30);
     if (open && dist < 78 && r(7) < [0, 40, 78, 98][lv]) return push(p.sa >= 2000 || lv < 2 ? auto(M) : auto(H));
     if (ai.cool > 0) { ai.cool--; return out(ai.hold); }
