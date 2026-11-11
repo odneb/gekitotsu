@@ -306,7 +306,7 @@ def build():
             try: unreal.AutomationLibrary.take_high_res_screenshot(1920, 1080, 'look_%s.png' % n, cam); log('shot', n)
             except Exception: log(traceback.format_exc())
         return f
-    later(12, shot('a')); later(45, shot('b'))
+    later(6, shot('a'))
 
 
 # ------------------------------------------------------------------ poses authored for this fighter
@@ -439,4 +439,22 @@ def probe():
     except Exception: log(traceback.format_exc())
 
 
+def play_test():
+    """starts the game in the editor, takes a run of screenshots while the sparring partners fight, and stops it"""
+    les = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
+    try: les.editor_request_begin_play(); log('play started')
+    except Exception: log(traceback.format_exc()); return
+    def shot(n):
+        def f():
+            try: unreal.AutomationLibrary.take_high_res_screenshot(1280, 720, 'pie_%s.png' % n); log('pie shot', n)
+            except Exception: log(traceback.format_exc())
+        return f
+    for i, t in enumerate((5, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41)): later(t, shot(chr(97 + i)))
+    def stop():
+        try: les.editor_request_end_play(); log('play stopped')
+        except Exception: log(traceback.format_exc())
+    later(45, stop)
+
+
 build()
+later(14, play_test)
