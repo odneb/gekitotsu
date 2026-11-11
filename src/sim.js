@@ -151,7 +151,7 @@ const SIM = (function () {
       hits: [{ s: 6, e: 9, hb: [0, 6, 70, 110], d: 60, stun: 34, kb: 0, air: [0, 260], lvl: 1, hsp: 7, bstun: 20 }, fl(14), fl(22), fl(30), { s: 40, e: 44, hb: big, d: 100, launch: [150, 1450], air: [150, 1450], lvl: 2, hsp: 16, bstun: 20 },
         ck(49), ck(54), ck(59), { s: 65, e: 67, hb: [-20, -30, 96, 130], d: 65, stun: 34, air: [40, -2400], gb: 1, lvl: 2, hsp: 24, req: 1, fin: 1 }] });
     return {
-      name: 'RET', jp: '裂', title: 'THE PALE TIDE', hp: 1000, walkF: 230, walkB: 157, jx: 245, jxB: 196, runV: 430, mv: mv,
+      name: 'ARD', jp: '闇', title: 'THE PALE TIDE', hp: 1000, walkF: 230, walkB: 157, jx: 245, jxB: 196, runV: 430, mv: mv,
       sp: [{ dir: 6, k: 'SRK_M', od: 'SRK_OD' }, { dir: 4, k: 'HOME', od: 'HOME_OD' }, { dir: 2, k: 'JIN_M', od: 'JIN_OD' }, { dir: 5, k: 'HAD_H', od: 'HAD_OD' }, { air: 1, adir: 2, k: 'ASPK', od: 'ASPK' }, { air: 1, adir: 8, k: 'AUP', od: 'AUP' }, { air: 1, adir: 4, k: 'ABK', od: 'ABK' }, { air: 1, fwd: 1, adir: 6, k: 'ATAT', od: 'ATAT_OD' }, { air: 1, k: 'AHOME', od: 'AHOME_OD' }],
       mo: [{ m: '623', L: 'SRK_L', M: 'SRK_M', H: 'SRK_H', OD: 'SRK_OD' }, { m: '214', L: 'TAT_L', M: 'TAT_M', H: 'TAT_H', OD: 'TAT_OD' }, { m: '236', L: 'JIN_L', M: 'JIN_M', H: 'JIN_H', OD: 'JIN_OD' }, { m: '214', air: 1, fwd: 1, L: 'ATAT', M: 'ATAT', H: 'ATAT', OD: 'ATAT_OD' }],
       run: { L: 'STOP', M: 'TK', H: 'FSK', S6: 'QSRK', S5: 'QSRK', S2: 'QTAT', S4: 'QDL', m623: 'QSRK', m214: 'QTAT' },
