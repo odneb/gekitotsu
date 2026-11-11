@@ -48,7 +48,7 @@ function fit(){const fs=document.fullscreenElement===c,W=fs?innerWidth:b.clientW
 addEventListener('resize',fit);document.addEventListener('fullscreenchange',fit);fit();setTimeout(fit,50);})();
 </script>
 <script>
-window.GK_BUILD='1111-1917 UTC';
+window.GK_BUILD='1111-1929 UTC';
 // ===================================================================
 // GEKITOTSU deterministic simulation core. Integer math only, no RNG,
 // no wall-clock, no floats. state = step(state, inputP1, inputP2).
@@ -1370,9 +1370,31 @@ const R = (function () {
     for (const x of [-250, 250]) { B(20, 8, 20, x, 4, -190, stone); B(9, 40, 9, x, 28, -190, stone); const l = new THREE.Mesh(new THREE.BoxGeometry(17, 15, 17), new THREE.MeshBasicMaterial({ color: 0xff8a3a })); l.position.set(x, 56, -190); st.add(l); st.userData.lamps.push(l); const pl = new THREE.PointLight(0xff8a3a, 0.9, 300, 1.4); pl.position.set(x, 58, -160); pl.layers.enable(1); st.add(pl); (st.userData.lampL = st.userData.lampL || []).push(pl); B(26, 6, 26, x, 67, -190, stone); B(14, 6, 14, x, 73, -190, stone); }
     // maples: dark leaning trunks and a canopy of flat red blocks
     const leafM = [0xd8322e, 0xb81f26, 0xef5a3c, 0x8f1a22, 0xc62828].map(c => new THREE.MeshBasicMaterial({ color: c, fog: false })), bark = new THREE.MeshBasicMaterial({ color: 0x1c1118 });
-    const maple = (x, z, s, dir, seed) => { const t1 = B(16 * s, 150 * s, 16 * s, x, 70 * s, z, bark); t1.rotation.z = 0.22 * dir; const t2 = B(11 * s, 110 * s, 11 * s, x - dir * 46 * s, 176 * s, z, bark); t2.rotation.z = 0.75 * dir; const t3 = B(8 * s, 90 * s, 8 * s, x - dir * 120 * s, 214 * s, z + 4, bark); t3.rotation.z = 1.15 * dir;
-      for (let i = 0; i < 90; i++) { const a = hsh(seed + i) * 6.283, rr = Math.sqrt(hsh(seed + i * 3 + 1)), lx = x - dir * 95 * s + Math.cos(a) * rr * 150 * s, ly = 222 * s + Math.sin(a) * rr * 52 * s - Math.abs(Math.cos(a)) * 14 * s, sz = (8 + hsh(seed + i * 7) * 16) * s; const m = new THREE.Mesh(new THREE.BoxGeometry(sz, sz * 0.8, 4), leafM[(hsh(seed + i * 11) * 5) | 0]); m.position.set(lx, ly, z + 10 + hsh(seed + i * 13) * 30); st.add(m); } };
+    // Every tree is a real volume now: a leaning trunk that forks into boughs running off in all directions, each ending in a
+    // layered pad of leaf blocks. Lit from the top by colour (dark underneath, bright on the crown) so it reads from any angle,
+    // including from underneath. All leaves in the yard are drawn as five instanced batches.
+    const leafBins = [[], [], [], [], []], SHADE = [3, 1, 4, 0, 2], V = (x, y, z) => new THREE.Vector3(x, y, z), UPV = V(0, 1, 0);
+    const limb = (a, b, th) => { const d = new THREE.Vector3().subVectors(b, a), len = d.length(), m = new THREE.Mesh(new THREE.BoxGeometry(th, len + th * 0.6, th), bark); m.position.copy(a).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(UPV, d.normalize()); m.rotateY(hsh(len) * 3); st.add(m); };
+    const pad = (c, rx, ry, rz, n, s, seed) => { for (let i = 0; i < n; i++) { const a = hsh(seed + i * 3) * 6.283, u = Math.sqrt(hsh(seed + i * 7 + 1)), yy = (hsh(seed + i * 11 + 2) - 0.5) * 2 * ry * (1 - 0.6 * u), sz = (9 + hsh(seed + i * 13 + 3) * 14) * s;
+        const m4 = new THREE.Matrix4().compose(V(c.x + Math.cos(a) * u * rx, c.y + yy, c.z + Math.sin(a) * u * rz), new THREE.Quaternion().setFromEuler(new THREE.Euler((hsh(seed + i * 17 + 4) - 0.5) * 0.9, hsh(seed + i * 19 + 5) * 6.283, (hsh(seed + i * 23 + 6) - 0.5) * 0.9)), V(sz, sz * 0.5, sz * 0.92));
+        const t = Math.max(0, Math.min(0.999, (yy / ry * 0.5 + 0.5) * 0.72 + hsh(seed + i * 29 + 7) * 0.42 - 0.06)); leafBins[SHADE[(t * 5) | 0]].push(m4); } };
+    const maple = (x, z, s, dir, seed) => {
+      const p0 = V(x, 0, z), p1 = V(x - dir * 16 * s, 92 * s, z + 5 * s), p2 = V(x - dir * 50 * s, 160 * s, z + 12 * s);
+      limb(p0, p1, 17 * s); limb(p1, p2, 13 * s);
+      for (let k = 0; k < 4; k++) { const a = k * 1.571 + 0.6; limb(V(x + Math.cos(a) * 17 * s, 0, z + Math.sin(a) * 15 * s), V(x - dir * 3 * s, 26 * s, z + 1 * s), 9 * s); }
+      const cx = x - dir * 92 * s, cy = 224 * s, cz = z + 12 * s, N = 8;
+      for (let k = 0; k < N; k++) {
+        const top = k === N - 1, a = k / (N - 1) * 6.283 + hsh(seed + k * 5) * 0.6, R = top ? 0 : (64 + hsh(seed + k * 9 + 2) * 60) * s;
+        const tip = V(cx + Math.cos(a) * R, cy + (top ? 30 * s : (hsh(seed + k * 3 + 1) - 0.45) * 46 * s), cz + Math.sin(a) * R * 0.9);
+        const el = new THREE.Vector3().lerpVectors(p2, tip, 0.52); el.y -= (8 + hsh(seed + k * 7 + 3) * 14) * s; el.x += (hsh(seed + k * 13) - 0.5) * 22 * s; el.z += (hsh(seed + k * 17) - 0.5) * 22 * s;
+        limb(p2, el, 8 * s); limb(el, tip, 5.5 * s);
+        pad(V(tip.x, tip.y + 7 * s, tip.z), (42 + hsh(seed + k * 21) * 18) * s, 15 * s, (38 + hsh(seed + k * 27) * 16) * s, top ? 38 : 30, s, seed + k * 101);
+      }
+      // one low bough reaching back the other way, so the trunk is not bare on its far side
+      const lt = V(x + dir * 74 * s, 152 * s, z - 34 * s), le = V(x + dir * 30 * s, 118 * s, z - 12 * s); limb(p1, le, 7 * s); limb(le, lt, 5 * s); pad(V(lt.x, lt.y + 6 * s, lt.z), 36 * s, 12 * s, 32 * s, 22, s, seed + 997);
+    };
     maple(470, -140, 1, 1, 10); maple(-520, -170, 0.9, -1, 400); maple(-880, 60, 1.2, -1, 800); maple(900, 90, 1.25, 1, 1200);
+    { const lgeo = new THREE.BoxGeometry(1, 1, 1); for (let b = 0; b < 5; b++) { const im = new THREE.InstancedMesh(lgeo, leafM[b], leafBins[b].length); leafBins[b].forEach((m4, i) => im.setMatrixAt(i, m4)); im.instanceMatrix.needsUpdate = true; im.frustumCulled = false; st.add(im); } }
     // leaves on the wind
     st.userData.leaves = []; const lg = new THREE.PlaneGeometry(4.5, 3.5);
     for (let i = 0; i < 44; i++) { const m = new THREE.Mesh(lg, leafM[i % 5]); m.material.side = THREE.DoubleSide; m.userData = { x: (hsh(i * 3 + 700) - 0.5) * 1500, y: hsh(i * 5 + 701) * 260, z: -220 + hsh(i * 7 + 702) * 330, v: 0.35 + hsh(i * 11 + 703) * 0.55, p: hsh(i * 13) * 6.283 }; st.add(m); st.userData.leaves.push(m); }
