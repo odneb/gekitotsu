@@ -155,6 +155,7 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 		}
 	}
 	if (bScript) { if (!ScriptNote.IsEmpty()) { GkText(Cv, ScriptNote, 20.f * U, H - 60.f * U, 30.f * U, Gold); } if (Screen == 4 && !bLabUi) { return; } }
+	if (bNoHud) { return; }
 	static const TCHAR* ModeName[] = { TEXT("VS CPU"), TEXT("TRAINING"), TEXT("WATCH") };
 	static const TCHAR* DummyName[] = { TEXT("STANDS"), TEXT("CROUCHES"), TEXT("JUMPS"), TEXT("BLOCKS ALL"), TEXT("FIGHTS BACK") };
 	if (Screen == 3)

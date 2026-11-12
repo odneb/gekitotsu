@@ -136,15 +136,46 @@ void FGkFx::Trail(const FVector& At, const FLinearColor& Col)
 	FP& S = Add(0, At, FVector(0, Rng.FRandRange(-120.f, 120.f), Rng.FRandRange(-120.f, 120.f)), 0.3f, 7.f, 2.f, Col * 1.5f); S.Drag = 2.f;
 }
 
-void FGkFx::Air(double CentreY, float Dt, bool bOutdoors)
+void FGkFx::Air(double CentreY, float Dt, bool bOutdoors, int32 Kind, float Wind)
 {
-	MoteDue -= Dt; HazeDue -= Dt;
+	MoteDue -= Dt; HazeDue -= Dt; const float Gust = 1.f + 3.5f * Wind;
 	while (MoteDue <= 0.f)
 	{
-		MoteDue += bOutdoors ? 0.07f : 0.2f;
-		FP& M = Add(0, FVector(Rng.FRandRange(-420.f, 160.f), CentreY + Rng.FRandRange(-900.f, 900.f), Rng.FRandRange(5.f, 380.f)), FVector(0, Rng.FRandRange(18.f, 60.f), Rng.FRandRange(-10.f, 14.f)),
-			Rng.FRandRange(3.5f, 7.f), Rng.FRandRange(2.5f, 6.f), Rng.FRandRange(2.5f, 6.f), bOutdoors ? FLinearColor(2.4f, 1.7f, 0.9f) : FLinearColor(0.9f, 1.1f, 1.5f), 0.55f);
-		M.bSwell = true;
+		const FVector At(Rng.FRandRange(-420.f, 160.f), CentreY + Rng.FRandRange(-1000.f, 1000.f), Rng.FRandRange(5.f, 420.f));
+		switch (bOutdoors ? Kind : -1)
+		{
+			case 1: case 2:
+			{   // petals, or leaves: they tumble down the wind
+				MoteDue += 0.05f / Gust; static const FLinearColor Petal[3] = { FLinearColor(1.f, 0.5f, 0.68f), FLinearColor(1.f, 0.72f, 0.82f), FLinearColor(0.95f, 0.38f, 0.55f) }, Leaf[3] = { FLinearColor(0.42f, 0.62f, 0.16f), FLinearColor(0.8f, 0.5f, 0.1f), FLinearColor(0.62f, 0.7f, 0.2f) };
+				FP& M = Add(1, FVector(At.X, At.Y + 500.f, At.Z + 120.f), FVector(0, -Rng.FRandRange(90.f, 260.f) * Gust, -Rng.FRandRange(30.f, 110.f)), Rng.FRandRange(3.f, 5.5f), Rng.FRandRange(7.f, 12.f), Rng.FRandRange(5.f, 9.f), (Kind == 1 ? Petal : Leaf)[Rng.RandRange(0, 2)], 0.95f);
+				M.bSwell = true; M.Stretch = 2.2f; break;
+			}
+			case 3: case 6:
+			{   // fireflies, or the swamp's glowing spores: slow lights that wander
+				MoteDue += 0.09f; const FLinearColor C = Kind == 3 ? FLinearColor(3.2f, 3.6f, 0.7f) : FLinearColor(0.5f, 3.4f, 2.6f);
+				FP& M = Add(0, At, FVector(0, Rng.FRandRange(-26.f, 26.f) - 60.f * Wind, Rng.FRandRange(-8.f, 22.f)), Rng.FRandRange(3.f, 6.f), Rng.FRandRange(4.f, 8.f), Rng.FRandRange(3.f, 7.f), C, 0.9f); M.bSwell = true;
+				if (Rng.FRand() < 0.25f) { FP& G = Add(0, At, M.Vel, M.Life, 34.f, 30.f, C * 0.12f, 0.7f); G.bSwell = true; }
+				break;
+			}
+			case 4:
+			{   // snow
+				MoteDue += 0.03f / Gust; FP& M = Add(1, FVector(At.X, At.Y + 300.f * Wind, At.Z + 150.f), FVector(0, -Rng.FRandRange(20.f, 90.f) * Gust, -Rng.FRandRange(60.f, 130.f)), Rng.FRandRange(3.f, 5.f), Rng.FRandRange(4.f, 9.f), Rng.FRandRange(4.f, 9.f), FLinearColor(0.95f, 0.97f, 1.f), 0.9f); M.bSwell = true; break;
+			}
+			case 5:
+			{   // embers that rise
+				MoteDue += 0.05f; FP& M = Add(0, FVector(At.X, At.Y, At.Z * 0.5f), FVector(0, Rng.FRandRange(-40.f, 40.f) - 120.f * Wind, Rng.FRandRange(50.f, 150.f)), Rng.FRandRange(2.f, 4.f), Rng.FRandRange(3.f, 6.f), 1.5f, FLinearColor(6.f, 2.2f, 0.4f), 0.9f); M.bSwell = true; break;
+			}
+			case 7:
+			{   // sand on the wind
+				MoteDue += 0.035f / Gust; FP& M = Add(0, At, FVector(0, -Rng.FRandRange(160.f, 420.f) * Gust, Rng.FRandRange(-12.f, 20.f)), Rng.FRandRange(1.6f, 3.2f), Rng.FRandRange(2.5f, 5.f), 2.5f, FLinearColor(2.6f, 1.8f, 0.9f), 0.5f); M.bSwell = true; M.Stretch = 5.f; break;
+			}
+			default:
+			{
+				MoteDue += bOutdoors ? 0.07f : 0.2f;
+				FP& M = Add(0, At, FVector(0, Rng.FRandRange(18.f, 60.f), Rng.FRandRange(-10.f, 14.f)), Rng.FRandRange(3.5f, 7.f), Rng.FRandRange(2.5f, 6.f), Rng.FRandRange(2.5f, 6.f), bOutdoors ? FLinearColor(2.4f, 1.7f, 0.9f) : FLinearColor(0.9f, 1.1f, 1.5f), 0.55f);
+				M.bSwell = true;
+			}
+		}
 	}
 	while (HazeDue <= 0.f && bOutdoors)
 	{
@@ -154,4 +185,5 @@ void FGkFx::Air(double CentreY, float Dt, bool bOutdoors)
 		H.bSwell = true;
 	}
 	if (HazeDue < -1.f) { HazeDue = 0.f; }
+	if (MoteDue < -1.f) { MoteDue = 0.f; }
 }

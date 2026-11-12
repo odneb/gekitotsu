@@ -47,8 +47,16 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Misc/CommandLine.h"
+#include "Misc/PackageName.h"
+#include "Components/SpotLightComponent.h"
+#include "Components/SphereComponent.h"
+#include "Engine/LevelStreamingDynamic.h"
+#include "Engine/Level.h"
+#include "Engine/LevelScriptActor.h"
 
 AGkMatch* AGkMatch::Current = nullptr;
+static FString GkSkyForce; static double GkTimeForce = -1.0;   // a script trying a stage under another sky
+static int32 GkScriptResume = 0;   // a script that changes stage carries on from here in the new map
 FGkSetup AGkMatch::Setup; TArray<FGkStage> AGkMatch::Stages;
 
 /** The stages: the two the game builds itself, then one for each line of Content/Gk/stages.txt (name | map | sky preset | time | "auto" or x,y,z,yaw). */
@@ -56,7 +64,7 @@ void AGkMatch::LoadStages()
 {
 	if (Stages.Num() > 0) { return; }
 	{ FGkStage G; G.Name = TEXT("TRAINING ROOM"); G.Map = TEXT("/Engine/Maps/Entry"); G.Kind = 0; Stages.Add(G); }
-	{ FGkStage G; G.Name = TEXT("DESERT CANYON"); G.Map = TEXT("/Engine/Maps/Entry"); G.Kind = 1; G.Sky = TEXT("Desert"); G.Time = 500.0; Stages.Add(G); }
+	{ FGkStage G; G.Name = TEXT("DESERT CANYON"); G.Map = TEXT("/Engine/Maps/Entry"); G.Kind = 1; G.Sky = TEXT("Desert"); G.Time = 500.0; G.Opt = TEXT("rim=1.0,0.62,0.3;air=sand"); Stages.Add(G); }
 	FString Text; if (!FFileHelper::LoadFileToString(Text, *(FPaths::ProjectContentDir() / TEXT("Gk/stages.txt")))) { return; }
 	TArray<FString> Lines; Text.ParseIntoArrayLines(Lines);
 	for (const FString& Ln : Lines)
@@ -64,6 +72,7 @@ void AGkMatch::LoadStages()
 		TArray<FString> T; Ln.ParseIntoArray(T, TEXT("|")); if (T.Num() < 4 || Ln.StartsWith(TEXT("#"))) { continue; }
 		FGkStage G; G.Name = T[0].TrimStartAndEnd().ToUpper(); G.Map = T[1].TrimStartAndEnd(); G.Sky = T[2].TrimStartAndEnd(); G.Time = FCString::Atod(*T[3]); G.Kind = 2;
 		if (T.Num() > 4) { TArray<FString> N; T[4].ParseIntoArray(N, TEXT(",")); if (N.Num() >= 4) { G.bFixed = true; G.At = FVector(FCString::Atod(*N[0]), FCString::Atod(*N[1]), FCString::Atod(*N[2])); G.Yaw = FCString::Atod(*N[3]); } }
+		if (T.Num() > 5) { G.Opt = T[5].TrimStartAndEnd(); }
 		Stages.Add(G);
 	}
 }
@@ -105,9 +114,10 @@ void AGkMatch::BeginPlay()
 		if (FParse::Param(FCommandLine::Get(), TEXT("gkfight"))) { Screen = 3; }
 		if (FParse::Param(FCommandLine::Get(), TEXT("gkscript")))
 		{
-			FFileHelper::LoadFileToStringArray(Script, TEXT("/Users/Shared/Epic Games/GekitotsuNative/Saved/script.txt")); bScript = Script.Num() > 0; if (bScript) { Screen = 3; Mode = 1; }
+			FFileHelper::LoadFileToStringArray(Script, TEXT("/Users/Shared/Epic Games/GekitotsuNative/Saved/script.txt")); bScript = Script.Num() > 0; if (bScript) { Screen = 3; Mode = 1; ScriptAt = GkScriptResume; }
 		}
 	}
+	StageLook();
 	Restart();
 	// -gkstatus=<file>: keep a short note of how the game is running in that file (the path may contain spaces)
 	{ const FString Cmd = FCommandLine::Get(); const int32 From = Cmd.Find(TEXT("-gkstatus=")), To = Cmd.Find(TEXT(".txt"), ESearchCase::IgnoreCase, ESearchDir::FromStart, FMath::Max(0, From));
@@ -252,6 +262,57 @@ void AGkMatch::BeginPlay()
 		}
 	}
 	MakeSky();
+	// the lamp behind the fight: it lights the ground the fighters stand on from the far side and a little above, so they
+	// stand out against it, and the mist between catches its beam
+	{
+		USpotLightComponent* L = NewObject<USpotLightComponent>(this); L->SetMobility(EComponentMobility::Movable); L->SetupAttachment(RootComponent);
+		L->SetRelativeLocation(FVector(560.0, -380.0, 640.0)); L->SetRelativeRotation((FVector(0.0, 60.0, 40.0) - FVector(560.0, -380.0, 640.0)).Rotation());
+		L->SetIntensityUnits(ELightUnits::Unitless); L->SetIntensity(LampI); L->SetLightColor(RimCol); L->SetAttenuationRadius(3200.f); L->SetOuterConeAngle(46.f); L->SetInnerConeAngle(24.f);
+		L->SetCastShadows(true); L->SetVolumetricScatteringIntensity(LampScatter); L->RegisterComponent(); L->SetVisibility(Kind != 0 && LampI > 0.f); BackLamp = L;
+	}
+}
+
+/** Reads how this stage wants to look from its options. */
+void AGkMatch::StageLook()
+{
+	const FGkStage* St = Stages.IsValidIndex(Setup.Stage) ? &Stages[Setup.Stage] : nullptr; if (!St) { return; }
+	bOwnLight = Kind == 2 && (GkSkyForce.IsEmpty() ? St->Get(TEXT("light")) == TEXT("map") : GkSkyForce == TEXT("map"));
+	{ TArray<FString> N; St->Get(TEXT("rim")).ParseIntoArray(N, TEXT(",")); if (N.Num() >= 3) { RimCol = FLinearColor(FCString::Atof(*N[0]), FCString::Atof(*N[1]), FCString::Atof(*N[2])); } }
+	static const TCHAR* Airs[8] = { TEXT("motes"), TEXT("petals"), TEXT("leaves"), TEXT("fireflies"), TEXT("snow"), TEXT("embers"), TEXT("spores"), TEXT("sand") };
+	const FString Air = St->Get(TEXT("air")); AirKind = 0; for (int32 k = 0; k < 8; k++) { if (Air == Airs[k]) { AirKind = k; } }
+	LampI = FCString::Atof(*St->Get(TEXT("lamp"), TEXT("5000"))); LensF = FCString::Atof(*St->Get(TEXT("lens"), TEXT("0")));   // no soft focus unless a stage asks for it
+}
+
+/** FluidNinja LIVE's low fog, laid over the floor of the fight. It is a small level of its own (tools/make_ninja_fog.py takes
+ *  the simulation out of FluidNinja's Fog_Mist level) streamed in at the fight's centre; four unseen balls follow the
+ *  fighters' hips and feet, and it is those the fluid feels. */
+void AGkMatch::NinjaFog()
+{
+	bNinjaTried = true; UWorld* W = GetWorld(); const FGkStage* St = Stages.IsValidIndex(Setup.Stage) ? &Stages[Setup.Stage] : nullptr;
+	if (!W || (St && St->Get(TEXT("ninja")) == TEXT("0")) || FParse::Param(FCommandLine::Get(), TEXT("gknoninja"))) { return; }
+	const TCHAR* Path = TEXT("/Game/GkStage/L_GkNinjaMist");
+	bool bOk = false; const FTransform Where(Anchor.GetRotation(), Wd(FVector(30.0, 0.0, 250.0)));
+	NinjaLevel = ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr(W, TSoftObjectPtr<UWorld>(FSoftObjectPath(FString(Path) + TEXT(".L_GkNinjaMist"))), Where, bOk);
+	UE_LOG(LogTemp, Display, TEXT("GkNinja: mist level %s (package %s)"), bOk ? TEXT("streaming in") : TEXT("did not load"), FPackageName::DoesPackageExist(Path) ? TEXT("found") : TEXT("not found by name"));
+	for (int32 k = 0; k < 16; k++)
+	{
+		AActor* A = W->SpawnActor<AActor>(Anchor.GetLocation(), FRotator::ZeroRotator); if (!A) { continue; }
+		USphereComponent* Sp = NewObject<USphereComponent>(A); Sp->InitSphereRadius(k >= 12 ? 40.f : (k % 6) == 5 ? 34.f : 20.f); Sp->SetMobility(EComponentMobility::Movable);
+		Sp->SetCollisionObjectType(ECC_Pawn); Sp->SetCollisionEnabled(ECollisionEnabled::QueryOnly); Sp->SetCollisionResponseToAllChannels(ECR_Overlap); Sp->SetGenerateOverlapEvents(true);
+		A->SetRootComponent(Sp); Sp->RegisterComponent(); Stirrers.Add(A);
+	}
+}
+
+/** The mist needs fog that light can be seen in: whichever height fog is lit here is made volumetric. */
+void AGkMatch::Mist()
+{
+	UWorld* W = GetWorld(); if (!W) { return; } int32 Live = 0;
+	for (TActorIterator<AActor> It(W); It; ++It)
+	{
+		TInlineComponentArray<UExponentialHeightFogComponent*> Cs(*It);
+		for (UExponentialHeightFogComponent* C : Cs) { if (C->IsVisible()) { Live++; if (!C->bEnableVolumetricFog) { C->SetVolumetricFog(true); C->SetVolumetricFogDistance(9000.f); UE_LOG(LogTemp, Display, TEXT("GkMist: volumetric fog on for %s"), *It->GetName()); } } }
+	}
+	if (Live == 0 && Kind != 0 && Fog && Fog->GetComponent()) { UExponentialHeightFogComponent* F = Fog->GetComponent(); F->SetFogDensity(0.004f); F->SetVisibility(true); }
 }
 
 /** Gives a fighter the body chosen for him: one of the two mannequins for now, player one in red and the other in blue. */
@@ -556,9 +617,9 @@ namespace
 void AGkMatch::MakeSky()
 {
 	UWorld* W = GetWorld(); if (!W) { return; }
-	if (Kind == 2 && FParse::Param(FCommandLine::Get(), TEXT("gknosky"))) { return; }
+	if (Kind == 2 && (bOwnLight || FParse::Param(FCommandLine::Get(), TEXT("gknosky")))) { return; }
 	const FGkStage* St = Stages.IsValidIndex(Setup.Stage) ? &Stages[Setup.Stage] : nullptr;
-	FString Preset = St && !St->Sky.IsEmpty() ? St->Sky : FString(TEXT("Desert")); FParse::Value(FCommandLine::Get(), TEXT("-gksky="), Preset);
+	FString Preset = St && !St->Sky.IsEmpty() ? St->Sky : FString(TEXT("Desert")); FParse::Value(FCommandLine::Get(), TEXT("-gksky="), Preset); if (!GkSkyForce.IsEmpty()) { Preset = GkSkyForce; }
 	const FString Path = FString::Printf(TEXT("/Game/SoStylized/Environment/Sky/PRESETS/BP_StylizedSky_%s.BP_StylizedSky_%s_C"), *Preset, *Preset);
 	UClass* Cls = LoadObject<UClass>(nullptr, *Path);
 	if (!Cls) { UE_LOG(LogTemp, Warning, TEXT("GkSky: %s did not load; the plain sky stays"), *Path); return; }
@@ -591,7 +652,7 @@ void AGkMatch::MakeSky()
 	Sky->FinishSpawning(At);
 	SkyActor = Sky;
 	// the sky's clock runs in seconds: a 600 second day, then a 480 second night. The fight is held at dusk.
-	double Time = St ? St->Time : 500.0; FParse::Value(FCommandLine::Get(), TEXT("-gktime="), Time);
+	double Time = St ? St->Time : 500.0; FParse::Value(FCommandLine::Get(), TEXT("-gktime="), Time); if (GkTimeForce >= 0.0) { Time = GkTimeForce; }
 	if (!GkCall(Sky, TEXT("Set New Time"), nullptr, Time)) { UE_LOG(LogTemp, Warning, TEXT("GkSky: no Set New Time")); }
 	SetWeather(0, 0.5);
 }
@@ -888,13 +949,13 @@ void AGkMatch::Tick(float DeltaSeconds)
 	const double Now = FPlatformTime::Seconds(); const double Real = LastReal > 0.0 ? FMath::Clamp(Now - LastReal, 0.0, 0.25) : double(DeltaSeconds); LastReal = Now;
 	Acc += Real; FrameMs = FrameMs * 0.9f + float(Real) * 100.f;
 	PadPrev = PadNow; PadDirPrev = PadDirs; PadNames.Reset(); PadCount = Pads ? Pads->Read(PadNow, PadDirs, &PadNames) : 0;
+	// a pack's map streams in around the camera first; the fight is set down in it once its ground is there
+	if (!bPlaced) { PlaceWait += float(Real); if (PlaceWait > 0.6f && TryPlace()) { bPlaced = true; Restart(); CamD.bSnap = true; if (bScript) { Screen = 3; for (int32 k = 0; k < 400 && S.phase != gk::PH_FIGHT; k++) { gk::step(S, 0, 0); } } } }
+	if ((++LightsClock % 30) == 1 && LightsClock < 1800) { if (Kind == 2) { QuietMapLights(); } if (bPlaced && Kind != 0) { if (!bNinjaTried) { NinjaFog(); } Mist(); } }
 	if (bScript) { Acc = 0.0; Ticks++; RunScript(); Present(float(Real)); return; }
 	InputNow = ReadPlayer();
 	MenuInput();
 	const double Step = 1.0 / 60.0, T0 = FPlatformTime::Seconds(); int32 Steps = 0;
-	// a pack's map streams in around the camera first; the fight is set down in it once its ground is there
-	if (!bPlaced) { PlaceWait += float(Real); if (PlaceWait > 0.6f && TryPlace()) { bPlaced = true; Restart(); CamD.bSnap = true; } }
-	if (Kind == 2 && (++LightsClock % 30) == 1 && LightsClock < 1800) { QuietMapLights(); }
 	while (Acc >= Step && Steps < 8)
 	{
 		Acc -= Step; Steps++; Ticks++;
@@ -943,7 +1004,7 @@ void AGkMatch::Track(int32 In)
 void AGkMatch::Snd(const TCHAR* Set, float Volume, float Pitch)
 {
 	if (Screen != 3 || bMenu) { return; }
-	if (const TArray<USoundBase*>* Takes = SndSets.Find(FName(Set))) { if (Takes->Num() > 0) { UGameplayStatics::PlaySound2D(this, (*Takes)[Fx.Rng.RandRange(0, Takes->Num() - 1)], Volume, Pitch * Fx.Rng.FRandRange(0.96f, 1.04f)); } }
+	if (const TArray<USoundBase*>* Takes = SndSets.Find(FName(Set))) { if (Takes->Num() > 0) { UGameplayStatics::PlaySound2D(this, (*Takes)[Fx.Rng.RandRange(0, Takes->Num() - 1)], Volume * 0.8f, Pitch * Fx.Rng.FRandRange(0.96f, 1.04f)); } }
 }
 
 /** What each thing that happens in the fight sounds like. */
@@ -1324,6 +1385,41 @@ void AGkMatch::ShowFighter(int32 i)
 	const float Sq = bLab ? 0.f : Squash[i]; C->SetWorldScale3D(FVector(1.0 + 0.07 * Sq, 1.0 + 0.07 * Sq, 1.0 - 0.12 * Sq));
 	C->SetWorldLocationAndRotation(Wh, Fq);
 	LookFighter(i);
+	Afterimage(i);
+}
+
+/** The copies a fast-moving fighter leaves behind him. They cannot be seen through, so each one flickers out instead. */
+void AGkMatch::Afterimage(int32 i)
+{
+	UPoseableMeshComponent* C = Body[i]; if (!C) { return; }
+	const gk::Fighter& P = S.p[i]; const gk::Move* M = (P.st == gk::ATK && P.mv >= 0) ? &gk::move(P.mv) : nullptr;
+	const bool bOn = Screen == 3 && !bMenu && BodyMid[i][0] != nullptr && C->GetSkinnedAsset() != nullptr;
+	const bool bFast = bOn && S.freeze <= 0 && (P.st == gk::DRUSH || P.st == gk::RUN || P.st == gk::DASHF || P.st == gk::DASHB || (M && (M->di || (M->sup && P.mf > 6) || (M->has_home && P.mf >= M->home[0] && !P.hmE))) || (P.st == gk::AHIT && FMath::Abs(P.vx) > 260));
+	const bool bStep = AnimClock != GhostClock[i]; GhostClock[i] = AnimClock;
+	if (bStep) { for (int32 g = 0; g < 3; g++) { GhostAge[i * 3 + g]++; } }
+	if (bStep && bFast && (AnimClock % 3) == 0)
+	{
+		const int32 g = i * 3 + (GhostNext[i]++ % 3);
+		if (!Ghost[g])
+		{
+			UPoseableMeshComponent* Gc = NewObject<UPoseableMeshComponent>(this); Gc->SetMobility(EComponentMobility::Movable); Gc->SetupAttachment(RootComponent);
+			Gc->SetUsingAbsoluteLocation(true); Gc->SetUsingAbsoluteRotation(true); Gc->SetUsingAbsoluteScale(true); Gc->SetCollisionEnabled(ECollisionEnabled::NoCollision); Gc->SetCastShadow(false);
+			Gc->RegisterComponent(); Gc->SetBoundsScale(30.f); Gc->bNeverDistanceCull = true; Ghost[g] = Gc;
+		}
+		UPoseableMeshComponent* Gc = Ghost[g];
+		if (Gc->GetSkinnedAsset() != C->GetSkinnedAsset())
+		{
+			Gc->EmptyOverrideMaterials(); Gc->SetSkinnedAssetAndUpdate(C->GetSkinnedAsset());
+			GhostMid[g] = UMaterialInstanceDynamic::Create(BodyMid[i][0]->Parent, this); for (int32 k = 0; k < Gc->GetNumMaterials(); k++) { Gc->SetMaterial(k, GhostMid[g]); }
+		}
+		if (Gc->BoneSpaceTransforms.Num() == C->BoneSpaceTransforms.Num())
+		{
+			Gc->BoneSpaceTransforms = C->BoneSpaceTransforms; Gc->MarkRefreshTransformDirty(); Gc->SetWorldTransform(C->GetComponentTransform()); GhostAge[g] = 0;
+			const FLinearColor Tint = (M && M->di) ? FLinearColor(6.f, 0.5f, 3.6f) : P.st == gk::DRUSH ? FLinearColor(0.4f, 4.5f, 1.4f) : P.st == gk::AHIT ? FLinearColor(3.2f, 3.2f, 3.6f) : i ? FLinearColor(0.5f, 1.6f, 5.f) : FLinearColor(5.f, 2.2f, 0.4f);
+			if (GhostMid[g]) { GhostMid[g]->SetVectorParameterValue(TEXT("Base  color"), Tint); GhostMid[g]->SetVectorParameterValue(TEXT("Shadow_Base"), Tint * 0.7f); GhostMid[g]->SetVectorParameterValue(TEXT("Rimlight Color"), FLinearColor(6.f, 6.f, 6.f)); }
+		}
+	}
+	for (int32 g = i * 3; g < i * 3 + 3; g++) { if (Ghost[g]) { Ghost[g]->SetVisibility(bOn && (GhostAge[g] < 2 || (GhostAge[g] < 9 && ((GhostAge[g] + g) & 1) == 0))); } }
 }
 
 /** The fighter's colours and outline for the state he is in. */
@@ -1352,10 +1448,15 @@ void AGkMatch::LookFighter(int32 i)
 			else { Wash = FMath::Lerp(Wash, FLinearColor(1.8f, 0.12f, 0.08f), 0.5f); Amt = FMath::Max(Amt, 0.24f); Edge = FLinearColor(1.6f, 0.1f, 0.05f); Thick = 1.6f; }
 		}
 	}
+	// lightning behind them: for a few frames they are black shapes cut out of the white sky
+	if (!bLab && BoltT > 0.f) { const float K = FMath::Clamp(BoltT / 4.f, 0.f, 1.f); Wash = FMath::Lerp(Wash, FLinearColor(0.f, 0.f, 0.01f), K); Amt = FMath::Lerp(Amt, 0.96f, K); Edge = FMath::Lerp(Edge, FLinearColor(9.f, 10.f, 13.f), K); Thick = FMath::Max(Thick, 2.6f * K); }
 	InkMid[i]->SetVectorParameterValue(TEXT("Outlines Color"), Edge); InkMid[i]->SetScalarParameterValue(TEXT("Outlines_Thickness"), Thick);
+	// the rim: the colour of the lamp behind them, brighter in a storm's flashes and dimmed with the world under a super
+	const bool bRim = Kind != 0 || bLab; const FLinearColor Rim = RimCol * ((bRim ? 1.f : 0.35f) * (1.f + 3.f * FMath::Min(Flash, 1.f)) * (1.f + 0.6f * Storm));
 	for (int32 k = 0; k < 4; k++)
 	{
 		if (!BodyMid[i][k]) { continue; }
+		BodyMid[i][k]->SetVectorParameterValue(TEXT("Rimlight Color"), Rim); BodyMid[i][k]->SetScalarParameterValue(TEXT("Rimlight Thickness"), RimTune[0]); BodyMid[i][k]->SetScalarParameterValue(TEXT("Rimlight Opacity"), RimTune[1]); BodyMid[i][k]->SetScalarParameterValue(TEXT("Rim Brightness"), RimTune[2]);
 		BodyMid[i][k]->SetVectorParameterValue(TEXT("Base  color"), FMath::Lerp(BaseCol[i][k], Wash, Amt)); BodyMid[i][k]->SetVectorParameterValue(TEXT("Shadow_Base"), FMath::Lerp(ShadeCol[i][k], Wash * 0.55f, Amt));
 	}
 }
@@ -1511,12 +1612,33 @@ void AGkMatch::RunScript()
 			if (A[2] == TEXT("bo")) { P.bo = V; if (V) { P.dr = 0; } } else if (A[2] == TEXT("hp")) { P.hp = V; } else if (A[2] == TEXT("dr")) { P.dr = V; } else if (A[2] == TEXT("sa")) { P.sa = V; } else if (A[2] == TEXT("x")) { P.x = V * gk::F; } else if (A[2] == TEXT("face")) { P.face = V; }
 		}
 		else if (Op == TEXT("dummy")) { Dummy = Num(1); }
+		else if (Op == TEXT("sky")) { GkSkyForce = A.IsValidIndex(1) ? A[1] : FString(); GkTimeForce = A.IsValidIndex(2) ? FCString::Atod(*A[2]) : -1.0; }
+		else if (Op == TEXT("time")) { if (SkyActor) { GkCall(SkyActor, TEXT("Set New Time"), nullptr, double(Num(1))); } }
+		else if (Op == TEXT("stage"))
+		{   // stage|index|1: go to that stage (the 1 loads its map afresh even if it is this one, to try it under another sky)
+			const int32 To = Num(1);
+			if (Stages.IsValidIndex(To) && (To != Setup.Stage || Num(2)))
+			{
+				if (Stages[To].Kind != 2 && Stages[To].Map == MapName()) { StartStage(To); }
+				else { GkScriptResume = ScriptAt; Setup.Stage = To; Setup.Mode = 1; Setup.Level = Level; Setup.Dummy = Dummy; Setup.bGo = true; bScript = false; UGameplayStatics::OpenLevel(this, FName(*Stages[To].Map), true, TEXT("game=/Script/GekitotsuNative.GkGameMode")); return; }
+			}
+		}
+		else if (Op == TEXT("anchor") && A.Num() >= 5 && Stages.IsValidIndex(Setup.Stage)) { FGkStage& G = Stages[Setup.Stage]; G.bFixed = true; G.At = FVector(FCString::Atod(*A[1]), FCString::Atod(*A[2]), FCString::Atod(*A[3])); G.Yaw = FCString::Atod(*A[4]); PlaceWait = 10.f; TryPlace(); CamD.bSnap = true; ScriptNote = PlaceNote; }
+		else if (Op == TEXT("cam")) { bScout = A.Num() >= 6; if (bScout) { ScoutPos = FVector(FCString::Atod(*A[1]), FCString::Atod(*A[2]), FCString::Atod(*A[3])); ScoutRot = FRotator(FCString::Atod(*A[4]), FCString::Atod(*A[5]), 0.0); ScoutFov = A.Num() > 6 ? FCString::Atof(*A[6]) : 60.f; ScriptNote = FString::Printf(TEXT("%.0f,%.0f,%.0f p%.0f y%.0f"), ScoutPos.X, ScoutPos.Y, ScoutPos.Z, ScoutRot.Pitch, ScoutRot.Yaw); } }
+		else if (Op == TEXT("rim")) { for (int32 k = 0; k < 3; k++) { RimTune[k] = Num(1 + k, 100) / 100.f; } if (A.Num() >= 7) { RimCol = FLinearColor(Num(4) / 100.f, Num(5) / 100.f, Num(6) / 100.f); } }
+		else if (Op == TEXT("lamp")) { LampI = float(Num(1, 5000)); LampScatter = Num(2, 300) / 100.f; if (BackLamp) { BackLamp->SetIntensity(LampI); BackLamp->SetVolumetricScatteringIntensity(LampScatter); BackLamp->SetLightColor(RimCol); } }
+		else if (Op == TEXT("lens")) { LensF = Num(1, 18) / 10.f; }
+		else if (Op == TEXT("air")) { AirKind = Num(1); }
+		else if (Op == TEXT("bolt")) { BoltDue = 0.f; }
+		else if (Op == TEXT("hud")) { bNoHud = Num(1) == 0; }
+		else if (Op == TEXT("note")) { ScriptNote = A.IsValidIndex(1) ? A[1] : FString(); }
+		else if (Op == TEXT("exec") && A.IsValidIndex(1)) { if (GEngine) { GEngine->Exec(GetWorld(), *A[1]); } }
 		else if (Op == TEXT("storm")) { ScriptStorm = Num(1) / 100.f; }
 		else if (Op == TEXT("wait")) { ScriptWait = Num(1, 1); return; }
 		else if (Op == TEXT("shot")) { FScreenshotRequest::RequestScreenshot(FString(Root) + A[1] + TEXT(".png"), false, false); ScriptWait = 3; return; }
 		else if (Op == TEXT("quit")) { break; }
 	}
-	FFileHelper::SaveStringToFile(TEXT("done\n"), *(FString(Root) + TEXT("done.txt"))); bScript = false; FPlatformMisc::RequestExit(false);
+	GkScriptResume = 0; FFileHelper::SaveStringToFile(TEXT("done\n"), *(FString(Root) + TEXT("done.txt"))); bScript = false; FPlatformMisc::RequestExit(false);
 }
 
 /** The clip each state and move starts with, for every character (the lab changes them; its choices are read last). */
@@ -1633,11 +1755,13 @@ void AGkMatch::Present(float Real)
 		ShownPlace = Place;
 		for (USceneComponent* C : GridParts) { if (C) { C->SetVisibility(Place == 0); } }
 		for (USceneComponent* C : StageParts) { if (C) { C->SetVisibility(Place == 1); } }
-		const bool bSkyOwns = Place != 0 && SkyActor != nullptr;   // one system owns the sun, sky light and fog at a time
+		const bool bSkyOwns = Place != 0 && (SkyActor != nullptr || bOwnLight);   // one system owns the sun, sky light and fog at a time
 		if (Fog && Fog->GetComponent()) { Fog->GetComponent()->SetVisibility(Place == 1 && !bSkyOwns); }
 		for (AActor* L : RoomLights) { if (L) { L->SetActorHiddenInGame(bSkyOwns); if (ULightComponentBase* C = L->FindComponentByClass<ULightComponentBase>()) { C->SetVisibility(!bSkyOwns); } } }
 		if (RoomAir) { RoomAir->SetVisibility(!bSkyOwns); }
 		if (SkyActor) { SkyActor->SetActorHiddenInGame(!bSkyOwns); TArray<USceneComponent*> Cs; SkyActor->GetComponents(Cs); for (USceneComponent* C : Cs) { C->SetVisibility(bSkyOwns); } }
+		if (BackLamp) { BackLamp->SetVisibility(Place != 0 && LampI > 0.f); }
+		if (NinjaLevel) { NinjaLevel->SetShouldBeVisible(Place != 0); }
 	}
 	// The weather follows the fight: a red dusk while both stand strong, a storm as one of them nears the end. It starts
 	// to build when either drops below 60% health, is at full strength at 25%, and never falls under 65% from round three.
@@ -1650,22 +1774,53 @@ void AGkMatch::Present(float Real)
 		Storm = FMath::Lerp(Storm, Want, FMath::Clamp(Real * 1.2f, 0.f, 1.f));
 		const int32 Stage = Want < 0.05f ? 0 : Want < 0.3f ? 1 : Want < 0.6f ? 2 : 3;
 		SetWeather(Stage, Stage == 0 ? 2.0 : 3.0);
-		// the storm's own rain and lightning, heavier as it builds
+		// the storm's own rain and lightning, drawn the way a cartoon draws them: long bright strokes of rain in two depths,
+		// white lines of wind across the picture, rings where the drops land, mist driven along the ground, and forked bolts
+		BoltT = FMath::Max(0.f, BoltT - Real * 60.f);
+		if (Place != 0 && Storm > 0.12f)
+		{
+			WindDue -= Real; int32 Guard = 0;
+			while (WindDue <= 0.f && Guard++ < 6)
+			{   // lines of wind
+				WindDue += 0.05f / Storm;
+				FGkFx::FP& Wl = Fx.Add(0, FVector(Fx.Rng.FRandRange(-500.f, 60.f), CamPos.Y + Fx.Rng.FRandRange(-300.f, 1500.f), Fx.Rng.FRandRange(20.f, 520.f)), FVector(0.0, -Fx.Rng.FRandRange(2200.f, 3600.f), Fx.Rng.FRandRange(-60.f, 60.f)), Fx.Rng.FRandRange(0.18f, 0.34f), Fx.Rng.FRandRange(3.f, 6.f), 2.f, FLinearColor(1.5f, 1.7f, 2.1f) * (0.5f + Storm), 0.7f); Wl.Stretch = 60.f; Wl.bSwell = true;
+				if (Storm > 0.3f) { FGkFx::FP& Mi = Fx.Add(1, FVector(Fx.Rng.FRandRange(-380.f, 120.f), CamPos.Y + Fx.Rng.FRandRange(0.f, 1500.f), Fx.Rng.FRandRange(10.f, 120.f)), FVector(0.0, -Fx.Rng.FRandRange(500.f, 900.f) * Storm, Fx.Rng.FRandRange(0.f, 30.f)), Fx.Rng.FRandRange(1.6f, 2.6f), Fx.Rng.FRandRange(200.f, 320.f), Fx.Rng.FRandRange(360.f, 520.f), FLinearColor(0.5f, 0.56f, 0.68f), 0.1f + 0.08f * Storm); Mi.bSwell = true; }
+			}
+		}
 		if (Place != 0 && Storm > 0.35f)
 		{
 			RainDue -= Real; int32 Guard = 0;
 			while (RainDue <= 0.f && Guard++ < 12)
 			{
-				RainDue += 0.006f / Storm;
-				FGkFx::FP& Dr = Fx.Add(0, FVector(Fx.Rng.FRandRange(-420.f, 120.f), CamPos.Y + Fx.Rng.FRandRange(-1200.f, 1200.f), Fx.Rng.FRandRange(300.f, 700.f)), FVector(0.0, -700.0 * Storm, -2300.0), 0.32f, 9.f, 7.f, FLinearColor(2.2f, 2.8f, 4.f), 0.8f); Dr.Stretch = 22.f;
+				RainDue += 0.0075f / Storm; const bool bNear = Fx.Rng.FRand() < 0.22f;
+				FGkFx::FP& Dr = Fx.Add(0, FVector(bNear ? Fx.Rng.FRandRange(-760.f, -420.f) : Fx.Rng.FRandRange(-380.f, 160.f), CamPos.Y + Fx.Rng.FRandRange(-1100.f, 1500.f), Fx.Rng.FRandRange(320.f, 760.f)), FVector(0.0, -1050.0 * Storm, bNear ? -3300.0 : -2500.0), bNear ? 0.24f : 0.32f, bNear ? 13.f : 8.f, bNear ? 11.f : 6.f, bNear ? FLinearColor(1.6f, 2.1f, 3.f) : FLinearColor(2.4f, 3.f, 4.2f), bNear ? 0.55f : 0.85f); Dr.Stretch = bNear ? 34.f : 26.f;
+			}
+			SplashDue -= Real; Guard = 0;
+			while (SplashDue <= 0.f && Guard++ < 6)
+			{   // where the drops land: a ring that opens on the ground and two beads thrown up from it
+				SplashDue += 0.02f / Storm; const FVector G(Fx.Rng.FRandRange(-260.f, 90.f), CamPos.Y + Fx.Rng.FRandRange(-900.f, 900.f), 3.0);
+				Fx.Add(0, G, FVector::ZeroVector, 0.16f, 4.f, 30.f, FLinearColor(1.4f, 1.8f, 2.6f), 0.6f);
+				for (int32 k = 0; k < 2; k++) { FGkFx::FP& Bd = Fx.Add(0, G, FVector(0.0, Fx.Rng.FRandRange(-90.f, 90.f), Fx.Rng.FRandRange(120.f, 260.f)), 0.22f, 4.f, 1.5f, FLinearColor(2.f, 2.6f, 3.6f)); Bd.Grav = 1100.f; Bd.Stretch = 3.f; }
 			}
 			BoltDue -= Real;
 			if (BoltDue <= 0.f && Storm > 0.55f)
-			{   // a bolt: a jagged line of light down the sky behind the fight
-				double By = CamPos.Y + Fx.Rng.FRandRange(-900.f, 900.f), Bz = 900.0;
-				for (int32 Seg = 0; Seg < 7; Seg++) { const double Ny = By + Fx.Rng.FRandRange(-90.f, 90.f); FGkFx::FP& Bt = Fx.Add(0, FVector(260.0, (By + Ny) * 0.5, Bz - 60.0), FVector(0.0, (Ny - By) * 0.02, -1.0), 0.22f, 26.f, 14.f, FLinearColor(9.f, 10.f, 14.f)); Bt.Stretch = 9.f; By = Ny; Bz -= 120.0; }
+			{   // a bolt: a jagged line of light down the sky behind the fight, with a fork or two off it, and a glow where it comes down
+				double By = CamPos.Y + Fx.Rng.FRandRange(-800.f, 800.f), Bz = 980.0; const double Bx = Fx.Rng.FRandRange(240.f, 420.f);
+				for (int32 Seg = 0; Seg < 9; Seg++)
+				{
+					const double Ny = By + Fx.Rng.FRandRange(-110.f, 110.f);
+					FGkFx::FP& Bt = Fx.Add(0, FVector(Bx, (By + Ny) * 0.5, Bz - 55.0), FVector(0.0, (Ny - By) * 0.02, -1.0), 0.26f, 34.f, 16.f, FLinearColor(11.f, 12.f, 16.f)); Bt.Stretch = 8.f;
+					Fx.Add(0, FVector(Bx + 5.0, (By + Ny) * 0.5, Bz - 55.0), FVector::ZeroVector, 0.2f, 190.f, 150.f, FLinearColor(0.7f, 0.85f, 1.5f), 0.5f);
+					if (Seg >= 2 && Fx.Rng.FRand() < 0.4f)
+					{   // a fork
+						double Fy = Ny, Fz = Bz - 110.0; const double Side = Fx.Rng.FRand() < 0.5f ? -1.0 : 1.0;
+						for (int32 F2 = 0; F2 < 3; F2++) { const double Gy = Fy + Side * Fx.Rng.FRandRange(50.f, 130.f); FGkFx::FP& Fk = Fx.Add(0, FVector(Bx, (Fy + Gy) * 0.5, Fz - 40.0), FVector(0.0, (Gy - Fy) * 0.03, -1.0), 0.2f, 18.f, 8.f, FLinearColor(8.f, 9.f, 13.f)); Fk.Stretch = 7.f; Fy = Gy; Fz -= 80.0; }
+					}
+					By = Ny; Bz -= 110.0;
+				}
+				Fx.Add(0, FVector(Bx, By, 30.0), FVector::ZeroVector, 0.3f, 300.f, 620.f, FLinearColor(2.4f, 2.8f, 4.5f), 0.8f);
+				Snd(TEXT("Thunder_01"), 0.4f + 0.25f * Storm); Flash = FMath::Max(Flash, 0.6f + 0.5f * Storm); Shake = FMath::Max(Shake, 2.f + 3.f * Storm); BoltT = 7.f; BoltDue = Fx.Rng.FRandRange(1.6f, 5.f) / Storm;
 			}
-			if (BoltDue <= 0.f && Storm > 0.55f) { Snd(TEXT("Thunder_01"), 0.5f + 0.4f * Storm); Flash = FMath::Max(Flash, 0.55f + 0.5f * Storm); Shake = FMath::Max(Shake, 2.f + 3.f * Storm); BoltDue = Fx.Rng.FRandRange(1.6f, 5.f) / Storm; }
 		}
 		// the rain is heard as well as seen, and the menus have their own pulse
 		{
@@ -1676,20 +1831,20 @@ void AGkMatch::Present(float Real)
 			};
 			// outdoors: a thin wind always, a rising gale and rain that goes from light to a downpour as the storm builds; the training room hears rain on its roof
 			const bool bOut = Place != 0 && !bScript; const float Duck = Screen == 3 ? 1.f : 0.6f;
-			Loop(WindLoop, TEXT("LoopWindLight_01"), bOut ? 0.28f * (1.f - 0.6f * Storm) * Duck : 0.f);
-			Loop(GaleLoop, TEXT("LoopWindHeavy_01"), bOut ? FMath::Clamp((Storm - 0.2f) * 1.1f, 0.f, 0.75f) * Duck : 0.f);
-			Loop(RainLoop, TEXT("LoopRainLight_01"), bOut ? FMath::Clamp((Storm - 0.3f) * 3.f, 0.f, 1.f) * FMath::Clamp(1.5f - Storm * 1.2f, 0.25f, 1.f) * 0.7f * Duck : 0.f);
-			Loop(PourLoop, TEXT("LoopRainHeavy_01"), bOut ? FMath::Clamp((Storm - 0.55f) * 2.6f, 0.f, 0.85f) * Duck : 0.f);
-			Loop(RoomLoop, TEXT("LoopRainInside_01"), (Place == 0 && !bScript) ? 0.16f : 0.f);
+			Loop(WindLoop, TEXT("LoopWindLight_01"), bOut ? 0.6f * (1.f - 0.6f * Storm) * Duck : 0.f);
+			Loop(GaleLoop, TEXT("LoopWindHeavy_01"), bOut ? FMath::Clamp((Storm - 0.2f) * 0.2f, 0.f, 0.13f) * Duck : 0.f);
+			Loop(RainLoop, TEXT("LoopRainLight_01"), bOut ? FMath::Clamp((Storm - 0.3f) * 3.f, 0.f, 1.f) * FMath::Clamp(1.5f - Storm * 1.2f, 0.25f, 1.f) * 0.45f * Duck : 0.f);
+			Loop(PourLoop, TEXT("LoopRainHeavy_01"), bOut ? FMath::Clamp((Storm - 0.55f) * 0.5f, 0.f, 0.17f) * Duck : 0.f);
+			Loop(RoomLoop, TEXT("LoopRainInside_01"), (Place == 0 && !bScript) ? 0.5f : 0.f);
 			// the songs play one after another in a random order for as long as the game is open, a little lower under a fight
 			if (!bScript && Songs.Num() > 0)
 			{
 				if (!Music || !Music->IsPlaying())
 				{
 					int32 Next = Fx.Rng.RandRange(0, Songs.Num() - 1); if (Songs.Num() > 1 && Next == LastSong) { Next = (Next + 1 + Fx.Rng.RandRange(0, Songs.Num() - 2)) % Songs.Num(); }
-					LastSong = Next; if (Music) { Music->Stop(); } Music = UGameplayStatics::SpawnSound2D(this, Songs[Next], 0.5f, 1.f, 0.f, nullptr, false, false);
+					LastSong = Next; SongGain = Songs[Next]->GetName().Contains(TEXT("Song2")) ? 1.28f : Songs[Next]->GetName().Contains(TEXT("Song6")) ? 0.96f : 1.f; if (Music) { Music->Stop(); } Music = UGameplayStatics::SpawnSound2D(this, Songs[Next], 0.5f, 1.f, 0.f, nullptr, false, false);
 				}
-				if (Music) { MusicVol = FMath::Lerp(MusicVol, (Screen == 3 && !bMenu) ? 0.42f : 0.6f, FMath::Clamp(Real * 2.f, 0.f, 1.f)); Music->SetVolumeMultiplier(MusicVol); }
+				if (Music) { MusicVol = FMath::Lerp(MusicVol, (Screen == 3 && !bMenu) ? (S.freeze > 0 ? 0.5f : 0.74f) : 0.85f, FMath::Clamp(Real * 3.f, 0.f, 1.f)); Music->SetVolumeMultiplier(MusicVol * SongGain); }
 			}
 		}
 		// a super dims the world behind the fighters for as long as it holds the screen; the weather's own light is untouched
@@ -1704,7 +1859,29 @@ void AGkMatch::Present(float Real)
 		}
 		Fx.DustCol = Place != 0 ? FMath::Lerp(FLinearColor(0.62f, 0.47f, 0.33f), FLinearColor(0.36f, 0.38f, 0.48f), Storm) : FLinearColor(0.45f, 0.47f, 0.52f);
 	}
-	Fx.Air(CamPos.Y, Real, Place != 0 && Storm < 0.5f); Fx.Tick(Real);
+	Fx.Air(CamPos.Y, Real, Place != 0 && (Storm < 0.5f || AirKind == 1 || AirKind == 2 || AirKind == 7), AirKind, Storm); Fx.Tick(Real);
+	// the balls the ground fog feels: one at each fighter's hips and one at his feet, and four more that ride the shots in
+	// the air, or are strung along the great beam while it burns
+	{
+		int32 Beamer = -1; for (int32 i = 0; i < 2; i++) { const gk::Fighter& P = S.p[i]; if (P.st == gk::ATK && P.mv == gk::moveByKey("SA3")) { const gk::Move& M = gk::move(P.mv); if (P.mf >= M.hits[0].s - 2 && P.mf <= M.lastAct + 3) { Beamer = i; } } }
+		// the copied level's own script belongs to FluidNinja's demo and has nothing left to run on
+		if (NinjaLevel && !bNinjaQuiet) { if (ULevel* Lv = NinjaLevel->GetLoadedLevel()) { if (AActor* Sc = Lv->GetLevelScriptActor()) { Sc->SetActorTickEnabled(false); bNinjaQuiet = true; } } }
+		static const FName Bones[6] = { TEXT("hand_l"), TEXT("hand_r"), TEXT("foot_l"), TEXT("foot_r"), TEXT("head"), TEXT("spine_03") };
+		for (int32 k = 0; k < Stirrers.Num(); k++)
+		{
+			AActor* B = Stirrers[k]; if (!B) { continue; }
+			if (k < 12)
+			{   // a ball on each hand and foot, the head and the chest of both fighters
+				const int32 Who = k / 6; const gk::Fighter& P = S.p[Who]; UPoseableMeshComponent* C = Body[Who];
+				FVector Wp = Wd(At(P.x, P.y) + FVector(0.0, 0.0, 90.0)); if (C && C->GetBoneIndex(Bones[k % 6]) != INDEX_NONE) { Wp = C->GetBoneLocationByName(Bones[k % 6], EBoneSpaces::WorldSpace); }
+				B->SetActorLocation(Wp, false); continue;
+			}
+			const int32 q = k - 12;
+			if (Beamer >= 0) { const gk::Fighter& P = S.p[Beamer]; const double Run = 120.0 + FMath::Fmod(double(Ticks) * 55.0 + q * 420.0, 1700.0); B->SetActorLocation(Wd(At(P.x, P.y + 56 * gk::F) + FVector(0.0, P.face * Run, 0.0)), false); }
+			else if (q < S.nshots && !bMenu) { B->SetActorLocation(Wd(At(S.shot[q].x, S.shot[q].y)), false); }
+			else { B->SetActorLocation(Wd(FVector(0.0, 0.0, -6000.0)), false); }
+		}
+	}
 	for (int32 k = 0; k < 4; k++)
 	{
 		if (ShotMesh[k]) { ShotMesh[k]->SetVisibility(false); }
@@ -1797,6 +1974,13 @@ void AGkMatch::Present(float Real)
 		Eye += FVector(0.0, FMath::Sin(Ticks * 1.7) * Shake, FMath::Cos(Ticks * 2.3) * Shake * 0.7);
 		FRotator Rot = (Look - Eye).Rotation(); Rot.Roll = -(CamD.Roll + CamD.KRoll);
 		if (Cam) { Cam->GetCameraComponent()->SetFieldOfView(float(Fov)); Cam->SetActorLocationAndRotation(Wd(Eye), Anchor.GetRotation() * Rot.Quaternion()); }
+		if (Cam)
+		{   // the lens: the fighters are held sharp, the far ground goes soft behind them (not in the training room, where the grid is read)
+			FPostProcessSettings& PP = Cam->GetCameraComponent()->PostProcessSettings; const bool bSoft = Place != 0 && LensF > 0.f && LensF < 20.f && !bScout;
+			PP.bOverride_DepthOfFieldFstop = true; PP.DepthOfFieldFstop = bSoft ? LensF : 32.f; PP.bOverride_DepthOfFieldMinFstop = true; PP.DepthOfFieldMinFstop = 1.2f;
+			PP.bOverride_DepthOfFieldSensorWidth = true; PP.DepthOfFieldSensorWidth = 36.f; PP.bOverride_DepthOfFieldFocalDistance = true; PP.DepthOfFieldFocalDistance = bSoft ? float((Look - Eye).Size()) : 0.f;
+			if (bScout) { Cam->GetCameraComponent()->SetFieldOfView(ScoutFov); Cam->SetActorLocationAndRotation(ScoutPos, ScoutRot); }
+		}
 		Fx.Yaw = float(FMath::DegreesToRadians(Rot.Yaw));
 	}
 

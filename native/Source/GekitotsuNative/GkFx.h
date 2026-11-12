@@ -26,5 +26,5 @@ struct FGkFx
 	void Aura(const FVector& At, const FLinearColor& Col, float Amount);
 	void Trail(const FVector& At, const FLinearColor& Col);
 	/** Motes and ground haze around the part of the stage in view. */
-	void Air(double CentreY, float Dt, bool bOutdoors);
+	void Air(double CentreY, float Dt, bool bOutdoors, int32 Kind = 0, float Wind = 0.f);
 };

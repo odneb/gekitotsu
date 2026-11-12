@@ -1,4 +1,7 @@
-# name | map | sky preset | sky time (0-600 is the day, then 480 of night) | "auto" or x,y,z,yaw
+# name | map | sky preset | sky time (0-600 is the day, then 480 of night) | "auto" or x,y,z,yaw | options: light=map;rim=r,g,b;air=petals|leaves|fireflies|snow|embers|spores|sand;ninja=0;lamp=5000;lens=1.8
 Dreamscape Meadows | /Game/DreamscapeSeries/DreamscapeMeadows/Maps/Demo | Classic | 330 | auto
 Dreamscape Mountains | /Game/DreamscapeSeries/DreamscapeMountains/Maps/Demo | Cinematic | 440 | auto
 Dreamscape Tower | /Game/DreamscapeSeries/DreamscapeTower/Maps/DemoMap | Dreamy | 400 | auto
+Dreadmarsh Swamp | /Game/DreamscapeSeries/DreamscapeDreadmarsh/Maps/Dreadmarsh_DemoMap_Resize | Dreamy | 400 | auto | light=map;air=spores;rim=0.5,1.0,0.85
+East Lands Shrine | /Game/DreamscapeSeries/DreamscapeEastLands/Maps/EastLands-DemoMap_01 | Classic | 330 | auto | light=map;air=petals;rim=1.0,0.8,0.7
+Sun Temple Ruins | /Game/DreamscapeSeries/DreamscapeSunTemple/Maps/Suntemple-DemoMap | Cinematic | 440 | auto | light=map;air=leaves;rim=1.0,0.85,0.6

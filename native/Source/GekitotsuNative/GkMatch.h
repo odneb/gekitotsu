@@ -13,7 +13,9 @@
 class UPoseableMeshComponent; class USkeletalMeshComponent; class UAnimSequence; class UNiagaraSystem; class USoundBase; class UStaticMeshComponent; class USceneComponent; class ACameraActor; class AExponentialHeightFog; class UCanvas; class FGkPads; class UMaterialInstanceDynamic;
 
 /** A place to fight. Kind 0 is the measured training room and 1 the canyon, both built by the game on its own bare map; 2 is a dressed map from an environment pack, opened as it was shipped, with the fight set down in it. */
-struct FGkStage { FString Name, Map, Sky; int32 Kind = 2; double Time = 500.0; bool bFixed = false; FVector At = FVector::ZeroVector; double Yaw = 0.0; };
+struct FGkStage { FString Name, Map, Sky; int32 Kind = 2; double Time = 500.0; bool bFixed = false; FVector At = FVector::ZeroVector; double Yaw = 0.0; FString Opt;
+	/** One of the stage's options, written key=value;key=value at the end of its line: light=map, rim=r,g,b, air=petals, ninja=0, lamp=4000, ev=0.5, lens=1.8 */
+	FString Get(const TCHAR* Key, const TCHAR* Def = TEXT("")) const { TArray<FString> Ps; Opt.ParseIntoArray(Ps, TEXT(";")); for (const FString& P : Ps) { FString K, V; if (P.Split(TEXT("="), &K, &V) && K.TrimStartAndEnd() == Key) { return V.TrimStartAndEnd(); } } return FString(Def); } };
 /** What has been chosen in the menus. It outlives a change of map. Char: 0 is Kagu, 1 Noa, 2 and 3 the mannequins. */
 struct FGkSetup { int32 Stage = 1, Mode = 0, Level = 2, Dummy = 0, Char[2] = { 2, 2 }; bool bGo = false; };
 
@@ -81,7 +83,7 @@ public:
 	int32 PerfectT[2] = { 0, 0 }, ImpactT[2] = { 0, 0 }; float Lean[2] = { 0.f, 0.f }, Squash[2] = { 0.f, 0.f }, Flash = 0.f, RainDue = 0.f, BoltDue = 3.f;
 	void LookFighter(int32 i); void StateFx(int32 i); void Beam(const FVector& From, float Dir, float Len, float R, const FLinearColor& Col); float BeamDue = 0.f;
 	// scripted pictures (-gkscript): a list of commands in Saved/script.txt that pose the game and save screenshots
-	TArray<FString> Script; int32 ScriptAt = 0, ScriptWait = 0; bool bScript = false; FName ScriptSlot; float ScriptStorm = -1.f; FString ScriptNote; bool bLabUi = false; int32 ScriptRunLeft = 0, ScriptIn[2] = { 0, 0 }; void RunScript();
+	TArray<FString> Script; int32 ScriptAt = 0, ScriptWait = 0; bool bScript = false; FName ScriptSlot; float ScriptStorm = -1.f; FString ScriptNote; bool bLabUi = false, bNoHud = false; int32 ScriptRunLeft = 0, ScriptIn[2] = { 0, 0 }; void RunScript();
 	// The animation lab (Screen 4): one fighter alone, every move and state in turn, and every clip he has to try on it.
 	// What is chosen is kept in Content/Gk/anims.txt (set | slot | clip | from | to | loop) and used by the game from then on.
 	struct FLabSlot { FName Slot; FString Label; int32 Cat = 0; };
@@ -93,6 +95,7 @@ public:
 	UPROPERTY() TObjectPtr<class UNiagaraComponent> ShotFx[4]; int32 ShotKind[4] = { 0, 0, 0, 0 };
 	UPROPERTY() TMap<FName, TObjectPtr<USoundBase>> Sfx;
 	UPROPERTY() TObjectPtr<class UAudioComponent> RainLoop; UPROPERTY() TObjectPtr<class UAudioComponent> WindLoop; UPROPERTY() TObjectPtr<class UAudioComponent> GaleLoop; UPROPERTY() TObjectPtr<class UAudioComponent> PourLoop; UPROPERTY() TObjectPtr<class UAudioComponent> RoomLoop; UPROPERTY() TObjectPtr<class UAudioComponent> Music; UPROPERTY() TArray<TObjectPtr<USoundBase>> Songs; int32 LastSong = -1; float MusicVol = 0.5f; int32 StepT[2] = { 0, 0 };
+	float SongGain = 1.f;
 	UPROPERTY() TArray<TObjectPtr<USoundBase>> SndKeep; TMap<FName, TArray<USoundBase*>> SndSets; void Snd(const TCHAR* Set, float Volume = 1.f, float Pitch = 1.f); void EventSound(const gk::Event& E);
 	void LoadVfx(); bool PlayVfx(const TCHAR* Name, const FVector& Local, float Scale, float Dir, const TCHAR* Sound, float Volume = 1.f);
 	UPROPERTY() TObjectPtr<ACameraActor> Cam;
@@ -109,6 +112,17 @@ public:
 	UPROPERTY() TObjectPtr<USceneComponent> RoomAir;
 	float Storm = 0.f, Dim = 0.f; int32 WeatherAt = -1;
 	void MakeSky(); void SetWeather(int32 Index, double BlendSeconds);
+	// The look of the place. A rim of light on the fighters from the lamp behind them; the lens, which holds the fighters
+	// sharp and lets the far ground go soft; the lamp itself, which the mist catches; and FluidNinja LIVE's ground fog,
+	// a fluid that lies over the floor of the fight and is stirred by the fighters as they move through it.
+	FLinearColor RimCol = FLinearColor(1.f, 0.85f, 0.65f); float RimTune[3] = { 2.f, 2.f, 0.6f }, BoltT = 0.f, LensF = 1.8f, LampI = 5000.f, LampScatter = 3.f, WindDue = 0.f, SplashDue = 0.f; int32 AirKind = 0; bool bOwnLight = false, bNinjaTried = false, bNinjaQuiet = false;
+	UPROPERTY() TObjectPtr<class USpotLightComponent> BackLamp; UPROPERTY() TObjectPtr<class ULevelStreamingDynamic> NinjaLevel; UPROPERTY() TArray<TObjectPtr<AActor>> Stirrers;
+	bool bScout = false; FVector ScoutPos = FVector::ZeroVector; FRotator ScoutRot = FRotator::ZeroRotator; float ScoutFov = 60.f;
+	void StageLook(); void NinjaFog(); void Mist();
+	// afterimages: when a fighter moves fast (a dash, a rush, a drive impact, a super, being knocked flying) he leaves
+	// bright copies of himself behind for a few frames, each held in the pose he had there
+	UPROPERTY() TObjectPtr<UPoseableMeshComponent> Ghost[6]; UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> GhostMid[6]; int32 GhostAge[6] = { 99, 99, 99, 99, 99, 99 }, GhostNext[2] = { 0, 0 }, GhostClock[2] = { 0, 0 };
+	void Afterimage(int32 i);
 	// the browser game's animation and the two skeletons it is solved onto
 	FGkPoses Poses; FGkBody Rig[2]; TArray<FName> MoveClip; int32 HitKind[2] = { 1, 1 };
 
