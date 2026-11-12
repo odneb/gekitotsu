@@ -373,6 +373,7 @@ def fighter(tag, sk, anim, mi, ink, y, yaw, t, scale):
 
 
 STAGE_X, STAGE_Y, STAGE_S = -420.0, 0.0, 1.0
+STAGE_ON = False   # the modelled shrine is switched off: it cost too many frames. The court, sky, sun and mountains remain.
 
 
 def build():
@@ -428,7 +429,7 @@ def build():
     # starting just behind the line of play. The lanterns are MXRblend's (CC BY 4.0).
     SHRINE = '/Game/Fab/Shrine_Asset_Pack_Ready_Made_Scene_Template_for_Unity_/shrinescene/StaticMeshes/shrinescene'
     LANT = '/Game/Fab/Asian_Lanterns_–_Free_Low_Poly_3D_Asset_Pack___3_Lanterns/lanternsdemo/StaticMeshes/lanternsdemo'
-    sm = EAL.load_asset(SHRINE)
+    sm = EAL.load_asset(SHRINE) if STAGE_ON else None
     if sm:
         a = ELL.spawn_actor_from_object(sm, V(STAGE_X, STAGE_Y, 0), R(0, -90)); a.set_actor_label('Shrine'); a.set_actor_scale3d(V(STAGE_S, STAGE_S, STAGE_S))
         sp(a.static_mesh_component, cast_shadow=False)   # a quarter of a million triangles of shadow is more than a laptop can spend at 60 frames a second
@@ -436,8 +437,8 @@ def build():
         for sd in (-1, 1):
             kl = ELL.spawn_actor_from_class(unreal.PointLight, V(650, sd * 1000, 520), R(0, 0)); kl.set_actor_label('FrontLamp')
             sp(kl.point_light_component, intensity_units=unreal.LightUnits.CANDELAS, intensity=2200.0, light_color=unreal.Color(255, 150, 96), attenuation_radius=7000.0, source_radius=120.0, cast_shadows=False, volumetric_scattering_intensity=0.0)
-    else: log('no shrine mesh: add the Shrine Asset Pack from Fab')
-    lm = EAL.load_asset(LANT)
+    elif STAGE_ON: log('no shrine mesh: add the Shrine Asset Pack from Fab')
+    lm = EAL.load_asset(LANT) if STAGE_ON else None
     if lm:
         for i, (x, y, z) in enumerate(((-260, -620, 190), (-260, 620, 190))):
             a = ELL.spawn_actor_from_object(lm, V(x, y, z), R(0, 90)); a.set_actor_label('Lanterns%d' % i)
