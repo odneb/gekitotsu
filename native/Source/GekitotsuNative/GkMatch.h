@@ -7,9 +7,10 @@
 #include "Core/gk_sim.h"
 #include "Core/gk_ai.h"
 #include "GkBody.h"
+#include "GkFx.h"
 #include "GkMatch.generated.h"
 
-class UPoseableMeshComponent; class UStaticMeshComponent; class ACameraActor; class UCanvas; class FGkPads;
+class UPoseableMeshComponent; class UStaticMeshComponent; class USceneComponent; class ACameraActor; class AExponentialHeightFog; class UCanvas; class FGkPads;
 
 UCLASS()
 class GEKITOTSUNATIVE_API AGkGameMode : public AGameModeBase
@@ -48,6 +49,11 @@ public:
 	UPROPERTY() TObjectPtr<UPoseableMeshComponent> Body[2];
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> ShotMesh[4];
 	UPROPERTY() TObjectPtr<ACameraActor> Cam;
+	// the two places to fight: the measured training room, and the wasteland stage; and the air between
+	UPROPERTY() TArray<TObjectPtr<USceneComponent>> GridParts;
+	UPROPERTY() TArray<TObjectPtr<USceneComponent>> StageParts;
+	UPROPERTY() TObjectPtr<AExponentialHeightFog> Fog;
+	FGkFx Fx; int32 ShownPlace = -1;
 	// the browser game's animation and the two skeletons it is solved onto
 	FGkPoses Poses; FGkBody Rig[2]; TArray<FName> MoveClip; int32 HitKind[2] = { 1, 1 };
 

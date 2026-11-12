@@ -8,6 +8,8 @@
 #include "Components/SkyAtmosphereComponent.h"
 #include "Components/LightComponent.h"
 #include "Engine/DirectionalLight.h"
+#include "Engine/ExponentialHeightFog.h"
+#include "Components/ExponentialHeightFogComponent.h"
 #include "Engine/SkyLight.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
@@ -61,10 +63,12 @@ void AGkMatch::BeginPlay()
 	UStaticMesh* Plane = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane"));
 	UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
 	UStaticMesh* Ball = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
-	auto Piece = [this](UStaticMesh* Mesh, const FVector& Loc, const FVector& Scale)
+	TArray<TObjectPtr<USceneComponent>>* Into = &GridParts;
+	auto Piece = [this, &Into](UStaticMesh* Mesh, const FVector& Loc, const FVector& Scale)
 	{
 		UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this); C->SetMobility(EComponentMobility::Movable); C->SetupAttachment(RootComponent);
 		if (Mesh) { C->SetStaticMesh(Mesh); } C->SetCollisionEnabled(ECollisionEnabled::NoCollision); C->RegisterComponent(); C->SetWorldLocation(Loc); C->SetWorldScale3D(Scale);
+		if (Into) { Into->Add(C); }
 		return C;
 	};
 	const double Half = double(gk::STAGE) * Cm;
@@ -86,13 +90,53 @@ void AGkMatch::BeginPlay()
 	Upright(0.0, 0.06, Gold); Upright(Half, 0.07, Red); Upright(-Half, 0.07, Red);
 	for (int32 k = 1; k <= 13; k++) { Paint(Piece(Cube, FVector(WallX - 2.0, 0.0, k * Sq), FVector(0.02, Wide * 2.0 / 100.0, k % 2 == 0 ? 0.04 : 0.02)), k % 2 == 0 ? Heavy : Line); }
 	for (int32 k = 0; k <= 7; k++) { Paint(Piece(Cube, FVector(WallX - k * Sq, 0.0, 0.0), FVector(k == 0 ? 0.06 : 0.02, Wide * 2.0 / 100.0, 0.02)), k == 0 ? Heavy : Line); }
+	// The stage: a wasteland of red rock under a low sun. A sand floor, boulders close behind the fighters, mesas and
+	// spires in the middle distance and great tablelands far off, each layer paler in the haze than the one before.
+	Into = &StageParts;
+	{
+		UStaticMesh* Cone = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cone.Cone"));
+		auto Lit = [Flat](UStaticMeshComponent* C, const FLinearColor& Col, bool bShadow) { if (UMaterialInstanceDynamic* M = C->CreateDynamicMaterialInstance(0, Flat)) { M->SetVectorParameterValue(TEXT("Color"), Col); } C->SetCastShadow(bShadow); };
+		const FLinearColor Sand(0.52f, 0.31f, 0.16f), Rock(0.44f, 0.19f, 0.10f), Deep(0.27f, 0.11f, 0.07f);
+		Lit(Piece(Plane, FVector(6000.0, 0.0, -0.5), FVector(400.0, 600.0, 1.0)), Sand, false);
+		FRandomStream R(4411);
+		auto Shade = [&R, Rock, Deep]() { return FMath::Lerp(Deep, Rock, R.FRandRange(0.35f, 1.f)); };
+		auto Mesa = [&](double X, double Y, double W, double H, double D)
+		{
+			UStaticMeshComponent* Base = Piece(Cube, FVector(X, Y, H * 0.5), FVector(D / 100.0, W / 100.0, H / 100.0)); Base->SetWorldRotation(FRotator(0.0, R.FRandRange(-14.f, 14.f), R.FRandRange(-3.f, 3.f))); Lit(Base, Shade(), true);
+			UStaticMeshComponent* Top = Piece(Cube, FVector(X, Y + W * R.FRandRange(-0.15f, 0.15f), H * 1.1), FVector(D * 0.8 / 100.0, W * R.FRandRange(0.5f, 0.8f) / 100.0, H * 0.28 / 100.0)); Top->SetWorldRotation(FRotator(0.0, R.FRandRange(-20.f, 20.f), 0.0)); Lit(Top, Shade(), true);
+			Lit(Piece(Cone, FVector(X - D * 0.2, Y, H * 0.14), FVector(D * 1.7 / 100.0, W * 1.5 / 100.0, H * 0.3 / 100.0)), FMath::Lerp(Sand, Rock, 0.5f), false);
+		};
+		auto Spire = [&](double X, double Y, double Wide, double H)
+		{
+			UStaticMeshComponent* C = Piece(Cone, FVector(X, Y, H * 0.5), FVector(Wide / 100.0, Wide / 100.0, H / 100.0)); C->SetWorldRotation(FRotator(R.FRandRange(-4.f, 4.f), 0.0, R.FRandRange(-5.f, 5.f))); Lit(C, Shade(), true);
+			Lit(Piece(Cone, FVector(X, Y, H * 0.1), FVector(Wide * 2.2 / 100.0, Wide * 2.2 / 100.0, H * 0.2 / 100.0)), FMath::Lerp(Sand, Rock, 0.5f), false);
+		};
+		for (int32 k = 0; k < 9; k++)   // boulders just behind the fight
+		{
+			const double Size = R.FRandRange(50.f, 150.f);
+			UStaticMeshComponent* C = Piece(Cube, FVector(R.FRandRange(330.f, 900.f), R.FRandRange(-2200.f, 2200.f), Size * 0.3), FVector(Size / 100.0, Size * R.FRandRange(0.8f, 1.6f) / 100.0, Size * 0.8 / 100.0));
+			C->SetWorldRotation(FRotator(R.FRandRange(-12.f, 12.f), R.FRandRange(0.f, 90.f), R.FRandRange(-12.f, 12.f))); Lit(C, Shade(), true);
+		}
+		for (int32 k = 0; k < 8; k++) { const double X = R.FRandRange(2200.f, 4600.f); if (k % 3 == 2) { Spire(X, R.FRandRange(-3600.f, 3600.f), R.FRandRange(140.f, 260.f), R.FRandRange(500.f, 1100.f)); } else { Mesa(X, R.FRandRange(-3800.f, 3800.f), R.FRandRange(400.f, 900.f), R.FRandRange(160.f, 420.f), R.FRandRange(400.f, 800.f)); } }
+		for (int32 k = 0; k < 9; k++) { const double X = R.FRandRange(7000.f, 13000.f); if (k % 4 == 3) { Spire(X, R.FRandRange(-8000.f, 8000.f), R.FRandRange(400.f, 700.f), R.FRandRange(1500.f, 2600.f)); } else { Mesa(X, R.FRandRange(-9000.f, 9000.f), R.FRandRange(1500.f, 3200.f), R.FRandRange(500.f, 1300.f), R.FRandRange(1500.f, 2500.f)); } }
+	}
+	Into = nullptr;
+	Fx.Init(this, RootComponent);
+	// the low sun seen through the haze behind everything
+	Fx.Add(0, FVector(14000.0, 2500.0, 700.0), FVector::ZeroVector, -1.f, 9000.f, 9000.f, FLinearColor(1.0f, 0.55f, 0.25f), 0.5f);
 	for (int32 k = 0; k < 4; k++) { ShotMesh[k] = Piece(Ball, FVector::ZeroVector, FVector(0.45)); ShotMesh[k]->SetCastShadow(false); ShotMesh[k]->SetVisibility(false); }
 	if (W)
 	{
-		if (ADirectionalLight* Sun = W->SpawnActor<ADirectionalLight>(FVector(0.0, 0.0, 800.0), FRotator(-46.0, 28.0, 0.0)))
+		if (ADirectionalLight* Sun = W->SpawnActor<ADirectionalLight>(FVector(0.0, 0.0, 800.0), FRotator(-31.0, 38.0, 0.0)))
 		{
-			if (ULightComponent* L = Sun->GetLightComponent()) { L->SetMobility(EComponentMobility::Movable); L->SetIntensity(6.f); }
-			if (UDirectionalLightComponent* D = Cast<UDirectionalLightComponent>(Sun->GetLightComponent())) { D->SetAtmosphereSunLight(true); }
+			if (ULightComponent* L = Sun->GetLightComponent()) { L->SetMobility(EComponentMobility::Movable); L->SetIntensity(8.f); L->SetLightColor(FLinearColor(1.f, 0.84f, 0.66f)); }
+			if (UDirectionalLightComponent* D = Cast<UDirectionalLightComponent>(Sun->GetLightComponent())) { D->SetAtmosphereSunLight(true); D->SetDynamicShadowDistanceMovableLight(6000.f); }
+		}
+		Fog = W->SpawnActor<AExponentialHeightFog>(FVector(0.0, 0.0, 0.0), FRotator::ZeroRotator);
+		if (Fog && Fog->GetComponent())
+		{
+			UExponentialHeightFogComponent* F = Fog->GetComponent(); F->SetMobility(EComponentMobility::Movable);
+			F->SetFogDensity(0.022f); F->SetFogHeightFalloff(0.08f); F->SetFogInscatteringColor(FLinearColor(0.85f, 0.47f, 0.25f)); F->SetStartDistance(1200.f); F->SetFogMaxOpacity(0.92f);
 		}
 		USkyAtmosphereComponent* Air = NewObject<USkyAtmosphereComponent>(this); Air->SetupAttachment(RootComponent); Air->RegisterComponent();
 		if (ASkyLight* Sky = W->SpawnActor<ASkyLight>(FVector(0.0, 0.0, 600.0), FRotator::ZeroRotator))
@@ -152,6 +196,10 @@ void AGkMatch::BeginPlay()
 			  PP.bOverride_AutoExposureMethod = true; PP.AutoExposureMethod = AEM_Manual;
 			  PP.bOverride_AutoExposureBias = true; PP.AutoExposureBias = 0.f;
 			  PP.bOverride_AutoExposureApplyPhysicalCameraExposure = true; PP.AutoExposureApplyPhysicalCameraExposure = false;
+			  PP.bOverride_BloomIntensity = true; PP.BloomIntensity = 0.9f; PP.bOverride_BloomThreshold = true; PP.BloomThreshold = 1.0f;
+			  PP.bOverride_VignetteIntensity = true; PP.VignetteIntensity = 0.5f;
+			  PP.bOverride_ColorSaturation = true; PP.ColorSaturation = FVector4(1.08, 1.08, 1.08, 1.0); PP.bOverride_ColorContrast = true; PP.ColorContrast = FVector4(1.06, 1.06, 1.06, 1.0);
+			  PP.bOverride_DepthOfFieldFstop = true; PP.DepthOfFieldFstop = 1.4f; PP.bOverride_DepthOfFieldFocalDistance = true; PP.DepthOfFieldFocalDistance = 900.f;
 			  Cam->GetCameraComponent()->PostProcessBlendWeight = 1.f; }
 			if (APlayerController* PC = W->GetFirstPlayerController()) { PC->SetViewTarget(Cam); }
 		}
@@ -339,11 +387,12 @@ void AGkMatch::Track(int32 In)
 void AGkMatch::OnEvent(const gk::Event& E)
 {
 	const int32 Who = E.who >= 0 ? (E.who & 1) : 0;
+	const FVector Feet = At(S.p[Who].x, S.p[Who].y); const FLinearColor Ki = Who ? FLinearColor(1.5f, 3.5f, 8.f) : FLinearColor(7.f, 3.6f, 0.9f);
 	switch (E.type)
 	{
 		case gk::E_HIT:
 			HitKind[1 - Who] = (E.f & gk::H_LOW) ? 3 : E.a >= 2 ? 2 : E.a >= 1 ? 1 : 0;   // how hard it landed picks the reel: light, medium, heavy, or swept low
-			Sparks.Add(FSpark{ At(E.x, E.y), 0, 0 }); Shake = FMath::Max(Shake, 2.f + E.a * 2.f + ((E.f & gk::H_KO) ? 10.f : 0.f));
+			Fx.Hit(At(E.x, E.y), (E.f & gk::H_KO) ? 3 : FMath::Clamp(E.a, 0, 2), float(S.p[Who].face)); Shake = FMath::Max(Shake, 2.f + E.a * 2.f + ((E.f & gk::H_KO) ? 10.f : 0.f));
 			Combo[Who] = E.c; ComboDmg[Who] = E.d; ComboTimer[Who] = 80;
 			if (E.f & gk::H_IMPACT) { Remark(Who, (E.f & gk::H_CRUMPLE) ? TEXT("CRUMPLE!") : TEXT("BREACH!")); }
 			else if (E.f & gk::H_FREE) { Remark(Who, TEXT("CHASE")); }
@@ -352,17 +401,21 @@ void AGkMatch::OnEvent(const gk::Event& E)
 			else if (E.e == 2 && E.c <= 1) { Remark(Who, TEXT("PUNISH")); }
 			else if (E.e == 1 && E.c <= 1) { Remark(Who, TEXT("COUNTER")); }
 			break;
-		case gk::E_BLOCK: Sparks.Add(FSpark{ At(E.x, E.y), 0, 1 }); Shake = FMath::Max(Shake, 1.5f); break;
-		case gk::E_PARRY: Sparks.Add(FSpark{ At(E.x, E.y), 0, 2 }); break;
-		case gk::E_PPARRY: Sparks.Add(FSpark{ At(E.x, E.y), 0, 2 }); Remark(Who, TEXT("PERFECT PARRY")); break;
-		case gk::E_ARMOR: Sparks.Add(FSpark{ At(E.x, E.y), 0, 1 }); Remark(Who, TEXT("ARMOR")); break;
+		case gk::E_BLOCK: Fx.Guard(At(E.x, E.y), float(S.p[Who].face)); Shake = FMath::Max(Shake, 1.5f); break;
+		case gk::E_PARRY: Fx.Parry(At(E.x, E.y), false); break;
+		case gk::E_PPARRY: Fx.Parry(At(E.x, E.y), true); Shake = FMath::Max(Shake, 5.f); Remark(Who, TEXT("PERFECT PARRY")); break;
+		case gk::E_ARMOR: Fx.Guard(At(E.x, E.y), float(S.p[Who].face)); Remark(Who, TEXT("ARMOR")); break;
 		case gk::E_DICLASH: Say(TEXT("CLASH!"), 50); Shake = FMath::Max(Shake, 12.f); break;
-		case gk::E_SPLAT: Remark(Who, E.a ? TEXT("STUN!") : TEXT("WALL SPLAT")); Shake = FMath::Max(Shake, 12.f); break;
-		case gk::E_GBOUNCE: case gk::E_WBOUNCE: Shake = FMath::Max(Shake, 10.f); break;
-		case gk::E_KD: Shake = FMath::Max(Shake, 3.f); break;
-		case gk::E_RUSH: Remark(Who, TEXT("GHOST STEP")); break;
+		case gk::E_SPLAT: Fx.Hit(Feet + FVector(0, 0, 100), 2, float(-S.p[Who].face)); Fx.Dust(Feet, 1.4f, 0.f); Remark(Who, E.a ? TEXT("STUN!") : TEXT("WALL SPLAT")); Shake = FMath::Max(Shake, 12.f); break;
+		case gk::E_GBOUNCE: case gk::E_WBOUNCE: Fx.Dust(Feet, 1.6f, 0.f); Fx.Hit(FVector(Feet.X, Feet.Y, E.type == gk::E_GBOUNCE ? 10.0 : Feet.Z + 90.0), 1, 0.f); Shake = FMath::Max(Shake, 10.f); break;
+		case gk::E_KD: Fx.Dust(Feet, 1.3f, 0.f); Shake = FMath::Max(Shake, 3.f); break;
+		case gk::E_LAND: Fx.Dust(Feet, 0.55f, 0.f); break;
+		case gk::E_JUMP: case gk::E_WALLJUMP: case gk::E_TECH: case gk::E_RISE: Fx.Dust(Feet, 0.45f, 0.f); break;
+		case gk::E_DASH: case gk::E_RUN: Fx.Dust(Feet, 0.8f, float(S.p[Who].face)); break;
+		case gk::E_EX: case gk::E_DI: case gk::E_HOME: Fx.Aura(Feet, Ki, 0.7f); break;
+		case gk::E_RUSH: Fx.Aura(Feet, Ki, 0.9f); Remark(Who, TEXT("GHOST STEP")); break;
 		case gk::E_BURNOUT: Remark(Who, TEXT("BURNOUT")); break;
-		case gk::E_SUPER: Say(*FString(UTF8_TO_TCHAR(gk::moveName(E.c))).ToUpper(), 70); Shake = FMath::Max(Shake, 6.f); break;
+		case gk::E_SUPER: Fx.Aura(Feet, Ki, 1.8f); Say(*FString(UTF8_TO_TCHAR(gk::moveName(E.c))).ToUpper(), 70); Shake = FMath::Max(Shake, 6.f); break;
 		case gk::E_ROUND:
 		{
 			const bool bFinal = E.a > 1 && E.a >= S.cfg.rounds * 2 - 1 && S.p[0].wins == S.p[1].wins;
@@ -452,10 +505,21 @@ void AGkMatch::ShowFighter(int32 i)
 void AGkMatch::Present(float Real)
 {
 	for (int32 i = 0; i < 2; i++) { ShowFighter(i); }
+	// which place is shown: training is fought in the measured room, everything else in the wasteland
+	const int32 Place = Mode == 1 ? 0 : 1;
+	if (Place != ShownPlace)
+	{
+		ShownPlace = Place;
+		for (USceneComponent* C : GridParts) { if (C) { C->SetVisibility(Place == 0); } }
+		for (USceneComponent* C : StageParts) { if (C) { C->SetVisibility(Place == 1); } }
+		if (Fog && Fog->GetComponent()) { Fog->GetComponent()->SetVisibility(Place == 1); }
+		Fx.DustCol = Place == 1 ? FLinearColor(0.62f, 0.47f, 0.33f) : FLinearColor(0.45f, 0.47f, 0.52f);
+	}
+	Fx.Air(CamPos.Y, Real, Place == 1); Fx.Tick(Real);
 	for (int32 k = 0; k < 4; k++)
 	{
 		if (!ShotMesh[k]) { continue; }
-		const bool bOn = k < S.nshots; ShotMesh[k]->SetVisibility(bOn); if (bOn) { ShotMesh[k]->SetWorldLocation(At(S.shot[k].x, S.shot[k].y)); }
+		const bool bOn = k < S.nshots; ShotMesh[k]->SetVisibility(bOn); if (bOn) { ShotMesh[k]->SetWorldLocation(At(S.shot[k].x, S.shot[k].y)); if (!bMenu) { Fx.Trail(At(S.shot[k].x, S.shot[k].y), (S.shot[k].o & 1) ? FLinearColor(1.5f, 3.5f, 8.f) : FLinearColor(7.f, 3.6f, 0.9f)); } }
 	}
 	// the camera frames both fighters the way the browser does: wide enough for the two of them and for the higher one's head
 	const double Ax = S.p[0].x / double(gk::F), Bx = S.p[1].x / double(gk::F), Hy = FMath::Max(S.p[0].y, S.p[1].y) / double(gk::F);
@@ -465,7 +529,7 @@ void AGkMatch::Present(float Real)
 	const FVector Want(-Dist, Tx * Unit, Ty * Unit);
 	CamPos = FMath::Lerp(CamPos, Want, FMath::Clamp(double(Real) * 9.0, 0.0, 1.0));
 	Shake *= FMath::Pow(0.85f, FMath::Clamp(Real * 60.f, 0.f, 4.f));
-	if (Cam) { Cam->SetActorLocation(CamPos + FVector(0.0, FMath::Sin(Ticks * 1.7) * Shake, FMath::Cos(Ticks * 2.3) * Shake * 0.7)); }
+	if (Cam) { Cam->GetCameraComponent()->PostProcessSettings.DepthOfFieldFocalDistance = float(-CamPos.X); Cam->SetActorLocation(CamPos + FVector(0.0, FMath::Sin(Ticks * 1.7) * Shake, FMath::Cos(Ticks * 2.3) * Shake * 0.7)); }
 
 	// outside the editor the 3D picture is drawn no larger than 1080 lines, and smaller still if the machine cannot hold sixty
 	if (!GIsEditor && GEngine && GEngine->GameViewport)
