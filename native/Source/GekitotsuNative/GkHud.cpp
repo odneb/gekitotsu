@@ -82,7 +82,7 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 				GkText(Cv, FString::Printf(TEXT("END  %.2f"), Has->To), Rx + 250.f * U, Ry + 86.f * U, 15.f * U, Bone); Btn(Rx + 360.f * U, Ry + 78.f * U, 40.f * U, 36.f * U, 4, TEXT("-"), 16.f * U, false); Btn(Rx + 406.f * U, Ry + 78.f * U, 40.f * U, 36.f * U, 5, TEXT("+"), 16.f * U, false);
 				Btn(Rx + 480.f * U, Ry + 78.f * U, 150.f * U, 36.f * U, 6, Has->bLoop ? TEXT("LOOP: ON") : TEXT("LOOP: OFF"), 14.f * U, Has->bLoop);
 			}
-			GkText(Cv, TEXT("Click a move, then pick a clip from the list."), Rx, H - 62.f * U, 14.f * U, GkFade(Bone, 0.75f)); GkText(Cv, TEXT("Pointing at a clip plays it. Choices save on their own. ESC goes back."), Rx, H - 40.f * U, 14.f * U, GkFade(Bone, 0.75f));
+			GkText(Cv, TEXT("Click a move, then pick a clip from the list."), Rx, H - 62.f * U, 14.f * U, GkFade(Bone, 0.75f)); GkText(Cv, TEXT("Pointing at a clip plays it. Keys work too: arrows, ENTER, TAB. ESC goes back."), Rx, H - 40.f * U, 14.f * U, GkFade(Bone, 0.75f));
 		}
 		if (bLabDrop && LabSlots.IsValidIndex(LabSlot))
 		{
@@ -95,8 +95,8 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 			LabScroll = FMath::Clamp(LabScroll, 0, FMath::Max(0, Show.Num() - Rows));
 			const FGkClip* Has = Clips[LabSet].Find(LabSlots[LabSlot].Slot); const FString Now = (Has && Has->Anim) ? Has->Anim->GetPathName() : FString();
 			float Ry = Y + 3.f * 34.f * U;
-			Btn(X, Ry, Dw, Rh - 2.f * U, 9999, TEXT("NONE  (hand pose)"), 13.f * U, Now.IsEmpty()); Ry += Rh;
-			for (int32 r = 0; r < Rows && LabScroll + r < Show.Num(); r++) { const int32 k = Show[LabScroll + r]; Btn(X, Ry + r * Rh, Dw, Rh - 2.f * U, 10000 + k, LabList[k].Label, 13.f * U, LabList[k].Path == Now); }
+			Btn(X, Ry, Dw, Rh - 2.f * U, 9999, TEXT("NONE  (hand pose)"), 13.f * U, Now.IsEmpty()); if (LabKey == -1) { GkRect(Cv, X, Ry, 5.f * U, Rh - 2.f * U, Gold); } Ry += Rh;
+			for (int32 r = 0; r < Rows && LabScroll + r < Show.Num(); r++) { const int32 k = Show[LabScroll + r]; Btn(X, Ry + r * Rh, Dw, Rh - 2.f * U, 10000 + k, LabList[k].Label, 13.f * U, LabList[k].Path == Now); if (LabKey == LabScroll + r) { GkRect(Cv, X, Ry + r * Rh, 5.f * U, Rh - 2.f * U, Gold); } }
 			GkText(Cv, FString::Printf(TEXT("%d - %d of %d      scroll for more"), Show.Num() ? LabScroll + 1 : 0, FMath::Min(Show.Num(), LabScroll + Rows), Show.Num()), X + 10.f * U, Y + Dh - 28.f * U, 12.f * U, Slate, false, 1);
 		}
 		LabHot = Hot;
@@ -154,6 +154,8 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 		}
 	}
 	if (bScript) { if (!ScriptNote.IsEmpty()) { GkText(Cv, ScriptNote, 20.f * U, H - 60.f * U, 30.f * U, Gold); } if (Screen == 4 && !bLabUi) { return; } }
+	static const TCHAR* ModeName[] = { TEXT("VS CPU"), TEXT("TRAINING"), TEXT("WATCH") };
+	static const TCHAR* DummyName[] = { TEXT("STANDS"), TEXT("CROUCHES"), TEXT("JUMPS"), TEXT("BLOCKS ALL"), TEXT("FIGHTS BACK") };
 	if (Screen == 3)
 	{
 	const float BarW = 700.f * U, BarH = 26.f * U, Top = 56.f * U, Gap = 80.f * U;
@@ -187,8 +189,6 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 	}
 	GkRect(Cv, Mid - 56.f * U, Top - 22.f * U, 112.f * U, 76.f * U, Ink);
 	GkText(Cv, FString::Printf(TEXT("%02d"), FMath::Clamp((S.time + 59) / 60, 0, 99)), Mid, Top - 20.f * U, 50.f * U, Bone, true);
-	static const TCHAR* ModeName[] = { TEXT("VS CPU"), TEXT("TRAINING"), TEXT("WATCH") };
-	static const TCHAR* DummyName[] = { TEXT("STANDS"), TEXT("CROUCHES"), TEXT("JUMPS"), TEXT("BLOCKS ALL"), TEXT("FIGHTS BACK") };
 	GkText(Cv, ModeName[FMath::Clamp(Mode, 0, 2)], Mid, Top + 60.f * U, 16.f * U, Gold, true);
 
 	if (CallHold > 0) { const float A = FMath::Min(1.f, FMath::Min(CallAge / 5.f, (CallHold - CallAge) / 8.f)); GkRect(Cv, 0.f, H * 0.36f, W, 120.f * U, GkFade(Ink, A)); GkText(Cv, CallWord, Mid, H * 0.36f + 14.f * U, 76.f * U, GkFade(Bone, A), true, 4); }

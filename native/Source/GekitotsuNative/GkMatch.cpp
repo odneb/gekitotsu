@@ -806,13 +806,31 @@ void AGkMatch::MenuInput()
 	const int32 Way = bPrev ? -1 : ((bNext || bOk) ? 1 : 0);
 	auto Move = [&](int32 Count) { if (bUp) { MenuAt = (MenuAt + Count - 1) % Count; } if (bDown) { MenuAt = (MenuAt + 1) % Count; } };
 	if (Screen == 4)
-	{   // the animation lab: the pointer does everything; ESC closes the list, then the lab
+	{   // the animation lab: the pointer does everything, and so do the keys (arrows, ENTER, TAB for the next page, ESC back)
+		TArray<int32> Show; if (bLabDrop) { for (int32 k = 0; k < LabList.Num(); k++) { if (LabList[k].Cat == LabDropCat) { Show.Add(k); } } }
+		const bool bDownNow = PC->IsInputKeyDown(EKeys::LeftMouseButton), bClick = Hit(EKeys::LeftMouseButton) || (bDownNow && !bLabMouse); bLabMouse = bDownNow;
 		if (Hit(EKeys::Escape)) { if (bLabDrop) { bLabDrop = false; } else { LabClose(); return; } }
 		if (Hit(EKeys::MouseScrollDown)) { LabScroll += 3; } if (Hit(EKeys::MouseScrollUp)) { LabScroll = FMath::Max(0, LabScroll - 3); }
-		if (Hit(EKeys::Down)) { LabScroll += 1; } if (Hit(EKeys::Up)) { LabScroll = FMath::Max(0, LabScroll - 1); }
-		if (Hit(EKeys::LeftMouseButton)) { LabClick(LabHot); }
-		// the clip under the pointer in the open list is tried on the fighter straight away
-		const int32 Over = (bLabDrop && LabHot >= 9999) ? LabHot - 10000 : -2;
+		if (bClick) { LabClick(LabHot); LabKey = -2; }
+		else if (bLabDrop)
+		{
+			if (bUp) { LabKey = FMath::Max(-1, (LabKey < -1 ? 0 : LabKey) - 1); } if (bDown) { LabKey = FMath::Min(Show.Num() - 1, (LabKey < -1 ? -2 : LabKey) + 1); }
+			if (bPrev || bNext) { LabDropCat = (LabDropCat + (bNext ? 1 : 8)) % 9; LabScroll = 0; LabKey = -1; }
+			if (LabKey >= 0) { if (LabKey < LabScroll) { LabScroll = LabKey; } if (LabKey >= LabScroll + 12) { LabScroll = LabKey - 11; } }
+			if (Hit(EKeys::Enter) && LabKey >= -1) { LabPick(Show.IsValidIndex(LabKey) ? Show[LabKey] : -1); }
+		}
+		else
+		{
+			// the cells of the page in view, three to a row
+			TArray<int32> Cells; for (int32 k = 0; k < LabSlots.Num(); k++) { if (LabSlots[k].Cat == LabCat) { Cells.Add(k); } }
+			int32 At2 = FMath::Max(0, Cells.Find(LabSlot));
+			if (bNext) { At2++; } if (bPrev) { At2--; } if (bDown) { At2 += 3; } if (bUp) { At2 -= 3; }
+			if (Cells.Num() > 0 && (bNext || bPrev || bDown || bUp)) { LabSlot = Cells[FMath::Clamp(At2, 0, Cells.Num() - 1)]; LabFrame = 0; LabClock = 0.f; }
+			if (Hit(EKeys::Tab)) { LabClick(100 + (LabCat + 1) % 9); }
+			if (Hit(EKeys::Enter)) { LabClick(1000 + LabSlot); LabKey = -1; }
+		}
+		// the clip under the pointer (or the keys) in the open list is tried on the fighter straight away
+		const int32 Over = !bLabDrop ? -2 : LabHot >= 9999 ? LabHot - 10000 : LabKey >= -1 ? (Show.IsValidIndex(LabKey) ? Show[LabKey] : -1) : -2;
 		if (Over != LabTryAt)
 		{
 			LabTryAt = Over; LabTry = FGkClip(); LabClock = 0.f;

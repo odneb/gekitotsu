@@ -86,7 +86,7 @@ public:
 	// What is chosen is kept in Content/Gk/anims.txt (set | slot | clip | from | to | loop) and used by the game from then on.
 	struct FLabSlot { FName Slot; FString Label; int32 Cat = 0; };
 	struct FLabClip { FString Path, Label; int32 Cat = 0; };
-	TArray<FLabSlot> LabSlots; TArray<FLabClip> LabList; int32 LabSlot = 0, LabFrame = 0, LabSet = 2, LabCat = 0, LabDropCat = 0, LabScroll = 0, LabHot = 0, LabNoteTimer = 0, LabTryAt = -2; bool bLabDrop = false; float LabClock = 0.f; FString LabNote; FGkClip LabTry;
+	TArray<FLabSlot> LabSlots; TArray<FLabClip> LabList; int32 LabSlot = 0, LabFrame = 0, LabSet = 2, LabCat = 0, LabDropCat = 0, LabScroll = 0, LabHot = 0, LabNoteTimer = 0, LabTryAt = -2; bool bLabDrop = false, bLabMouse = false; int32 LabKey = -2; float LabClock = 0.f; FString LabNote; FGkClip LabTry;
 	void LabOpen(); void LabClose(); void LabClick(int32 Id); void LabPick(int32 ClipIndex); void LabSave(); void LoadPicks(); FString PicksFile(bool bProject) const;
 	// hit, guard and dust effects and their sounds (Vefects' Combat Flipbook VFX)
 	UPROPERTY() TMap<FName, TObjectPtr<UNiagaraSystem>> Vfx;
