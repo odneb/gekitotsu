@@ -177,44 +177,45 @@ def mk_sky():
 FX = """
 float2 uv = Swap > 0.5 ? UV.yx : UV.xy;
 float2 p = (uv - 0.5) * 2.0; float r = length(p); float a = atan2(p.y, p.x);
-float m = 0.0; float c = 0.0; int s = (int)(Shape + 0.5); float t = T * Dir;
-if (s == 0) { m = saturate(1.0 - r); m = m * m; c = saturate(1.0 - r * 2.0); c = c * c; }
+float m = 0.0; float c = 0.5; int s = (int)(Shape + 0.5); float t = T * Dir; float soft = 0.0;
+float wob = sin(a * 5.0 + Seed * 30.0) * 0.5 + sin(a * 9.0 - Seed * 17.0 + P * 9.0) * 0.3 + sin(a * 17.0 + Seed * 5.0) * 0.2;
+if (s == 0) { m = saturate(1.0 - r); m = m * m; c = saturate(1.0 - r * 2.0); c = c * c; soft = 1.0; }
 else if (s == 1) {
   float k = 0.5 + 0.5 * sin(a * 7.0 + Seed * 40.0); float k2 = 0.5 + 0.5 * sin(a * 11.0 - Seed * 23.0);
   float rad = (0.2 + 0.8 * pow(k, 4.0) * (0.55 + 0.45 * k2)) * lerp(0.45, 1.0, saturate(P * 4.0));
   float hole = saturate(P * 1.5 - 0.35) * rad;
-  m = step(r, rad) * step(hole, r); c = step(r, rad * 0.5);
+  m = step(r, rad) * step(hole, r); c = 1.0 - r / max(rad, 0.001);
 }
-else if (s == 2) { float w = lerp(0.085, 0.008, P); m = step(abs(r - (0.98 - w)), w); c = step(abs(r - (0.98 - w)), w * 0.4); }
-else if (s == 3) { float d = abs(p.x) + abs(p.y); m = step(d, 1.0 - P * 0.5); c = step(d, 0.45 - P * 0.3); }
+else if (s == 2) { float w = lerp(0.1, 0.012, P) * (1.0 + 0.6 * wob); float rr = r * (1.0 + 0.035 * wob); float d = abs(rr - (0.94 - w)); m = step(d, w); c = 1.0 - d / max(w, 0.001); }
+else if (s == 3) { float d = abs(p.x) + abs(p.y); float lim = 1.0 - P * 0.5; m = step(d, lim); c = 1.0 - d / max(lim, 0.001); }
 else if (s == 4) {
-  float off = lerp(0.5, 0.05, P);
-  m = step(r, 0.98) * step(0.98, length(p - float2(-off, 0.0)));
-  c = step(r, 0.98) * step(0.98, length(p - float2(-off * 0.4, 0.0)));
+  float off = lerp(0.5, 0.05, P) * (1.0 + 0.25 * wob); float inner = length(p - float2(-off, 0.0));
+  m = step(r, 0.98) * step(0.98, inner); c = saturate((inner - 0.98) / max(off, 0.001)) * 1.3;
 }
 else if (s == 5) {
   float2 q = p - float2(0.4, 0.0); float tail = saturate(-q.x / 1.3);
-  q.y += sin(q.x * 5.0 + t * 18.0 + Seed * 9.0) * 0.14 * tail;
+  q.y += sin(q.x * 5.0 + t * 18.0 + Seed * 9.0) * 0.14 * tail + sin(q.x * 11.0 - t * 27.0) * 0.05 * tail;
   float rad = q.x > 0.0 ? 0.5 : 0.5 * pow(1.0 - tail, 1.3); float d = q.x > 0.0 ? length(q) : abs(q.y);
-  m = step(d, rad); c = step(d, rad * 0.55) * step(-0.5, q.x);
+  m = step(d, rad); c = 1.0 - d / max(rad, 0.001);
 }
 else if (s == 6) {
   float2 g = uv * float2(5.0, 96.0); g.y += g.x * 1.3; float id = floor(g.y); float h = frac(sin(id * 127.1 + Seed * 311.7) * 43758.5453);
   float y = frac(g.x * (0.7 + h * 0.6) + t * (2.2 + h * 1.4) + h * 9.0);
-  m = step(abs(frac(g.y) - 0.5), 0.045) * step(y, 0.3) * step(0.35, h) * (0.4 + 0.6 * frac(h * 13.7));
+  m = step(abs(frac(g.y) - 0.5), 0.045) * step(y, 0.3) * step(0.35, h) * (0.4 + 0.6 * frac(h * 13.7)); soft = 1.0; c = 0.0;
 }
 else if (s == 7) {
   float2 g = uv * float2(12.0, 21.0); float2 id = floor(g); float h = frac(sin(dot(id, float2(127.1, 311.7)) + Seed * 17.0) * 43758.5453); float h2 = frac(h * 57.31);
   float2 f = float2(0.5 + 0.3 * sin(t * (0.5 + h) + h * 30.0), 0.5 + 0.3 * cos(t * (0.35 + h2) + h2 * 30.0));
   float d = length((frac(g) - f) * float2(0.6, 1.0));
-  m = step(d, 0.012 + 0.022 * h) * step(0.62, h2) * (0.5 + 0.5 * sin(t * (1.0 + h * 2.0) + h * 50.0)); c = 1.0;
+  m = step(d, 0.012 + 0.022 * h) * step(0.62, h2) * (0.5 + 0.5 * sin(t * (1.0 + h * 2.0) + h * 50.0)); c = 1.0; soft = 1.0;
 }
 else if (s == 8) {
   float n = 46.0; float an = (a + 3.14159) / 6.28318 * n; float h = frac(sin(floor(an) * 91.7 + Seed * 13.0) * 43758.5453);
   float w = abs(frac(an) - 0.5); float inner = 0.3 + 0.45 * frac(h * 7.7) + P * 0.2;
-  m = step(0.5, h) * step(w, 0.5 * saturate((r - inner) * 1.6)) * step(inner, r) * step(r, 1.0);
+  m = step(0.5, h) * step(w, 0.5 * saturate((r - inner) * 1.6)) * step(inner, r) * step(r, 1.0); c = 0.5;
 }
-float3 col = lerp(Col.rgb, Hot.rgb, saturate(c));
+float3 cel = lerp(Col.rgb * 0.22, Col.rgb, step(0.2, c)); cel = lerp(cel, Hot.rgb, step(0.55, c));
+float3 col = lerp(cel, lerp(Col.rgb, Hot.rgb, saturate(c)), soft);
 return float4(col, saturate(m) * Alpha);
 """
 
@@ -264,13 +265,18 @@ def mk_sun():
 # stand-in so shadows fall in designed shapes. tools/flatten.py turns the generated texture into flat colour, a shade
 # colour per material, and ink lines. This is the anime-game recipe: flat colour, a tint for shadow, a hard step.
 TOON2 = """
-float3 n = normalize(N) * Side; float ndl = dot(n, normalize(L.xyz));
+float3 n = normalize(N) * Side; float3 l = normalize(L.xyz); float3 v = normalize(Vw);
+float ndl = dot(n, l);
 float t = smoothstep(-0.012, 0.012, ndl - Thresh);
+float deep = 1.0 - smoothstep(-0.012, 0.012, ndl + 0.6);
 float3 lit = lerp(float3(0.016, 0.008, 0.016), Base, Ink);
 float3 shd = Shade * lerp(0.5, 1.0, Ink);
-float3 c = lerp(shd, lit, t) * Gain;
-float fres = 1.0 - saturate(dot(n, normalize(Vw)));
-float rim = smoothstep(0.66, 0.72, fres) * smoothstep(0.0, 0.3, dot(n, normalize(RimDir.xyz))) * (0.55 + 0.45 * max(c.r, max(c.g, c.b)));
+float3 c = lerp(shd, lit, t); c = lerp(c, shd * 0.5, deep);
+float sp = smoothstep(0.90, 0.915, dot(n, normalize(l + v))) * t * Ink;
+c = lerp(c, saturate(Base * 1.5 + 0.22), sp);
+c *= Gain;
+float fres = 1.0 - saturate(dot(n, v));
+float rim = smoothstep(0.6, 0.66, fres) * smoothstep(-0.1, 0.2, dot(n, normalize(RimDir.xyz)));
 return lerp(c + Rim.rgb * rim, float3(5.0, 5.0, 5.0), saturate(Flash));
 """
 
@@ -301,7 +307,7 @@ def mk_toon2(base_tex, shade_tex):
     n = node(m, unreal.MaterialExpressionVertexNormalWS, -700, -100); v = node(m, unreal.MaterialExpressionCameraVectorWS, -700, -40)
     ins = [('Base', tb, 'RGB'), ('Ink', tb, 'A'), ('Shade', ts, 'RGB'), ('N', n, ''), ('Side', node(m, unreal.MaterialExpressionTwoSidedSign, -700, -160), ''), ('Vw', v, ''), ('L', vparam(m, 'LightDir', C(0.62, -0.25, 0.6), 40), ''),
            ('Thresh', sparam(m, 'Thresh', 0.0, 240), ''), ('Gain', sparam(m, 'Gain', 1.25, 340), ''), ('RimDir', vparam(m, 'RimDir', C(-1, 0, 0.25), 440), ''),
-           ('Rim', vparam(m, 'Rim', C(1.2, 0.35, 0.15), 640), ''), ('Flash', sparam(m, 'Flash', 0.0, 840), '')]
+           ('Rim', vparam(m, 'Rim', C(2.6, 0.9, 0.3), 640), ''), ('Flash', sparam(m, 'Flash', 0.0, 840), '')]
     MEL.connect_material_property(custom(m, TOON2, ins), '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     return done(m)
 
@@ -378,8 +384,8 @@ def build():
     ink = mk_outline(); sk2, t2 = import_character2()
     toon = mk_toon2(t2.get('Kagu_Flat'), t2.get('Kagu_Shade'))
     kagu = inst('MI_Kagu', toon, None, {'LightDir': C(0.62, -0.25, 0.6)}, {'BaseTex': t2.get('Kagu_Flat'), 'ShadeTex': t2.get('Kagu_Shade')})
-    shiro = inst('MI_Shiro', toon, None, {'Rim': C(0.35, 0.7, 1.6), 'LightDir': C(0.62, 0.25, 0.6)}, {'BaseTex': t2.get('Shiro_Flat'), 'ShadeTex': t2.get('Shiro_Shade')})
-    ink_k = inst('MI_Ink', ink, {'Width': 0.5 / scale})
+    shiro = inst('MI_Shiro', toon, None, {'Rim': C(0.6, 1.3, 2.8), 'LightDir': C(0.62, 0.25, 0.6)}, {'BaseTex': t2.get('Shiro_Flat'), 'ShadeTex': t2.get('Shiro_Shade')})
+    ink_k = inst('MI_Ink', ink, {'Width': 1.15})
     stone = mk_lit('M_Stone', C(0.05, 0.045, 0.055), 0.75); red = mk_lit('M_Lacquer', C(0.55, 0.035, 0.03), 0.32); dark = mk_lit('M_DarkWood', C(0.02, 0.014, 0.018), 0.5)
     glow = mk_lit('M_Paper', C(0.8, 0.5, 0.25), 0.9, emis=C(9.0, 3.6, 1.0)); sun = mk_lit('M_Sun', C(1, 0, 0), unlit=True, emis=C(3.2, 0.16, 0.07)); mount = mk_lit('M_Mountain', C(0.03, 0.012, 0.03), 0.95)
     floor = mk_floor(); sky = mk_sky(); mk_fx(); mk_ghost()

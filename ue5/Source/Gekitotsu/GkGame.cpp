@@ -553,12 +553,20 @@ void FGkGame::ShowWorld(float DeltaSeconds)
 	const double MidY = Edge > 0.0 ? FMath::Clamp((Y0 + Y1) * 0.5, -Edge, Edge) : 0.0;
 	FVector Want(Dist, MidY, FMath::Max(double(Tn(TEXT("camz"), 102.f)), ZMax * 0.5 + 76.0));
 	if (Tune.Contains(TEXT("camx"))) { Want = FVector(Tn(TEXT("camx"), 1000.f), Tn(TEXT("camy"), 0.f), Tn(TEXT("camzfix"), 110.f)); CamPos = Want; }
+	// a super cuts in close on whoever called it: low, ahead of him, the frame tilted
+	double CamYaw = 180.0, CamRoll = 0.0; float CamFov = float(Fov); const bool bCut = S.freeze > 0 && SuperWho >= 0 && !Tune.Contains(TEXT("camx"));
+	if (bCut)
+	{
+		const gk::Player& Q = S.p[SuperWho & 1]; const double Qy = -double(Q.x) / gk::F, Ahead = Q.face > 0 ? -1.0 : 1.0;
+		Want = FVector(Tn(TEXT("cutx"), 330.f), Qy + Ahead * 45.0, double(Q.y) / gk::F + 118.0); CamPos = Want;
+		CamRoll = Ahead * Tn(TEXT("cutroll"), 7.f); CamFov = 40.f;
+	}
 	CamPos = FMath::Lerp(CamPos, Want, FMath::Clamp(DeltaSeconds * 7.0, 0.0, 1.0));
 	if (Cam)
 	{
 		const FVector Sh(0.0, FMath::Sin(Tick60 * 1.7) * Shake, FMath::Cos(Tick60 * 2.3) * Shake * 0.7);
-		Cam->SetActorLocation(CamPos + Sh); Cam->SetActorRotation(FRotator(Tn(TEXT("campitch"), 2.f), 180.0, 0.0));
-		UCameraComponent* CC = Cam->GetCameraComponent(); CC->SetFieldOfView(float(Fov));
+		Cam->SetActorLocation(CamPos + Sh); Cam->SetActorRotation(FRotator(bCut ? 5.0 : double(Tn(TEXT("campitch"), 2.f)), CamYaw, CamRoll));
+		UCameraComponent* CC = Cam->GetCameraComponent(); CC->SetFieldOfView(CamFov);
 		CC->PostProcessBlendWeight = 1.f; FPostProcessSettings& PP = CC->PostProcessSettings;
 		// impact frames: the picture drops to hard black and white for an instant
 		PP.bOverride_ColorSaturation = true; const double St = Storm; PP.ColorSaturation = Mono > 0 ? FVector4(0.0, 0.0, 0.0, 1.0) : FVector4(1.12 - 0.3 * St, 1.0 - 0.08 * St, 1.08 + 0.04 * St, 1.0);
