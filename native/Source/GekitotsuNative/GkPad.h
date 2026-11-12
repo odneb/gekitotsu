@@ -15,6 +15,8 @@ public:
 	FGkPads(const FGkPads&) = delete; FGkPads& operator=(const FGkPads&) = delete;
 	/** Every controller's state merged. Buttons are numbered as the device numbers them, from 0. Returns how many controllers there are. */
 	int32 Read(uint32& OutButtons, int32& OutDirs, FString* OutNames = nullptr) const;
+	/** What has actually arrived from the controllers, for the on-screen read-out: how many reports, and the last one. */
+	FString Debug() const;
 private:
 	FGkPadImpl* Impl = nullptr;
 };

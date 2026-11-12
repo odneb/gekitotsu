@@ -17,12 +17,14 @@
 #include "Engine/GameViewportClient.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimSingleNodeInstance.h"
+#include "Animation/AnimEnums.h"
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "Misc/CommandLine.h"
 
 AGkMatch* AGkMatch::Current = nullptr;
 
@@ -53,6 +55,9 @@ void AGkMatch::BeginPlay()
 	LoadBinds();
 	Pads = new FGkPads();
 	Restart();
+	// -gkstatus=<file>: keep a short note of how the game is running in that file (the path may contain spaces)
+	{ const FString Cmd = FCommandLine::Get(); const int32 From = Cmd.Find(TEXT("-gkstatus=")), To = Cmd.Find(TEXT(".txt"), ESearchCase::IgnoreCase, ESearchDir::FromStart, FMath::Max(0, From));
+	  if (From >= 0 && To > From) { StatusPath = Cmd.Mid(From + 10, To + 4 - From - 10).Replace(TEXT("\""), TEXT("")); } }
 
 	// a neutral place to fight: a floor, a marker at each end of the stage, daylight
 	UStaticMesh* Plane = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane"));
@@ -91,6 +96,12 @@ void AGkMatch::BeginPlay()
 		if (UAnimSequence* A = LoadObject<UAnimSequence>(nullptr, *Path)) { Anims.Add(FName(*Leaf), A); }
 	}
 	if (UAnimSequence* A = LoadObject<UAnimSequence>(nullptr, TEXT("/Game/Characters/Mannequins/Anims/Death/MM_Death_Back_01.MM_Death_Back_01"))) { Anims.Add(TEXT("MM_Death_Back_01"), A); }
+	// The rules alone say where a fighter stands. These animations carry their own travel in the root bone (a walk walks
+	// away, then snaps back when it loops); that travel is locked off so the body stays exactly where the rules put it.
+	for (TPair<FName, TObjectPtr<UAnimSequence>>& It : Anims)
+	{
+		if (UAnimSequence* A = It.Value.Get()) { A->bEnableRootMotion = true; A->bForceRootLock = true; A->RootMotionRootLock = ERootMotionRootLock::AnimFirstFrame; }
+	}
 	static const TCHAR* Meshes[2] = { TEXT("/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"), TEXT("/Game/Characters/Mannequins/Meshes/SKM_Quinn_Simple.SKM_Quinn_Simple") };
 	for (int32 i = 0; i < 2; i++)
 	{
@@ -98,7 +109,9 @@ void AGkMatch::BeginPlay()
 		C->SetUsingAbsoluteLocation(true); C->SetUsingAbsoluteRotation(true); C->SetUsingAbsoluteScale(true); C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		C->RegisterComponent();
 		if (USkeletalMesh* M = LoadObject<USkeletalMesh>(nullptr, Meshes[i])) { C->SetSkeletalMeshAsset(M); }
-		C->SetAnimationMode(EAnimationMode::AnimationSingleNode); C->SetBoundsScale(6.f);
+		C->SetAnimationMode(EAnimationMode::AnimationSingleNode); C->SetBoundsScale(30.f);
+		// never skipped: he is posed every frame whether or not the engine thinks he is in view
+		C->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones; C->bNeverDistanceCull = true;
 		Body[i] = C;
 	}
 	if (W)
@@ -258,6 +271,10 @@ void AGkMatch::Tick(float DeltaSeconds)
 	if (Acc > Step) { Acc = 0.0; }
 	StepMs = StepMs * 0.9f + float(FPlatformTime::Seconds() - T0) * 100.f;
 	Present(float(Real));
+	if (!StatusPath.IsEmpty() && (++StatusClock % 30) == 0)
+	{
+		FFileHelper::SaveStringToFile(FString::Printf(TEXT("fps %d\n%s\nbuttons %08x dirs %d input %d\nframe %d menu %d\n"), FMath::RoundToInt(1000.f / FMath::Max(1.f, FrameMs)), Pads ? *Pads->Debug() : TEXT(""), PadNow, PadDirs, InputNow, S.frame, bMenu ? 1 : 0), *StatusPath);
+	}
 }
 
 void AGkMatch::StepOnce()
@@ -370,7 +387,11 @@ void AGkMatch::ShowFighter(int32 i)
 	}
 	if (A)
 	{
-		if (Showing[i] != A) { C->SetAnimation(A); C->Stop(); Showing[i] = A; }
+		if (Showing[i] != A)
+		{
+			C->SetAnimation(A); C->Stop(); Showing[i] = A;
+			if (UAnimSingleNodeInstance* Node = C->GetSingleNodeInstance()) { Node->SetRootMotionMode(ERootMotionMode::IgnoreRootMotion); }
+		}
 		const float Len = A->GetPlayLength(); const float At0 = bLoop ? FMath::Fmod(T, FMath::Max(0.01f, Len)) : FMath::Clamp(T, 0.f, FMath::Max(0.f, Len - 0.001f));
 		C->SetPosition(At0, false);
 	}

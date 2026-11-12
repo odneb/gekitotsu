@@ -1,4 +1,5 @@
 #include "GkMatch.h"
+#include "GkPad.h"
 #include "Engine/Canvas.h"
 #include "CanvasItem.h"
 #include "GlobalRenderResources.h"
@@ -128,13 +129,15 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 	}
 	GkText(Cv, FString::Printf(TEXT("%d fps"), FMath::RoundToInt(1000.f / FMath::Max(1.f, FrameMs))), W - 90.f * U, 8.f * U, 15.f * U, FrameMs < 18.f ? Jade : Gold);
 	GkText(Cv, TEXT("TAB / START  menu      R / SELECT  restart      B  boxes"), Mid, H - 28.f * U, 13.f * U, GkFade(Bone, 0.7f), true);
+	// exactly what is arriving from the stick, so a controller that is seen but not heard can be told apart from one that is mapped wrongly
+	if (Pads) { GkText(Cv, FString::Printf(TEXT("%s   buttons %08x  dirs %d"), *Pads->Debug(), PadNow, PadDirs), Mid, H - 48.f * U, 12.f * U, Gold, true); }
 
 	if (bMenu)
 	{
 		GkRect(Cv, 0.f, 0.f, W, H, FLinearColor(0.f, 0.f, 0.f, 0.72f));
 		const float Px = Mid - 400.f * U, Py = H * 0.14f, Ph = 720.f * U;
 		GkRect(Cv, Px, Py, 800.f * U, Ph, Ink); GkRect(Cv, Px, Py + Ph, 800.f * U, 4.f * U, Red);
-		const FString Stick = PadCount > 0 ? FString::Printf(TEXT("Stick / pad over USB:  %s"), *PadNames.Left(60)) : FString(TEXT("No stick or pad seen over USB.  Keyboard, or a pad Unreal knows."));
+		const FString Stick = !PadNames.IsEmpty() ? FString::Printf(TEXT("Stick / pad over USB:  %s%s"), *PadNames.Left(60), PadCount > 0 ? TEXT("") : TEXT("   (press a button on it)")) : FString(TEXT("No stick or pad seen over USB.  Keyboard, or a pad Unreal knows."));
 		if (MenuPage == 1)
 		{
 			static const TCHAR* Act[] = { TEXT("LIGHT"), TEXT("MEDIUM"), TEXT("HEAVY"), TEXT("SPECIAL"), TEXT("ASSIST"), TEXT("PARRY"), TEXT("IMPACT"), TEXT("HOMING") };
