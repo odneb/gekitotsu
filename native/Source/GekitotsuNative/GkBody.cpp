@@ -29,10 +29,33 @@ const float* FGkPoses::Frame(FName Clip, int32 Time) const
 
 void FGkBody::Init(UPoseableMeshComponent* InMesh)
 {
-	Mesh = InMesh; Ref.Reset(); if (!Mesh || !Mesh->GetSkinnedAsset()) { return; }
+	Mesh = InMesh; Ref.Reset(); Alias.Reset(); if (!Mesh || !Mesh->GetSkinnedAsset()) { return; }
 	const FReferenceSkeleton& RS = Mesh->GetSkinnedAsset()->GetRefSkeleton(); const TArray<FTransform>& Local = RS.GetRefBonePose();
 	TArray<FTransform> CS; CS.SetNum(Local.Num());
 	for (int32 b = 0; b < Local.Num(); b++) { const int32 Par = RS.GetParentIndex(b); CS[b] = Par >= 0 ? Local[b] * CS[Par] : Local[b]; Ref.Add(RS.GetBoneName(b), CS[b]); }
+	if (RS.FindBoneIndex(TEXT("DEF-spine")) != INDEX_NONE)
+	{
+		static const TCHAR* Map[][2] = { { TEXT("pelvis"), TEXT("DEF-spine") }, { TEXT("spine_01"), TEXT("DEF-spine_001") }, { TEXT("spine_02"), TEXT("DEF-spine_002") }, { TEXT("spine_03"), TEXT("DEF-spine_003") },
+			{ TEXT("neck_01"), TEXT("DEF-spine_004") }, { TEXT("neck_02"), TEXT("DEF-spine_005") }, { TEXT("head"), TEXT("DEF-spine_006") },
+			{ TEXT("clavicle_l"), TEXT("DEF-shoulder_L") }, { TEXT("upperarm_l"), TEXT("DEF-upper_arm_L") }, { TEXT("lowerarm_l"), TEXT("DEF-forearm_L") }, { TEXT("hand_l"), TEXT("DEF-hand_L") },
+			{ TEXT("clavicle_r"), TEXT("DEF-shoulder_R") }, { TEXT("upperarm_r"), TEXT("DEF-upper_arm_R") }, { TEXT("lowerarm_r"), TEXT("DEF-forearm_R") }, { TEXT("hand_r"), TEXT("DEF-hand_R") },
+			{ TEXT("thigh_l"), TEXT("DEF-thigh_L") }, { TEXT("calf_l"), TEXT("DEF-shin_L") }, { TEXT("foot_l"), TEXT("DEF-foot_L") }, { TEXT("ball_l"), TEXT("DEF-toe_L") },
+			{ TEXT("thigh_r"), TEXT("DEF-thigh_R") }, { TEXT("calf_r"), TEXT("DEF-shin_R") }, { TEXT("foot_r"), TEXT("DEF-foot_R") }, { TEXT("ball_r"), TEXT("DEF-toe_R") },
+			{ TEXT("spine_04"), TEXT("-") }, { TEXT("spine_05"), TEXT("-") } };
+		for (const auto& M : Map) { Alias.Add(FName(M[0]), FName(M[1])); }
+	}
+	// The solve expects a skeleton that stands facing +Y with its left hand toward +X. One that was brought in facing
+	// another way is turned to that in its reference pose, so everything after reads it the same.
+	const FTransform* HL = Ref.Find(Bone(TEXT("hand_l"))); const FTransform* HR = Ref.Find(Bone(TEXT("hand_r")));
+	if (HL && HR)
+	{
+		FVector Side = HL->GetLocation() - HR->GetLocation(); Side.Z = 0.0;
+		if (Side.Normalize())
+		{
+			const double Turn = FMath::Atan2(Side.Y, Side.X);   // how far her left-hand side is from +X
+			if (FMath::Abs(Turn) > 0.05) { const FQuat Fix(FVector(0, 0, 1), -Turn); for (auto& It : Ref) { It.Value = FTransform(Fix * It.Value.GetRotation(), Fix.RotateVector(It.Value.GetLocation()), It.Value.GetScale3D()); } }
+		}
+	}
 }
 
 namespace
@@ -104,20 +127,20 @@ void FGkBody::Apply(const float* In, bool bAir, bool bMirror, float Roll, float 
 	const double K = 100.0 / 51.0;
 	auto Set = [this](const TCHAR* Name, const FQuat& Delta, const FVector* Where)
 	{
-		const FName Bone(Name); const FTransform* R = Ref.Find(Bone); if (!R) { return; }
-		const FVector Loc = Where ? *Where : Mesh->GetBoneLocationByName(Bone, EBoneSpaces::ComponentSpace);
-		Mesh->SetBoneTransformByName(Bone, FTransform(Delta * R->GetRotation(), Loc, R->GetScale3D()), EBoneSpaces::ComponentSpace);
+		const FName B = Bone(Name); const FTransform* R = Ref.Find(B); if (!R) { return; }
+		const FVector Loc = Where ? *Where : Mesh->GetBoneLocationByName(B, EBoneSpaces::ComponentSpace);
+		Mesh->SetBoneTransformByName(B, FTransform(Delta * R->GetRotation(), Loc, R->GetScale3D()), EBoneSpaces::ComponentSpace);
 	};
 	auto RefDir = [this](const TCHAR* From, const TCHAR* To, const FVector& Fallback)
 	{
-		const FTransform* A = Ref.Find(FName(From)); const FTransform* B = Ref.Find(FName(To));
+		const FTransform* A = Ref.Find(Bone(From)); const FTransform* B = Ref.Find(Bone(To));
 		const FVector V = (A && B) ? (B->GetLocation() - A->GetLocation()) : Fallback; return V.IsNearlyZero() ? Fallback : V.GetSafeNormal();
 	};
 	const FVector Up(0, 0, 1), Right(-1, 0, 0), Fwd(0, 1, 0); const FQuat Stand = Basis(Up, Right).Inverse();
 	// hips and spine: each part points along the browser's spine and is squared to its hip or shoulder line
 	// the hips ride at the height this skeleton's own legs reach (the browser's leg is 46 long and its ankle 4 off the floor)
 	double LegK = 1.0;
-	{ const FTransform* T = Ref.Find(TEXT("thigh_l")); const FTransform* C = Ref.Find(TEXT("calf_l")); const FTransform* F = Ref.Find(TEXT("foot_l"));
+	{ const FTransform* T = Ref.Find(Bone(TEXT("thigh_l"))); const FTransform* C = Ref.Find(Bone(TEXT("calf_l"))); const FTransform* F = Ref.Find(Bone(TEXT("foot_l")));
 	  if (T && C && F) { LegK = FMath::Clamp((FVector::Dist(T->GetLocation(), C->GetLocation()) + FVector::Dist(C->GetLocation(), F->GetLocation()) + F->GetLocation().Z) / (50.0 * K), 0.7, 1.3); } }
 	const FVector HipAt = FVector(0.0, hip.x * K, hip.y * K * LegK);
 	Set(TEXT("pelvis"), Basis(Dir({ FMath::Sin(a1 * 0.5), FMath::Cos(a1 * 0.5), 0 }), Dir(pax)) * Stand, &HipAt);

@@ -39,7 +39,7 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 	{
 		auto Draw = [&](const gk::Box& B, const FLinearColor& C)
 		{
-			const FVector A0 = Cv->Project(At(B.x0, B.y1)), A1 = Cv->Project(At(B.x1, B.y0));
+			const FVector A0 = Cv->Project(Wd(At(B.x0, B.y1))), A1 = Cv->Project(Wd(At(B.x1, B.y0)));
 			const float X0 = FMath::Min(A0.X, A1.X), Y0 = FMath::Min(A0.Y, A1.Y), Bw = FMath::Abs(A1.X - A0.X), Bh = FMath::Abs(A1.Y - A0.Y);
 			GkRect(Cv, X0, Y0, Bw, Bh, GkFade(C, 0.22f)); GkRect(Cv, X0, Y0, Bw, 2.f, C); GkRect(Cv, X0, Y0 + Bh - 2.f, Bw, 2.f, C); GkRect(Cv, X0, Y0, 2.f, Bh, C); GkRect(Cv, X0 + Bw - 2.f, Y0, 2.f, Bh, C);
 		};
@@ -53,7 +53,7 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 	for (int32 i = 0; i < 2; i++)
 	{
 		static const TCHAR* StName[] = { TEXT(""), TEXT("PREJUMP"), TEXT("JUMP"), TEXT("LAND"), TEXT("DASH"), TEXT("BACKDASH"), TEXT("RUN"), TEXT("GHOST STEP"), TEXT(""), TEXT("BLOCK"), TEXT("HIT"), TEXT("LAUNCHED"), TEXT("DOWN"), TEXT("GET UP"), TEXT("THROWN"), TEXT("GRAB"), TEXT("WIN"), TEXT("PARRY"), TEXT("PARRY RECOVERY"), TEXT("TECH") };
-		const gk::Fighter& P = S.p[i]; const FVector Head = Cv->Project(At(P.x, P.y + 100 * gk::F));
+		const gk::Fighter& P = S.p[i]; const FVector Head = Cv->Project(Wd(At(P.x, P.y + 100 * gk::F)));
 		const FString Label = P.st == gk::ATK ? FString::Printf(TEXT("%s  %d"), UTF8_TO_TCHAR(gk::moveName(P.mv)), P.mf) : FString(StName[FMath::Clamp<int32>(P.st, 0, 19)]);
 		GkText(Cv, Label, Head.X, Head.Y - 26.f * U, 16.f * U, P.st == gk::ATK ? Gold : Bone, true);
 	}
@@ -63,6 +63,17 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 		GkRect(Cv, P.X - R, P.Y - 3.f * U, R * 2.f, 6.f * U, GkFade(C, 1.f - K)); GkRect(Cv, P.X - 3.f * U, P.Y - R, 6.f * U, R * 2.f, GkFade(C, 1.f - K));
 	}
 
+	// a marker over each fighter, so two of the same character can be told apart
+	if (Screen == 3 && bPlaced)
+	{
+		for (int32 i = 0; i < 2; i++)
+		{
+			const FVector Hd = Cv->Project(Wd(At(S.p[i].x, S.p[i].y + 104 * gk::F))); if (Hd.Z <= 0.0) { continue; }
+			const FLinearColor Mk = i ? Blue : Red; const float Mw = 34.f * U;
+			GkRect(Cv, Hd.X - Mw * 0.5f, Hd.Y - 30.f * U, Mw, 20.f * U, Mk); GkText(Cv, i ? (Mode == 0 ? TEXT("CPU") : TEXT("2P")) : TEXT("1P"), Hd.X, Hd.Y - 29.f * U, 13.f * U, Bone, true, 0);
+			GkRect(Cv, Hd.X - 3.f * U, Hd.Y - 10.f * U, 6.f * U, 6.f * U, Mk);
+		}
+	}
 	const float BarW = 700.f * U, BarH = 26.f * U, Top = 56.f * U, Gap = 80.f * U;
 	for (int32 i = 0; i < 2; i++)
 	{
@@ -132,14 +143,29 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 	// exactly what is arriving from the stick, so a controller that is seen but not heard can be told apart from one that is mapped wrongly
 	if (Pads && Mode == 1 && bBoxes) { GkText(Cv, FString::Printf(TEXT("%s   buttons %08x  dirs %d"), *Pads->Debug(), PadNow, PadDirs), Mid, H - 48.f * U, 12.f * U, Gold, true); }
 
-	if (bMenu)
+	if (bMenu || Screen != 3 || !bPlaced)
 	{
-		GkRect(Cv, 0.f, 0.f, W, H, FLinearColor(0.f, 0.f, 0.f, 0.72f));
+		GkRect(Cv, 0.f, 0.f, W, H, FLinearColor(0.f, 0.f, 0.f, Screen == 3 ? 0.72f : 0.5f));
 		const float Px = Mid - 400.f * U, Py = H * 0.14f, Ph = 720.f * U;
-		GkRect(Cv, Px, Py, 800.f * U, Ph, Ink); GkRect(Cv, Px, Py + Ph, 800.f * U, 4.f * U, Red);
 		const FString Stick = !PadNames.IsEmpty() ? FString::Printf(TEXT("Stick / pad over USB:  %s%s"), *PadNames.Left(60), PadCount > 0 ? TEXT("") : TEXT("   (press a button on it)")) : FString(TEXT("No stick or pad seen over USB.  Keyboard, or a pad Unreal knows."));
-		if (MenuPage == 1)
+		auto List = [&](const TCHAR* Title, const TArray<FString>& Rows, int32 Sel, float Row)
 		{
+			GkRect(Cv, Px, Py, 800.f * U, Ph, Ink); GkRect(Cv, Px, Py + Ph, 800.f * U, 4.f * U, Red);
+			GkText(Cv, Title, Mid, Py + 22.f * U, 44.f * U, Bone, true);
+			for (int32 k = 0; k < Rows.Num(); k++)
+			{
+				const bool bSel = k == Sel; const float Iy = Py + (110.f + k * Row) * U;
+				if (bSel) { GkRect(Cv, Px + 40.f * U, Iy, 720.f * U, (Row - 12.f) * U, Red); }
+				GkText(Cv, Rows[k], Mid, Iy + (Row - 12.f - 30.f) * 0.5f * U, 26.f * U, bSel ? Bone : GkFade(Bone, 0.7f), true);
+			}
+			GkText(Cv, Stick, Mid, Py + 640.f * U, 16.f * U, Gold, true);
+			GkText(Cv, TEXT("UP / DOWN choose     LEFT / RIGHT change     LIGHT or ENTER confirm     HEAVY or ESC back"), Mid, Py + 676.f * U, 14.f * U, Bone, true);
+		};
+		if (!bPlaced) { GkText(Cv, TEXT("LOADING THE STAGE"), Mid, H * 0.45f, 40.f * U, Bone, true); }
+		else if (MenuPage == 1)
+		{
+			GkRect(Cv, Px, Py, 800.f * U, Ph, Ink); GkRect(Cv, Px, Py + Ph, 800.f * U, 4.f * U, Red);
+
 			static const TCHAR* Act[] = { TEXT("LIGHT"), TEXT("MEDIUM"), TEXT("HEAVY"), TEXT("SPECIAL"), TEXT("ASSIST"), TEXT("PARRY"), TEXT("IMPACT"), TEXT("HOMING") };
 			GkText(Cv, TEXT("SET UP BUTTONS"), Mid, Py + 28.f * U, 38.f * U, Bone, true);
 			for (int32 a = 0; a < 8; a++)
@@ -153,22 +179,47 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 			GkText(Cv, Stick, Mid, Py + 520.f * U, 16.f * U, Gold, true);
 			GkText(Cv, TEXT("TAB or ESC cancels.  Directions come from the stick or d-pad."), Mid, Py + 556.f * U, 16.f * U, Bone, true);
 			GkText(Cv, TEXT("Throw: Light + Medium.   Quick Dash: Medium + Heavy.   Supers: Heavy + Special."), Mid, Py + 588.f * U, 16.f * U, Bone, true);
+		
+		}
+		else if (Screen == 0)
+		{
+			GkText(Cv, TEXT("GEKITOTSU"), Mid, H * 0.035f, 64.f * U, Bone, true, 4);
+			List(TEXT("MAIN MENU"), { FString(TEXT("VERSUS CPU")), FString(TEXT("TRAINING")), FString(TEXT("WATCH")), FString::Printf(TEXT("CPU LEVEL    <  %d  >"), Level), FString(TEXT("SET UP BUTTONS")), FString(TEXT("QUIT")) }, MenuAt, 76.f);
+		}
+		else if (Screen == 1)
+		{
+			// choosing fighters: the roster's two rows of tiles, most of them still empty
+			static const TCHAR* Who[3] = { TEXT("NOA"), TEXT("MANNY"), TEXT("QUINN") };
+			GkText(Cv, TEXT("SELECT CHARACTER"), Mid, H * 0.06f, 56.f * U, Bone, true, 4);
+			const float Tile = 104.f * U, Sp = 6.f * U, X0 = Mid - 4.f * (Tile + Sp), Y0 = H * 0.66f;
+			for (int32 r = 0; r < 2; r++) { for (int32 c = 0; c < 8; c++)
+			{
+				const float X = X0 + c * (Tile + Sp), Y = Y0 + r * (Tile + Sp); const bool bHas = r == 0 && c < 3;
+				GkRect(Cv, X, Y, Tile, Tile, bHas ? FLinearColor(0.2f, 0.21f, 0.25f, 0.95f) : FLinearColor(0.08f, 0.08f, 0.1f, 0.85f));
+				if (bHas) { GkText(Cv, Who[c], X + Tile * 0.5f, Y + Tile * 0.4f, 17.f * U, Bone, true); }
+				else if (r == 0 && c == 4) { GkText(Cv, TEXT("?"), X + Tile * 0.5f, Y + Tile * 0.22f, 44.f * U, GkFade(Bone, 0.5f), true); }
+				for (int32 p = 0; p < 2; p++)
+				{
+					if (bHas && Setup.Char[p] % 3 == c && (p <= SelWho))
+					{
+						const FLinearColor Edge = p ? Blue : Red; const float T = 5.f * U, In = p * 7.f * U;
+						GkRect(Cv, X + In, Y + In, Tile - 2 * In, T, Edge); GkRect(Cv, X + In, Y + Tile - T - In, Tile - 2 * In, T, Edge); GkRect(Cv, X + In, Y + In, T, Tile - 2 * In, Edge); GkRect(Cv, X + Tile - T - In, Y + In, T, Tile - 2 * In, Edge);
+					}
+				}
+			} }
+			GkText(Cv, FString::Printf(TEXT("PLAYER 01   %s"), Who[Setup.Char[0] % 3]), W * 0.14f, H * 0.86f, 34.f * U, SelWho == 0 ? Bone : GkFade(Bone, 0.6f), true, 3);
+			GkText(Cv, FString::Printf(TEXT("%s   %s"), Mode == 0 ? TEXT("CPU") : Mode == 1 ? TEXT("DUMMY") : TEXT("CPU 02"), Who[Setup.Char[1] % 3]), W * 0.86f, H * 0.86f, 34.f * U, SelWho == 1 ? Bone : GkFade(Bone, 0.6f), true, 3);
+			GkText(Cv, SelWho == 0 ? TEXT("LEFT / RIGHT  choose player one's fighter      LIGHT  confirm      HEAVY  back") : TEXT("LEFT / RIGHT  choose the opponent      LIGHT  confirm      HEAVY  back"), Mid, H * 0.945f, 16.f * U, Gold, true);
+		}
+		else if (Screen == 2)
+		{
+			TArray<FString> Places; for (const FGkStage& St : Stages) { Places.Add(St.Name); }
+			List(TEXT("SELECT STAGE"), Places, StageAt, FMath::Min(70.f, 500.f / FMath::Max(1, Places.Num())));
 		}
 		else
 		{
-			const FString Items[7] = { FString(TEXT("PLAY")), FString::Printf(TEXT("MODE    <  %s  >"), ModeName[FMath::Clamp(Mode, 0, 2)]), FString::Printf(TEXT("CPU LEVEL    <  %d  >"), Level),
-				FString::Printf(TEXT("TRAINING DUMMY    <  %s  >"), DummyName[FMath::Clamp(Dummy, 0, 4)]), FString::Printf(TEXT("HIT BOXES    <  %s  >"), bBoxes ? TEXT("SHOWN") : TEXT("HIDDEN")), FString(TEXT("SET UP BUTTONS")), FString(TEXT("RESTART MATCH")) };
-			GkText(Cv, TEXT("GEKITOTSU"), Mid, Py + 22.f * U, 44.f * U, Bone, true);
-			for (int32 k = 0; k < 7; k++)
-			{
-				const bool bSel = k == MenuAt; const float Iy = Py + (110.f + k * 66.f) * U;
-				if (bSel) { GkRect(Cv, Px + 40.f * U, Iy, 720.f * U, 54.f * U, Red); }
-				GkText(Cv, Items[k], Mid, Iy + 8.f * U, 26.f * U, bSel ? Bone : GkFade(Bone, 0.7f), true);
-			}
-			GkText(Cv, Stick, Mid, Py + 590.f * U, 16.f * U, Gold, true);
-			GkText(Cv, TEXT("UP / DOWN choose     LEFT / RIGHT change     LIGHT or ENTER confirm"), Mid, Py + 626.f * U, 14.f * U, Bone, true);
-			GkText(Cv, TEXT("Keys:  WASD move   J K L attack   I special   SPACE assist   U parry   O impact   H homing"), Mid, Py + 654.f * U, 14.f * U, Bone, true);
-			GkText(Cv, TEXT("Rules: native C++, checked frame by frame against the browser game.  Fighters and stage are placeholders."), Mid, Py + 684.f * U, 13.f * U, GkFade(Bone, 0.7f), true);
+			List(TEXT("PAUSED"), { FString(TEXT("RESUME")), FString(TEXT("RESTART MATCH")), FString(TEXT("CHARACTER SELECT")), FString(TEXT("STAGE SELECT")), FString(TEXT("MAIN MENU")),
+				FString::Printf(TEXT("TRAINING DUMMY    <  %s  >"), DummyName[FMath::Clamp(Dummy, 0, 4)]), FString::Printf(TEXT("HIT BOXES    <  %s  >"), bBoxes ? TEXT("SHOWN") : TEXT("HIDDEN")), FString(TEXT("SET UP BUTTONS")) }, MenuAt, 62.f);
 		}
 	}
 }

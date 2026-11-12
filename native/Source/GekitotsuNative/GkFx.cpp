@@ -50,14 +50,14 @@ void FGkFx::Tick(float Dt)
 			const double Sp = FMath::Sqrt(P.Vel.Y * P.Vel.Y + P.Vel.Z * P.Vel.Z);
 			Q = Turn * FQuat(FVector(1, 0, 0), FMath::Atan2(P.Vel.Z, P.Vel.Y)) * FQuat(FVector(0, 1, 0), HALF_PI); Sc.Y *= 1.f + (P.Stretch - 1.f) * FMath::Clamp(float(Sp) / 600.f, 0.f, 1.5f); Sc.X *= 0.5f;
 		}
-		C->UpdateInstanceTransform(n, FTransform(Q, P.Pos, Sc), true, false, true);
+		C->UpdateInstanceTransform(n, FTransform(Q, P.Pos, Sc), false, false, true);
 		const float Data[4] = { P.Col.R, P.Col.G, P.Col.B, P.Alpha * Fade }; C->SetCustomData(n, MakeArrayView(Data, 4), false);
 		n++;
 	}
 	for (int32 L = 0; L < 2; L++)
 	{
 		if (!Mesh[L]) { continue; }
-		for (int32 i = N[L]; i < Used[L]; i++) { Mesh[L]->UpdateInstanceTransform(i, FTransform(FQuat::Identity, FVector(0, 0, -10000), FVector::ZeroVector), true, false, true); }
+		for (int32 i = N[L]; i < Used[L]; i++) { Mesh[L]->UpdateInstanceTransform(i, FTransform(FQuat::Identity, FVector(0, 0, -10000), FVector::ZeroVector), false, false, true); }
 		Used[L] = N[L]; Mesh[L]->MarkRenderStateDirty();
 	}
 }

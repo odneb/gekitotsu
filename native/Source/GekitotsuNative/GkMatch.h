@@ -12,6 +12,11 @@
 
 class UPoseableMeshComponent; class UStaticMeshComponent; class USceneComponent; class ACameraActor; class AExponentialHeightFog; class UCanvas; class FGkPads;
 
+/** A place to fight. Kind 0 is the measured training room and 1 the canyon, both built by the game on its own bare map; 2 is a dressed map from an environment pack, opened as it was shipped, with the fight set down in it. */
+struct FGkStage { FString Name, Map, Sky; int32 Kind = 2; double Time = 500.0; bool bFixed = false; FVector At = FVector::ZeroVector; double Yaw = 0.0; };
+/** What has been chosen in the menus. It outlives a change of map. Char: 0 is Noa, 1 and 2 the mannequins. */
+struct FGkSetup { int32 Stage = 1, Mode = 0, Level = 2, Dummy = 0, Char[2] = { 0, 0 }; bool bGo = false; };
+
 UCLASS()
 class GEKITOTSUNATIVE_API AGkGameMode : public AGameModeBase
 {
@@ -45,6 +50,14 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 	void DrawHud(UCanvas* Cv);
 	static AGkMatch* Current;
+	static FGkSetup Setup; static TArray<FGkStage> Stages; static void LoadStages();
+	// where the fight stands in this map, and whether that has been settled yet (a pack's map streams in around the camera first)
+	FTransform Anchor = FTransform::Identity; int32 Kind = 1; bool bPlaced = true; float PlaceWait = 0.f; FString PlaceNote;
+	FVector Wd(const FVector& Local) const { return Anchor.TransformPosition(Local); }
+	// the menus: 0 the front menu, 1 choosing fighters, 2 choosing a stage, 3 the fight (bMenu is then its pause menu)
+	int32 Screen = 0, SelWho = 0, StageAt = 1, LightsClock = 0;
+	UPROPERTY() TObjectPtr<UStaticMeshComponent> FloorSlab;
+	void DressFighter(int32 i); void StartStage(int32 Index); bool TryPlace(); void QuietMapLights(); FString MapName() const;
 
 	UPROPERTY() TObjectPtr<UPoseableMeshComponent> Body[2];
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> ShotMesh[4];

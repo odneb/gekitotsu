@@ -21,6 +21,8 @@ struct FGkPoses
 struct FGkBody
 {
 	UPoseableMeshComponent* Mesh = nullptr; TMap<FName, FTransform> Ref;
+	// a skeleton that names its bones another way (Blender's Rigify, as MeshBites' Noa does) is read through this
+	TMap<FName, FName> Alias; FName Bone(const TCHAR* Name) const { const FName B(Name); const FName* A = Alias.Find(B); return A ? *A : B; }
 	void Init(UPoseableMeshComponent* InMesh);
 	/** Roll and Turn are added to the pose's own whole-body rotation, in degrees. A mirrored pose is the same pose for a fighter facing left. */
 	void Apply(const float* Pose, bool bAir, bool bMirror, float Roll, float Turn);

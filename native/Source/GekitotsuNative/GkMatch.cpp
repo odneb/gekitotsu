@@ -24,12 +24,36 @@
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/PlayerController.h"
+#include "GameFramework/PlayerStart.h"
+#include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetSystemLibrary.h"
+#include "EngineUtils.h"
+#include "Components/VolumetricCloudComponent.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Misc/CommandLine.h"
 
 AGkMatch* AGkMatch::Current = nullptr;
+FGkSetup AGkMatch::Setup; TArray<FGkStage> AGkMatch::Stages;
+
+/** The stages: the two the game builds itself, then one for each line of Content/Gk/stages.txt (name | map | sky preset | time | "auto" or x,y,z,yaw). */
+void AGkMatch::LoadStages()
+{
+	if (Stages.Num() > 0) { return; }
+	{ FGkStage G; G.Name = TEXT("TRAINING ROOM"); G.Map = TEXT("/Engine/Maps/Entry"); G.Kind = 0; Stages.Add(G); }
+	{ FGkStage G; G.Name = TEXT("DESERT CANYON"); G.Map = TEXT("/Engine/Maps/Entry"); G.Kind = 1; G.Sky = TEXT("Desert"); G.Time = 500.0; Stages.Add(G); }
+	FString Text; if (!FFileHelper::LoadFileToString(Text, *(FPaths::ProjectContentDir() / TEXT("Gk/stages.txt")))) { return; }
+	TArray<FString> Lines; Text.ParseIntoArrayLines(Lines);
+	for (const FString& Ln : Lines)
+	{
+		TArray<FString> T; Ln.ParseIntoArray(T, TEXT("|")); if (T.Num() < 4 || Ln.StartsWith(TEXT("#"))) { continue; }
+		FGkStage G; G.Name = T[0].TrimStartAndEnd().ToUpper(); G.Map = T[1].TrimStartAndEnd(); G.Sky = T[2].TrimStartAndEnd(); G.Time = FCString::Atod(*T[3]); G.Kind = 2;
+		if (T.Num() > 4) { TArray<FString> N; T[4].ParseIntoArray(N, TEXT(",")); if (N.Num() >= 4) { G.bFixed = true; G.At = FVector(FCString::Atod(*N[0]), FCString::Atod(*N[1]), FCString::Atod(*N[2])); G.Yaw = FCString::Atod(*N[3]); } }
+		Stages.Add(G);
+	}
+}
+FString AGkMatch::MapName() const { FString N = GetWorld() ? GetWorld()->GetOutermost()->GetName() : FString(); return UWorld::RemovePIEPrefix(N); }
 
 AGkGameMode::AGkGameMode() { HUDClass = AGkHUD::StaticClass(); DefaultPawnClass = nullptr; }
 void AGkGameMode::StartPlay()
@@ -56,6 +80,16 @@ void AGkMatch::BeginPlay()
 	Bind[4] = EKeys::Gamepad_RightTrigger; Bind[5] = EKeys::Gamepad_RightShoulder; Bind[6] = EKeys::Gamepad_LeftShoulder; Bind[7] = EKeys::Gamepad_FaceButton_Top;
 	LoadBinds();
 	Pads = new FGkPads();
+	// which stage this is: the one chosen in the menus if this is its map, otherwise whatever this map can be
+	LoadStages();
+	{
+		const FString Here = MapName(); int32 Is = Stages.IsValidIndex(Setup.Stage) && Stages[Setup.Stage].Map == Here ? Setup.Stage : INDEX_NONE;
+		if (Is == INDEX_NONE) { for (int32 k = Stages.Num() - 1; k >= 0; k--) { if (Stages[k].Map == Here && (Stages[k].Kind != 0 || Is == INDEX_NONE)) { Is = k; } } }
+		if (Is == INDEX_NONE) { Is = 1; Kind = Here == TEXT("/Engine/Maps/Entry") ? 1 : 2; } else { Kind = Stages[Is].Kind; }
+		Setup.Stage = Is; StageAt = Is; Mode = Setup.Mode; Level = Setup.Level; Dummy = Setup.Dummy;
+		Screen = Setup.bGo ? 3 : 0; Setup.bGo = false; bMenu = false; Anchor = GetActorTransform(); bPlaced = Kind != 2;
+		if (FParse::Param(FCommandLine::Get(), TEXT("gkfight"))) { Screen = 3; }
+	}
 	Restart();
 	// -gkstatus=<file>: keep a short note of how the game is running in that file (the path may contain spaces)
 	{ const FString Cmd = FCommandLine::Get(); const int32 From = Cmd.Find(TEXT("-gkstatus=")), To = Cmd.Find(TEXT(".txt"), ESearchCase::IgnoreCase, ESearchDir::FromStart, FMath::Max(0, From));
@@ -69,20 +103,22 @@ void AGkMatch::BeginPlay()
 	auto Piece = [this, &Into](UStaticMesh* Mesh, const FVector& Loc, const FVector& Scale)
 	{
 		UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this); C->SetMobility(EComponentMobility::Movable); C->SetupAttachment(RootComponent);
-		if (Mesh) { C->SetStaticMesh(Mesh); } C->SetCollisionEnabled(ECollisionEnabled::NoCollision); C->RegisterComponent(); C->SetWorldLocation(Loc); C->SetWorldScale3D(Scale);
+		if (Mesh) { C->SetStaticMesh(Mesh); } C->SetCollisionEnabled(ECollisionEnabled::NoCollision); C->RegisterComponent(); C->SetRelativeLocation(Loc); C->SetRelativeScale3D(Scale);
 		if (Into) { Into->Add(C); }
 		return C;
 	};
 	const double Half = double(gk::STAGE) * Cm;
+	UMaterialInterface* Flat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+	if (Kind != 2)
+	{
 	// A training room: a dark floor and back wall ruled with a measured grid, so every step, jump and knock-back can be
 	// read against it. One square is 50 of the rules' units (about a metre); every second line is heavier. The gold line
 	// is the middle of the stage and the red lines are its two ends.
-	UMaterialInterface* Flat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
 	auto Paint = [Flat](UStaticMeshComponent* C, const FLinearColor& Col) { if (UMaterialInstanceDynamic* M = C->CreateDynamicMaterialInstance(0, Flat)) { M->SetVectorParameterValue(TEXT("Color"), Col); } C->SetCastShadow(false); };
 	const double WallX = 140.0, Sq = 50.0 * gk::F * Cm, Wide = 11.0 * Sq, High = 14.0 * Sq, Near = 700.0;
 	const FLinearColor Slab(0.035f, 0.04f, 0.055f), Line(0.2f, 0.23f, 0.28f), Heavy(0.42f, 0.46f, 0.52f), Gold(0.9f, 0.6f, 0.1f), Red(0.8f, 0.1f, 0.08f);
 	Paint(Piece(Plane, FVector(WallX - 1500.0, 0.0, -0.5), FVector(30.0, Wide * 2.0 / 100.0, 1.0)), Slab * 1.7f);
-	{ UStaticMeshComponent* Wall = Piece(Plane, FVector(WallX, 0.0, High * 0.5), FVector(High / 100.0 + 20.0, Wide * 2.0 / 100.0, 1.0)); Wall->SetWorldRotation(FRotator(90.0, 0.0, 0.0)); Paint(Wall, Slab); }
+	{ UStaticMeshComponent* Wall = Piece(Plane, FVector(WallX, 0.0, High * 0.5), FVector(High / 100.0 + 20.0, Wide * 2.0 / 100.0, 1.0)); Wall->SetRelativeRotation(FRotator(90.0, 0.0, 0.0)); Paint(Wall, Slab); }
 	auto Upright = [&](double Y, double Thick, const FLinearColor& Col)
 	{
 		Paint(Piece(Cube, FVector(WallX - 2.0, Y, High * 0.5), FVector(0.02, Thick, High / 100.0)), Col);                    // up the wall
@@ -92,9 +128,11 @@ void AGkMatch::BeginPlay()
 	Upright(0.0, 0.06, Gold); Upright(Half, 0.07, Red); Upright(-Half, 0.07, Red);
 	for (int32 k = 1; k <= 13; k++) { Paint(Piece(Cube, FVector(WallX - 2.0, 0.0, k * Sq), FVector(0.02, Wide * 2.0 / 100.0, k % 2 == 0 ? 0.04 : 0.02)), k % 2 == 0 ? Heavy : Line); }
 	for (int32 k = 0; k <= 7; k++) { Paint(Piece(Cube, FVector(WallX - k * Sq, 0.0, 0.0), FVector(k == 0 ? 0.06 : 0.02, Wide * 2.0 / 100.0, 0.02)), k == 0 ? Heavy : Line); }
+	}
 	// The stage: a wasteland of red rock under a low sun. A sand floor, boulders close behind the fighters, mesas and
 	// spires in the middle distance and great tablelands far off, each layer paler in the haze than the one before.
 	Into = &StageParts;
+	if (Kind != 2)
 	{
 		UStaticMesh* Cone = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cone.Cone"));
 		auto Lit = [Flat](UStaticMeshComponent* C, const FLinearColor& Col, bool bShadow) { if (UMaterialInstanceDynamic* M = C->CreateDynamicMaterialInstance(0, Flat)) { M->SetVectorParameterValue(TEXT("Color"), Col); } C->SetCastShadow(bShadow); };
@@ -105,8 +143,8 @@ void AGkMatch::BeginPlay()
 		auto Shade = [&R, Rock, Deep]() { return FMath::Lerp(Deep, Rock, R.FRandRange(0.35f, 1.f)); };
 		auto Mesa = [&](double X, double Y, double W, double H, double D)
 		{
-			UStaticMeshComponent* Base = Piece(Cube, FVector(X, Y, H * 0.5), FVector(D / 100.0, W / 100.0, H / 100.0)); Base->SetWorldRotation(FRotator(0.0, R.FRandRange(-14.f, 14.f), R.FRandRange(-3.f, 3.f))); Lit(Base, Shade(), true);
-			UStaticMeshComponent* Top = Piece(Cube, FVector(X, Y + W * R.FRandRange(-0.15f, 0.15f), H * 1.1), FVector(D * 0.8 / 100.0, W * R.FRandRange(0.5f, 0.8f) / 100.0, H * 0.28 / 100.0)); Top->SetWorldRotation(FRotator(0.0, R.FRandRange(-20.f, 20.f), 0.0)); Lit(Top, Shade(), true);
+			UStaticMeshComponent* Base = Piece(Cube, FVector(X, Y, H * 0.5), FVector(D / 100.0, W / 100.0, H / 100.0)); Base->SetRelativeRotation(FRotator(0.0, R.FRandRange(-14.f, 14.f), R.FRandRange(-3.f, 3.f))); Lit(Base, Shade(), true);
+			UStaticMeshComponent* Top = Piece(Cube, FVector(X, Y + W * R.FRandRange(-0.15f, 0.15f), H * 1.1), FVector(D * 0.8 / 100.0, W * R.FRandRange(0.5f, 0.8f) / 100.0, H * 0.28 / 100.0)); Top->SetRelativeRotation(FRotator(0.0, R.FRandRange(-20.f, 20.f), 0.0)); Lit(Top, Shade(), true);
 			Lit(Piece(Cone, FVector(X - D * 0.2, Y, H * 0.14), FVector(D * 1.7 / 100.0, W * 1.5 / 100.0, H * 0.3 / 100.0)), FMath::Lerp(Sand, Rock, 0.5f), false);
 		};
 		// The rock is GF Stylized's Desert Canyon set: small outcrops just behind the fight, cliffs in the middle distance,
@@ -116,7 +154,7 @@ void AGkMatch::BeginPlay()
 			const FString Path = FString::Printf(TEXT("/Game/GF_Desert_Canyon/Assets/%s"), Name);
 			UStaticMesh* M = LoadObject<UStaticMesh>(nullptr, *Path);
 			if (!M) { Mesa(X, Y, 700.0 * Scale, 500.0 * Scale, 600.0 * Scale); return; }
-			UStaticMeshComponent* C = Piece(M, FVector(X, Y, -6.0 * Scale), FVector(Scale)); C->SetWorldRotation(FRotator(0.0, R.FRandRange(0.f, 360.f), 0.0)); C->SetCastShadow(bShadow);
+			UStaticMeshComponent* C = Piece(M, FVector(X, Y, -6.0 * Scale), FVector(Scale)); C->SetRelativeRotation(FRotator(0.0, R.FRandRange(0.f, 360.f), 0.0)); C->SetCastShadow(bShadow);
 			// drawn the way the fighters are: the cel shader's lit variant over the rock's own painted colour (tools/make_stage_materials.py)
 			if (UMaterialInterface* Cel = LoadObject<UMaterialInterface>(nullptr, *FString::Printf(TEXT("/Game/GkStage/MI_Cel_%s.MI_Cel_%s"), *M->GetName(), *M->GetName()))) { C->SetMaterial(0, Cel); }
 		};
@@ -132,9 +170,12 @@ void AGkMatch::BeginPlay()
 	Into = nullptr;
 	Fx.Init(this, RootComponent);
 	// the low sun seen through the haze behind everything
-	Fx.Add(0, FVector(14000.0, 2500.0, 700.0), FVector::ZeroVector, -1.f, 9000.f, 9000.f, FLinearColor(1.0f, 0.55f, 0.25f), 0.5f);
+	if (Kind != 2) { Fx.Add(0, FVector(14000.0, 2500.0, 700.0), FVector::ZeroVector, -1.f, 9000.f, 9000.f, FLinearColor(1.0f, 0.55f, 0.25f), 0.5f); }
 	for (int32 k = 0; k < 4; k++) { ShotMesh[k] = Piece(Ball, FVector::ZeroVector, FVector(0.45)); ShotMesh[k]->SetCastShadow(false); ShotMesh[k]->SetVisibility(false); }
-	if (W)
+	// a slab to stand on, for a pack's map whose ground is not level where the fight is set down
+	FloorSlab = Piece(Cube, FVector(0.0, 0.0, -10.0), FVector(7.0, 24.0, 0.2)); FloorSlab->SetVisibility(false);
+	if (UMaterialInstanceDynamic* SlabMat = FloorSlab->CreateDynamicMaterialInstance(0, Flat)) { SlabMat->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.22f, 0.2f, 0.19f)); }
+	if (W && Kind != 2)
 	{
 		if (ADirectionalLight* Sun = W->SpawnActor<ADirectionalLight>(FVector(0.0, 0.0, 800.0), FRotator(-31.0, 38.0, 0.0)))
 		{
@@ -160,41 +201,12 @@ void AGkMatch::BeginPlay()
 	// game's own, sampled for every move and state (Content/Gk/poses.*) and solved onto the skeleton each frame.
 	if (!Poses.Load(FPaths::ProjectContentDir() / TEXT("Gk"))) { UE_LOG(LogTemp, Error, TEXT("Gekitotsu: the pose data (Content/Gk/poses.txt, poses.bin) did not load")); }
 	MoveClip.Reset(); for (int32 k = 0; k < gk::moveCount(); k++) { MoveClip.Add(FName(*(FString(TEXT("mv_")) + UTF8_TO_TCHAR(gk::moveKey(k))))); }
-	static const TCHAR* Meshes[2] = { TEXT("/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"), TEXT("/Game/Characters/Mannequins/Meshes/SKM_Quinn_Simple.SKM_Quinn_Simple") };
 	for (int32 i = 0; i < 2; i++)
 	{
 		UPoseableMeshComponent* C = NewObject<UPoseableMeshComponent>(this); C->SetupAttachment(RootComponent);
 		C->SetUsingAbsoluteLocation(true); C->SetUsingAbsoluteRotation(true); C->SetUsingAbsoluteScale(true); C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		C->RegisterComponent();
-		// The fighters are Unreal's mannequins, red and blue. The surface is MeshBites' Stylized Anime
-		// Shader (cel shading read from the sun's direction) with its outline shell laid over the mesh.
-		// (-gkfighter on the command line tries the stand-in human model instead; it is off by default.)
-		USkeletalMesh* Model = FParse::Param(FCommandLine::Get(), TEXT("gkfighter")) ? LoadObject<USkeletalMesh>(nullptr, TEXT("/Game/Fighter/SK_Fighter.SK_Fighter")) : nullptr;
-		UMaterialInterface* Skin = Model ? LoadObject<UMaterialInterface>(nullptr, i ? TEXT("/Game/Fighter/MI_Fighter_P2.MI_Fighter_P2") : TEXT("/Game/Fighter/MI_Fighter_P1.MI_Fighter_P1")) : nullptr;
-		if (Model && Skin)
-		{
-			C->SetSkinnedAssetAndUpdate(Model);
-			for (int32 k = 0; k < C->GetNumMaterials(); k++) { C->SetMaterial(k, Skin); }
-			if (UMaterialInterface* Ink = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Fighter/MI_Fighter_Outline.MI_Fighter_Outline"))) { C->SetOverlayMaterial(Ink); }
-		}
-		else
-		{
-			if (USkeletalMesh* M = LoadObject<USkeletalMesh>(nullptr, Meshes[i])) { C->SetSkinnedAssetAndUpdate(M); }
-			const TCHAR* Side = i ? TEXT("P2") : TEXT("P1"); bool bAnime = true;
-			for (int32 k = 0; k < C->GetNumMaterials(); k++)
-			{
-				const FString Path = FString::Printf(TEXT("/Game/GkMat/MI_Gk_%s_%s.MI_Gk_%s_%s"), Side, k == 0 ? TEXT("A") : TEXT("B"), Side, k == 0 ? TEXT("A") : TEXT("B"));
-				if (UMaterialInterface* Cel = LoadObject<UMaterialInterface>(nullptr, *Path)) { C->SetMaterial(k, Cel); }
-				else
-				{
-					bAnime = false; UE_LOG(LogTemp, Warning, TEXT("Gekitotsu: the anime material %s did not load"), *Path);
-					if (UMaterialInstanceDynamic* Tint = C->CreateDynamicMaterialInstance(k)) { Tint->SetVectorParameterValue(TEXT("Paint Tint"), i ? FLinearColor(0.05f, 0.22f, 0.95f) : FLinearColor(0.9f, 0.07f, 0.04f)); }
-				}
-			}
-			if (bAnime) { if (UMaterialInterface* Ink = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/GkMat/MI_Gk_Outline.MI_Gk_Outline"))) { C->SetOverlayMaterial(Ink); } }
-		}
-		C->SetBoundsScale(30.f); C->bNeverDistanceCull = true;
-		Body[i] = C; Rig[i].Init(C);
+		C->RegisterComponent(); C->SetBoundsScale(30.f); C->bNeverDistanceCull = true;
+		Body[i] = C; DressFighter(i);
 	}
 	if (W)
 	{
@@ -215,6 +227,70 @@ void AGkMatch::BeginPlay()
 		}
 	}
 	MakeSky();
+}
+
+/** Gives a fighter the body chosen for him: one of the two mannequins for now, player one in red and the other in blue. */
+void AGkMatch::DressFighter(int32 i)
+{
+	UPoseableMeshComponent* C = Body[i]; if (!C) { return; }
+	// Noa, the MeshBites character, as she is shipped: her own mesh, toon materials and outline, taken from her lit Blueprint
+	if (Setup.Char[i] % 3 == 0)
+	{
+		bool bDone = false; UWorld* W = GetWorld();
+		UClass* Bp = LoadObject<UClass>(nullptr, TEXT("/Game/MeshBites_Stylized_Anime_Shader/Art/Models/Characters/Noa_00/BP/BP_Noa_00_Lit.BP_Noa_00_Lit_C"));
+		USkeletalMesh* Noa = LoadObject<USkeletalMesh>(nullptr, TEXT("/Game/MeshBites_Stylized_Anime_Shader/Art/Models/Characters/Noa_00/Meshes/SKM_Noa_00.SKM_Noa_00"));
+		if (Noa)
+		{
+			C->SetOverlayMaterial(nullptr); C->EmptyOverrideMaterials(); C->SetSkinnedAssetAndUpdate(Noa); bDone = true;
+			if (AActor* Shown = (W && Bp) ? W->SpawnActor<AActor>(Bp, FTransform(FVector(0.0, 0.0, -50000.0))) : nullptr)
+			{
+				TInlineComponentArray<UMeshComponent*> Ms(Shown); UMeshComponent* From = nullptr;
+				for (UMeshComponent* M : Ms) { if (!From || M->GetNumMaterials() > From->GetNumMaterials()) { From = M; } }
+				if (From)
+				{
+					// her Blueprint may show her as a still mesh; its materials go onto the skinned one slot by slot, by name where the names agree
+					const TArray<FName> Mine = C->GetMaterialSlotNames(), Theirs = From->GetMaterialSlotNames();
+					for (int32 k = 0; k < Mine.Num(); k++) { const int32 At2 = Theirs.Find(Mine[k]); const int32 Use = At2 != INDEX_NONE ? At2 : (k < From->GetNumMaterials() ? k : INDEX_NONE); if (Use != INDEX_NONE) { if (UMaterialInterface* Mat = From->GetMaterial(Use)) { C->SetMaterial(k, Mat); } } }
+					if (UMaterialInterface* Over = From->GetOverlayMaterial()) { C->SetOverlayMaterial(Over); }
+					UE_LOG(LogTemp, Display, TEXT("GkNoa: %d slots dressed from %s (%s, %d materials)"), Mine.Num(), *From->GetName(), *From->GetClass()->GetName(), From->GetNumMaterials());
+				}
+				Shown->Destroy();
+			}
+		}
+		if (bDone) { Rig[i].Init(C); return; }
+	}
+	C->EmptyOverrideMaterials();
+	static const TCHAR* Meshes[2] = { TEXT("/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"), TEXT("/Game/Characters/Mannequins/Meshes/SKM_Quinn_Simple.SKM_Quinn_Simple") };
+	{
+		// The fighters are Unreal's mannequins, red and blue. The surface is MeshBites' Stylized Anime
+		// Shader (cel shading read from the sun's direction) with its outline shell laid over the mesh.
+		// (-gkfighter on the command line tries the stand-in human model instead; it is off by default.)
+		USkeletalMesh* Model = FParse::Param(FCommandLine::Get(), TEXT("gkfighter")) ? LoadObject<USkeletalMesh>(nullptr, TEXT("/Game/Fighter/SK_Fighter.SK_Fighter")) : nullptr;
+		UMaterialInterface* Skin = Model ? LoadObject<UMaterialInterface>(nullptr, i ? TEXT("/Game/Fighter/MI_Fighter_P2.MI_Fighter_P2") : TEXT("/Game/Fighter/MI_Fighter_P1.MI_Fighter_P1")) : nullptr;
+		if (Model && Skin)
+		{
+			C->SetSkinnedAssetAndUpdate(Model);
+			for (int32 k = 0; k < C->GetNumMaterials(); k++) { C->SetMaterial(k, Skin); }
+			if (UMaterialInterface* Ink = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Fighter/MI_Fighter_Outline.MI_Fighter_Outline"))) { C->SetOverlayMaterial(Ink); }
+		}
+		else
+		{
+			if (USkeletalMesh* M = LoadObject<USkeletalMesh>(nullptr, Meshes[Setup.Char[i] % 3 == 2 ? 1 : 0])) { C->SetSkinnedAssetAndUpdate(M); }
+			const TCHAR* Side = i ? TEXT("P2") : TEXT("P1"); bool bAnime = true;
+			for (int32 k = 0; k < C->GetNumMaterials(); k++)
+			{
+				const FString Path = FString::Printf(TEXT("/Game/GkMat/MI_Gk_%s_%s.MI_Gk_%s_%s"), Side, k == 0 ? TEXT("A") : TEXT("B"), Side, k == 0 ? TEXT("A") : TEXT("B"));
+				if (UMaterialInterface* Cel = LoadObject<UMaterialInterface>(nullptr, *Path)) { C->SetMaterial(k, Cel); }
+				else
+				{
+					bAnime = false; UE_LOG(LogTemp, Warning, TEXT("Gekitotsu: the anime material %s did not load"), *Path);
+					if (UMaterialInstanceDynamic* Tint = C->CreateDynamicMaterialInstance(k)) { Tint->SetVectorParameterValue(TEXT("Paint Tint"), i ? FLinearColor(0.05f, 0.22f, 0.95f) : FLinearColor(0.9f, 0.07f, 0.04f)); }
+				}
+			}
+			if (bAnime) { if (UMaterialInterface* Ink = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/GkMat/MI_Gk_Outline.MI_Gk_Outline"))) { C->SetOverlayMaterial(Ink); } }
+		}
+	}
+	Rig[i].Init(C);
 }
 
 // ------------------------------------------------------------------------------------------------ the sky and weather
@@ -245,7 +321,9 @@ namespace
 void AGkMatch::MakeSky()
 {
 	UWorld* W = GetWorld(); if (!W) { return; }
-	FString Preset = TEXT("Desert"); FParse::Value(FCommandLine::Get(), TEXT("-gksky="), Preset);
+	if (Kind == 2 && FParse::Param(FCommandLine::Get(), TEXT("gknosky"))) { return; }
+	const FGkStage* St = Stages.IsValidIndex(Setup.Stage) ? &Stages[Setup.Stage] : nullptr;
+	FString Preset = St && !St->Sky.IsEmpty() ? St->Sky : FString(TEXT("Desert")); FParse::Value(FCommandLine::Get(), TEXT("-gksky="), Preset);
 	const FString Path = FString::Printf(TEXT("/Game/SoStylized/Environment/Sky/PRESETS/BP_StylizedSky_%s.BP_StylizedSky_%s_C"), *Preset, *Preset);
 	UClass* Cls = LoadObject<UClass>(nullptr, *Path);
 	if (!Cls) { UE_LOG(LogTemp, Warning, TEXT("GkSky: %s did not load; the plain sky stays"), *Path); return; }
@@ -269,7 +347,7 @@ void AGkMatch::MakeSky()
 			}
 		}
 	}
-	const FTransform At(FRotator::ZeroRotator, FVector::ZeroVector);
+	const FTransform At(FRotator::ZeroRotator, Anchor.GetLocation());
 	AActor* Sky = W->SpawnActorDeferred<AActor>(Cls, At, this, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
 	if (!Sky) { return; }
 	// the fight drives the weather: no clock, no weather of its own choosing
@@ -278,7 +356,7 @@ void AGkMatch::MakeSky()
 	Sky->FinishSpawning(At);
 	SkyActor = Sky;
 	// the sky's clock runs in seconds: a 600 second day, then a 480 second night. The fight is held at dusk.
-	double Time = 500.0; FParse::Value(FCommandLine::Get(), TEXT("-gktime="), Time);
+	double Time = St ? St->Time : 500.0; FParse::Value(FCommandLine::Get(), TEXT("-gktime="), Time);
 	if (!GkCall(Sky, TEXT("Set New Time"), nullptr, Time)) { UE_LOG(LogTemp, Warning, TEXT("GkSky: no Set New Time")); }
 	SetWeather(0, 0.5);
 }
@@ -290,6 +368,89 @@ void AGkMatch::SetWeather(int32 Index, double BlendSeconds)
 	if (!GkCall(SkyActor, TEXT("Set New Static Weather"), Weathers[Index], BlendSeconds)) { UE_LOG(LogTemp, Warning, TEXT("GkSky: no Set New Static Weather")); }
 }
 
+// ------------------------------------------------------------------------------------------------ a pack's map as a stage
+/**
+ * Sets the fight down in a dressed map. A stage with fixed numbers stands where they say; otherwise the ground near the
+ * map's player start is searched for the most level 16 metre line with a clear view from the camera's side. The fight's
+ * floor is the highest ground under that line; if the ground under it is uneven a plain slab is laid to stand on.
+ */
+bool AGkMatch::TryPlace()
+{
+	UWorld* W = GetWorld(); if (!W) { return false; }
+	const FGkStage* St = Stages.IsValidIndex(Setup.Stage) ? &Stages[Setup.Stage] : nullptr;
+	FCollisionQueryParams Q(FName(TEXT("GkPlace")), true, this);
+	auto Ground = [&](const FVector& P, double& Z) { FHitResult H; if (W->LineTraceSingleByChannel(H, P + FVector(0, 0, 3000), P - FVector(0, 0, 8000), ECC_WorldStatic, Q)) { Z = H.ImpactPoint.Z; return true; } return false; };
+	FVector Base = FVector::ZeroVector; double BaseYaw = 0.0; bool bFixed = St && St->bFixed;
+	if (bFixed) { Base = St->At; BaseYaw = St->Yaw; }
+	else { TActorIterator<APlayerStart> It(W); if (It) { Base = It->GetActorLocation(); BaseYaw = It->GetActorRotation().Yaw; } }
+	{ FString Txt; if (FParse::Value(FCommandLine::Get(), TEXT("-gkanchor="), Txt)) { TArray<FString> N; Txt.ParseIntoArray(N, TEXT(",")); if (N.Num() >= 4) { Base = FVector(FCString::Atod(*N[0]), FCString::Atod(*N[1]), FCString::Atod(*N[2])); BaseYaw = FCString::Atod(*N[3]); bFixed = true; } } }
+	double Z0 = 0.0; if (!Ground(Base, Z0) && PlaceWait < 6.f) { return false; }   // the ground has not streamed in yet
+	auto Score = [&](const FVector& C, double Yaw, double& Top, double& Range)
+	{
+		const FQuat R = FRotator(0.0, Yaw, 0.0).Quaternion(); double Lo = 1e9, Hi = -1e9;
+		for (int32 k = -4; k <= 4; k++) { double Z; if (!Ground(C + R.RotateVector(FVector(0.0, k * 200.0, 0.0)), Z)) { return false; } Lo = FMath::Min(Lo, Z); Hi = FMath::Max(Hi, Z); }
+		for (int32 k = -1; k <= 1; k++) { double Z; if (Ground(C + R.RotateVector(FVector(-250.0, k * 600.0, 0.0)), Z)) { Hi = FMath::Max(Hi, Z - 15.0); } }
+		Top = Hi; Range = Hi - Lo;
+		// nothing between the camera's side and the fighters, and nothing standing on the line itself
+		const FVector Mid(C.X, C.Y, Hi + 110.0); FHitResult H;
+		for (int32 k = -1; k <= 1; k++) { if (W->LineTraceSingleByChannel(H, Mid + R.RotateVector(FVector(-1300.0, k * 700.0, 120.0)), Mid + R.RotateVector(FVector(0.0, k * 700.0, 0.0)), ECC_Visibility, Q)) { return false; } }
+		if (W->LineTraceSingleByChannel(H, Mid + R.RotateVector(FVector(0.0, -800.0, 0.0)), Mid + R.RotateVector(FVector(0.0, 800.0, 0.0)), ECC_Visibility, Q)) { return false; }
+		return true;
+	};
+	FVector Best = Base; double BestYaw = BaseYaw, BestTop = Z0, BestRange = 0.0, BestCost = 1e18; bool bFound = false;
+	if (bFixed) { bFound = Score(Base, BaseYaw, BestTop, BestRange); if (!bFound) { BestTop = Z0; BestRange = 999.0; bFound = true; } }
+	else
+	{
+		for (int32 gx = -6; gx <= 6; gx++) { for (int32 gy = -6; gy <= 6; gy++) { for (int32 a = 0; a < 12; a++)
+		{
+			const FVector C = Base + FVector(gx * 400.0, gy * 400.0, 0.0); const double Yaw = BaseYaw + a * 30.0; double Top, Range;
+			if (!Score(C, Yaw, Top, Range)) { continue; }
+			// how much there is to look at behind the fight: the further the view runs before it meets something, up to a point, the better
+			FHitResult H; const FQuat R = FRotator(0.0, Yaw, 0.0).Quaternion(); double Open = 0.0;
+			for (int32 k = -1; k <= 1; k++) { const FVector From(C.X, C.Y, Top + 200.0); Open += W->LineTraceSingleByChannel(H, From, From + R.RotateVector(FVector(9000.0, k * 2500.0, 600.0)), ECC_Visibility, Q) ? FMath::Min(double(H.Distance), 6000.0) : 4500.0; }
+			const double Cost = Range * 4.0 + FVector::Dist2D(C, Base) * 0.02 - Open * 0.01;
+			if (Cost < BestCost) { BestCost = Cost; Best = C; BestYaw = Yaw; BestTop = Top; BestRange = Range; bFound = true; }
+		} } }
+		if (!bFound) { BestTop = Z0; BestRange = 999.0; }
+	}
+	Anchor = FTransform(FRotator(0.0, BestYaw, 0.0), FVector(Best.X, Best.Y, BestTop + 1.0));
+	SetActorTransform(Anchor);
+	if (FloorSlab) { FloorSlab->SetVisibility(BestRange > 12.0); }
+	if (SkyActor) { SkyActor->SetActorLocation(Anchor.GetLocation()); }
+	PlaceNote = FString::Printf(TEXT("%.0f,%.0f,%.0f,%.0f  ground uneven by %.0f cm%s"), Best.X, Best.Y, BestTop + 1.0, FMath::Fmod(BestYaw + 720.0, 360.0), BestRange, bFound ? TEXT("") : TEXT("  (no clear level line found)"));
+	UE_LOG(LogTemp, Display, TEXT("GkStage placed at %s"), *PlaceNote);
+	return true;
+}
+
+/** On a pack's map the sky and weather system owns the sun, the sky light, the atmosphere and the fog: the map's own are put out. */
+void AGkMatch::QuietMapLights()
+{
+	UWorld* W = GetWorld(); if (!W || !SkyActor) { return; }
+	for (TActorIterator<AActor> It(W); It; ++It)
+	{
+		AActor* A = *It; if (A == this || A == SkyActor || A == Fog || RoomLights.Contains(A)) { continue; }
+		const FString Cls = A->GetClass()->GetName();
+		if (Cls.Contains(TEXT("SkySphere")) || Cls.Contains(TEXT("Sky_Sphere")) || Cls.Contains(TEXT("SkyDome")) || Cls.Contains(TEXT("UltraDynamicSky"))) { A->SetActorHiddenInGame(true); }
+		TInlineComponentArray<USceneComponent*> Cs(A);
+		for (USceneComponent* C : Cs)
+		{
+			if (C->IsA<UDirectionalLightComponent>() || C->IsA<USkyLightComponent>() || C->IsA<UExponentialHeightFogComponent>() || C->IsA<USkyAtmosphereComponent>() || C->IsA<UVolumetricCloudComponent>()) { if (C->IsVisible()) { C->SetVisibility(false); } }
+		}
+	}
+}
+
+/** Starts a fight on the chosen stage: here and now if this map holds it, otherwise by opening its map. */
+void AGkMatch::StartStage(int32 Index)
+{
+	if (!Stages.IsValidIndex(Index)) { return; }
+	Setup.Stage = Index; Setup.Mode = Mode; Setup.Level = Level; Setup.Dummy = Dummy;
+	const FGkStage& St = Stages[Index];
+	if (St.Map == MapName() && St.Kind != 2) { Kind = St.Kind; Screen = 3; bMenu = false; Restart(); CamD.bSnap = true; return; }
+	if (St.Map == MapName() && Kind == 2) { Screen = 3; bMenu = false; Restart(); CamD.bSnap = true; return; }
+	Setup.bGo = true;
+	UGameplayStatics::OpenLevel(this, FName(*St.Map), true, TEXT("game=/Script/GekitotsuNative.GkGameMode"));
+}
+
 void AGkMatch::EndPlay(const EEndPlayReason::Type Reason)
 {
 	delete Pads; Pads = nullptr; if (Current == this) { Current = nullptr; }
@@ -298,7 +459,7 @@ void AGkMatch::EndPlay(const EEndPlayReason::Type Reason)
 
 void AGkMatch::Restart()
 {
-	gk::newMatch(S, Mode == 1, 2); gk::aiMake(Cpu[0], Level); gk::aiMake(Cpu[1], Level);
+	gk::newMatch(S, Mode == 1 && Screen == 3, 2); gk::aiMake(Cpu[0], Level); gk::aiMake(Cpu[1], Level);
 	OverTimer = 0; CallHold = 0; Hist.Reset(); LastIn = -1; Adv = -999; bExchange = false; Sparks.Reset();
 	for (int32 i = 0; i < 2; i++) { Combo[i] = 0; ComboTimer[i] = 0; NoteTimer[i] = 0; ActFrame[i] = 0; bWasIdle[i] = true; }
 }
@@ -383,13 +544,6 @@ void AGkMatch::MenuInput()
 	auto Raw = [this, Fresh](int32 Action) { return PadBind[Action] >= 0 && PadBind[Action] < 32 && ((Fresh >> PadBind[Action]) & 1u) != 0; };
 	const bool bStart = ((Fresh >> 9) & 1u) != 0, bSelect = ((Fresh >> 8) & 1u) != 0;
 	const bool bToggle = Hit(EKeys::Tab) || Hit(EKeys::Gamepad_Special_Right) || (bStart && MenuPage == 0);
-	if (!bMenu)
-	{
-		if (Hit(EKeys::R) || Hit(EKeys::Gamepad_Special_Left) || bSelect) { Restart(); }
-		if (Hit(EKeys::B)) { bBoxes = !bBoxes; }
-		if (bToggle) { bMenu = true; MenuAt = 0; MenuPage = 0; }
-		return;
-	}
 	if (MenuPage == 1)
 	{
 		// the next button pressed becomes the action being asked for
@@ -405,25 +559,57 @@ void AGkMatch::MenuInput()
 		if (bGot && ++BindAt >= 8) { BindAt = 0; MenuPage = 0; SaveBinds(); }
 		return;
 	}
-	if (bToggle) { bMenu = false; return; }
-	const int32 Count = 7;
-	if (Hit(EKeys::W) || Hit(EKeys::Up) || Hit(EKeys::Gamepad_DPad_Up) || (FreshDir & gk::IN_U)) { MenuAt = (MenuAt + Count - 1) % Count; }
-	if (Hit(EKeys::S) || Hit(EKeys::Down) || Hit(EKeys::Gamepad_DPad_Down) || (FreshDir & gk::IN_D)) { MenuAt = (MenuAt + 1) % Count; }
-	const bool bNext = Hit(EKeys::D) || Hit(EKeys::Right) || Hit(EKeys::Gamepad_DPad_Right) || (FreshDir & gk::IN_R);
-	const bool bPrev = Hit(EKeys::A) || Hit(EKeys::Left) || Hit(EKeys::Gamepad_DPad_Left) || (FreshDir & gk::IN_L);
-	const bool bOk = Hit(EKeys::Enter) || Hit(EKeys::J) || Hit(EKeys::Gamepad_FaceButton_Bottom) || Raw(0) || Raw(1);
-	const int32 Way = bPrev ? -1 : ((bNext || bOk) ? 1 : 0);
-	switch (MenuAt)
+	if (Screen == 3 && !bMenu)
 	{
-		case 0: if (bOk) { bMenu = false; } break;
-		case 1: if (Way != 0) { Mode = (Mode + Way + 3) % 3; Restart(); } break;
-		case 2: if (Way != 0) { Level = 1 + (Level - 1 + Way + 3) % 3; gk::aiMake(Cpu[0], Level); gk::aiMake(Cpu[1], Level); } break;
-		case 3: if (Way != 0) { Dummy = (Dummy + Way + 5) % 5; } break;
-		case 4: if (Way != 0) { bBoxes = !bBoxes; } break;
-		case 5: if (bOk) { MenuPage = 1; BindAt = 0; } break;
-		default: if (bOk) { Restart(); bMenu = false; } break;
+		if (Hit(EKeys::R) || Hit(EKeys::Gamepad_Special_Left) || bSelect) { Restart(); }
+		if (Hit(EKeys::B)) { bBoxes = !bBoxes; }
+		if (bToggle) { bMenu = true; MenuAt = 0; MenuPage = 0; }
+		return;
+	}
+	const bool bUp = Hit(EKeys::W) || Hit(EKeys::Up) || Hit(EKeys::Gamepad_DPad_Up) || (FreshDir & gk::IN_U), bDown = Hit(EKeys::S) || Hit(EKeys::Down) || Hit(EKeys::Gamepad_DPad_Down) || (FreshDir & gk::IN_D);
+	const bool bNext = Hit(EKeys::D) || Hit(EKeys::Right) || Hit(EKeys::Gamepad_DPad_Right) || (FreshDir & gk::IN_R), bPrev = Hit(EKeys::A) || Hit(EKeys::Left) || Hit(EKeys::Gamepad_DPad_Left) || (FreshDir & gk::IN_L);
+	const bool bOk = Hit(EKeys::Enter) || Hit(EKeys::J) || Hit(EKeys::Gamepad_FaceButton_Bottom) || Raw(0) || Raw(1) || (bStart && Screen != 3);
+	const bool bBack = Hit(EKeys::Escape) || Hit(EKeys::BackSpace) || Hit(EKeys::L) || Hit(EKeys::Gamepad_FaceButton_Right) || Raw(2);
+	const int32 Way = bPrev ? -1 : ((bNext || bOk) ? 1 : 0);
+	auto Move = [&](int32 Count) { if (bUp) { MenuAt = (MenuAt + Count - 1) % Count; } if (bDown) { MenuAt = (MenuAt + 1) % Count; } };
+	if (Screen == 0)
+	{   // the front menu: VERSUS CPU, TRAINING, WATCH, CPU LEVEL, SET UP BUTTONS, QUIT
+		Move(6);
+		if (MenuAt <= 2 && bOk) { Mode = MenuAt; Setup.Mode = Mode; SelWho = 0; Screen = 1; MenuAt = 0; }
+		else if (MenuAt == 3 && Way != 0) { Level = 1 + (Level - 1 + Way + 3) % 3; Setup.Level = Level; gk::aiMake(Cpu[0], Level); gk::aiMake(Cpu[1], Level); }
+		else if (MenuAt == 4 && bOk) { MenuPage = 1; BindAt = 0; }
+		else if (MenuAt == 5 && bOk) { UKismetSystemLibrary::QuitGame(this, PC, EQuitPreference::Quit, false); }
+	}
+	else if (Screen == 1)
+	{   // choosing fighters: player one, then the other side
+		if (bPrev || bNext) { Setup.Char[SelWho] = (Setup.Char[SelWho] + (bPrev ? 2 : 1)) % 3; DressFighter(SelWho); }
+		if (bOk) { if (SelWho == 0) { SelWho = 1; } else { Screen = 2; StageAt = Mode == 1 ? 0 : FMath::Max(1, Setup.Stage); } }
+		else if (bBack) { if (SelWho == 1) { SelWho = 0; } else { Screen = 0; MenuAt = Mode; } }
+	}
+	else if (Screen == 2)
+	{
+		const int32 N = Stages.Num();
+		if (bUp || bPrev) { StageAt = (StageAt + N - 1) % N; } if (bDown || bNext) { StageAt = (StageAt + 1) % N; }
+		if (bOk) { StartStage(StageAt); } else if (bBack) { Screen = 1; SelWho = 1; }
+	}
+	else
+	{   // the pause menu: RESUME, RESTART MATCH, CHARACTER SELECT, STAGE SELECT, MAIN MENU, TRAINING DUMMY, HIT BOXES, SET UP BUTTONS
+		if (bToggle || bBack) { bMenu = false; return; }
+		Move(8);
+		switch (MenuAt)
+		{
+			case 0: if (bOk) { bMenu = false; } break;
+			case 1: if (bOk) { Restart(); bMenu = false; } break;
+			case 2: if (bOk) { bMenu = false; Screen = 1; SelWho = 0; } break;
+			case 3: if (bOk) { bMenu = false; Screen = 2; StageAt = Setup.Stage; } break;
+			case 4: if (bOk) { bMenu = false; Screen = 0; MenuAt = 0; } break;
+			case 5: if (Way != 0) { Dummy = (Dummy + Way + 5) % 5; Setup.Dummy = Dummy; } break;
+			case 6: if (Way != 0) { bBoxes = !bBoxes; } break;
+			default: if (bOk) { MenuPage = 1; BindAt = 0; } break;
+		}
 	}
 }
+
 
 // ------------------------------------------------------------------------------------------------ running the match
 void AGkMatch::Tick(float DeltaSeconds)
@@ -436,30 +622,33 @@ void AGkMatch::Tick(float DeltaSeconds)
 	InputNow = ReadPlayer();
 	MenuInput();
 	const double Step = 1.0 / 60.0, T0 = FPlatformTime::Seconds(); int32 Steps = 0;
-	while (Acc >= Step && Steps < 8) { Acc -= Step; Steps++; Ticks++; if (!bMenu) { StepOnce(); } }
+	// a pack's map streams in around the camera first; the fight is set down in it once its ground is there
+	if (!bPlaced) { PlaceWait += float(Real); if (PlaceWait > 0.6f && TryPlace()) { bPlaced = true; Restart(); CamD.bSnap = true; } }
+	if (Kind == 2 && (++LightsClock % 30) == 1 && LightsClock < 1800) { QuietMapLights(); }
+	while (Acc >= Step && Steps < 8) { Acc -= Step; Steps++; Ticks++; if (!bMenu && bPlaced) { StepOnce(); } }
 	if (Acc > Step) { Acc = 0.0; }
 	StepMs = StepMs * 0.9f + float(FPlatformTime::Seconds() - T0) * 100.f;
 	Present(float(Real));
 	if (!StatusPath.IsEmpty() && (++StatusClock % 30) == 0)
 	{
-		FFileHelper::SaveStringToFile(FString::Printf(TEXT("fps %d storm %.2f weather %d\n%s\nbuttons %08x dirs %d input %d\nframe %d menu %d\n"), FMath::RoundToInt(1000.f / FMath::Max(1.f, FrameMs)), Storm, WeatherAt, Pads ? *Pads->Debug() : TEXT(""), PadNow, PadDirs, InputNow, S.frame, bMenu ? 1 : 0), *StatusPath);
+		FFileHelper::SaveStringToFile(FString::Printf(TEXT("fps %d storm %.2f weather %d screen %d stage %d kind %d placed %d at %s map %s\n%s\nbuttons %08x dirs %d input %d\nframe %d menu %d\n"), FMath::RoundToInt(1000.f / FMath::Max(1.f, FrameMs)), Storm, WeatherAt, Screen, Setup.Stage, Kind, bPlaced ? 1 : 0, *PlaceNote, *MapName(), Pads ? *Pads->Debug() : TEXT(""), PadNow, PadDirs, InputNow, S.frame, bMenu ? 1 : 0), *StatusPath);
 	}
 }
 
 void AGkMatch::StepOnce()
 {
 	const int32 Human = InputNow; int32 I0 = Human, I1 = 0;
-	if (Mode == 2) { I0 = gk::aiThink(Cpu[0], S, 0); I1 = gk::aiThink(Cpu[1], S, 1); }
+	if (Mode == 2 || Screen != 3) { I0 = gk::aiThink(Cpu[0], S, 0); I1 = gk::aiThink(Cpu[1], S, 1); }   // behind the menus the CPU fights itself
 	else if (Mode == 1) { I1 = DummyInput(); }
 	else { I1 = gk::aiThink(Cpu[1], S, 1); }
 	gk::step(S, I0, I1);
 	for (int32 e = 0; e < S.nev; e++) { OnEvent(S.ev[e]); }
-	if (Mode == 1) { Track(I0); }
+	if (Mode == 1 && Screen == 3) { Track(I0); }
 	if (CallHold > 0 && ++CallAge > CallHold) { CallHold = 0; }
 	for (int32 i = 0; i < 2; i++) { if (ComboTimer[i] > 0) { ComboTimer[i]--; } if (NoteTimer[i] > 0) { NoteTimer[i]--; } }
 	for (int32 k = Sparks.Num() - 1; k >= 0; k--) { if (++Sparks[k].Age > 12) { Sparks.RemoveAtSwap(k); } }
 	// the match is decided: any attack button, or a few seconds, starts the next
-	if (S.phase == gk::PH_OVER) { if (++OverTimer > 420 || (OverTimer > 50 && (Human & 0xFF0))) { Restart(); } } else { OverTimer = 0; }
+	if (S.phase == gk::PH_OVER) { if (++OverTimer > 420 || (OverTimer > 50 && Screen == 3 && (Human & 0xFF0))) { Restart(); } } else { OverTimer = 0; }
 }
 
 /** Training: the last inputs with how long each was held, and who recovered first after the last exchange (as the browser shows it). */
@@ -589,20 +778,20 @@ void AGkMatch::ShowFighter(int32 i)
 	if (P.hs > 0 && (P.st == gk::HIT || P.st == gk::AHIT || P.st == gk::BLOCK)) { Jit.Y = ((Ticks & 1) ? 1.0 : -1.0) * FMath::Min(4.0, P.hs * 0.6); }
 	// The skeleton faces its own +Y, which is the rules' "right"; the camera looks along +X. Facing left he is the mirrored
 	// pose turned about, which shows the camera his chest exactly as the browser's mirror image does.
-	C->SetWorldLocationAndRotation(At(P.x, P.y, i ? 8.0 : -8.0) + Jit, FRotator(0.0, bLeft ? 180.0 : 0.0, 0.0));
+	C->SetWorldLocationAndRotation(Wd(At(P.x, P.y, i ? 8.0 : -8.0) + Jit), Anchor.GetRotation() * FRotator(0.0, bLeft ? 180.0 : 0.0, 0.0).Quaternion());
 }
 
 void AGkMatch::Present(float Real)
 {
 	for (int32 i = 0; i < 2; i++) { ShowFighter(i); }
 	// which place is shown: training is fought in the measured room, everything else in the wasteland
-	const int32 Place = Mode == 1 ? 0 : 1;
+	const int32 Place = Kind;
 	if (Place != ShownPlace)
 	{
 		ShownPlace = Place;
 		for (USceneComponent* C : GridParts) { if (C) { C->SetVisibility(Place == 0); } }
 		for (USceneComponent* C : StageParts) { if (C) { C->SetVisibility(Place == 1); } }
-		const bool bSkyOwns = Place == 1 && SkyActor != nullptr;   // one system owns the sun, sky light and fog at a time
+		const bool bSkyOwns = Place != 0 && SkyActor != nullptr;   // one system owns the sun, sky light and fog at a time
 		if (Fog && Fog->GetComponent()) { Fog->GetComponent()->SetVisibility(Place == 1 && !bSkyOwns); }
 		for (AActor* L : RoomLights) { if (L) { L->SetActorHiddenInGame(bSkyOwns); if (ULightComponentBase* C = L->FindComponentByClass<ULightComponentBase>()) { C->SetVisibility(!bSkyOwns); } } }
 		if (RoomAir) { RoomAir->SetVisibility(!bSkyOwns); }
@@ -615,7 +804,7 @@ void AGkMatch::Present(float Real)
 		float Want = FMath::Clamp((0.6f - HpMin) / 0.35f, 0.f, 1.f);
 		if (S.round >= 3) { Want = FMath::Max(Want, 0.65f); }
 		if (S.phase == gk::PH_INTRO && S.round < 3) { Want = 0.f; }
-		if (Place != 1) { Want = 0.f; }
+		if (Place == 0 || Screen != 3) { Want = 0.f; }
 		Storm = FMath::Lerp(Storm, Want, FMath::Clamp(Real * 0.8f, 0.f, 1.f));
 		const int32 Stage = Want < 0.04f ? 0 : Want < 0.35f ? 1 : Want < 0.8f ? 2 : 3;
 		SetWeather(Stage, Stage == 0 ? 2.0 : 5.0);
@@ -626,13 +815,13 @@ void AGkMatch::Present(float Real)
 			FPostProcessSettings& PP = Cam->GetCameraComponent()->PostProcessSettings; const double G = 1.0 - 0.55 * Dim;
 			PP.bOverride_ColorGain = true; PP.ColorGain = FVector4(G, G, G * (1.0 + 0.08 * Dim), 1.0);
 		}
-		Fx.DustCol = Place == 1 ? FMath::Lerp(FLinearColor(0.62f, 0.47f, 0.33f), FLinearColor(0.36f, 0.38f, 0.48f), Storm) : FLinearColor(0.45f, 0.47f, 0.52f);
+		Fx.DustCol = Place != 0 ? FMath::Lerp(FLinearColor(0.62f, 0.47f, 0.33f), FLinearColor(0.36f, 0.38f, 0.48f), Storm) : FLinearColor(0.45f, 0.47f, 0.52f);
 	}
-	Fx.Air(CamPos.Y, Real, Place == 1 && Storm < 0.5f); Fx.Tick(Real);
+	Fx.Air(CamPos.Y, Real, Place != 0 && Storm < 0.5f); Fx.Tick(Real);
 	for (int32 k = 0; k < 4; k++)
 	{
 		if (!ShotMesh[k]) { continue; }
-		const bool bOn = k < S.nshots; ShotMesh[k]->SetVisibility(bOn); if (bOn) { ShotMesh[k]->SetWorldLocation(At(S.shot[k].x, S.shot[k].y)); if (!bMenu) { Fx.Trail(At(S.shot[k].x, S.shot[k].y), (S.shot[k].o & 1) ? FLinearColor(1.5f, 3.5f, 8.f) : FLinearColor(7.f, 3.6f, 0.9f)); } }
+		const bool bOn = k < S.nshots; ShotMesh[k]->SetVisibility(bOn); if (bOn) { ShotMesh[k]->SetRelativeLocation(At(S.shot[k].x, S.shot[k].y)); if (!bMenu) { Fx.Trail(At(S.shot[k].x, S.shot[k].y), (S.shot[k].o & 1) ? FLinearColor(1.5f, 3.5f, 8.f) : FLinearColor(7.f, 3.6f, 0.9f)); } }
 	}
 	// the camera frames both fighters the way the browser does: wide enough for the two of them and for the higher one's head
 	const double Ax = S.p[0].x / double(gk::F), Bx = S.p[1].x / double(gk::F), Hy = FMath::Max(S.p[0].y, S.p[1].y) / double(gk::F);
@@ -671,13 +860,13 @@ void AGkMatch::Present(float Real)
 	}
 	if (!bDirected || S.phase == gk::PH_KO)
 	{
-		if (S.phase == gk::PH_KO && S.rw >= 0 && S.rw < 2 && Place == 1 && !bMenu)
+		if (S.phase == gk::PH_KO && S.rw >= 0 && S.rw < 2 && Place != 0 && !bMenu)
 		{   // the knockout: round to the winner's side, then a slow drift as he takes his pose
 			const gk::Fighter& Wn = S.p[S.rw]; const gk::Fighter& Ls = S.p[1 - S.rw]; const float Side = Wn.x <= Ls.x ? -1.f : 1.f;
 			if (S.pt < 150) { T.Yaw = Side * (46.f * Ez(S.pt / 46.f) + FMath::Min(18.f, S.pt * 0.1f)); T.Roll = Side * 9.f * (1.f - FMath::Clamp(S.pt / 80.f, 0.f, 1.f)); T.Pit = -3.f; T.K = 0.2f; T.bSolo = true; }
 			else if (Wn.st == gk::WIN) { T.Yaw = -float(Wn.face) * (30.f - FMath::Min(52.f, (S.pt - 150) * 0.22f)); T.Pit = -4.f; T.K = 0.06f; T.bSolo = true; }
 		}
-		else if (S.freeze > 0 && Place == 1 && !bMenu) { T.Zm = 0.84f; T.Fov = 6.f; T.K = 0.3f; }   // the held beat of a perfect parry
+		else if (S.freeze > 0 && Place != 0 && !bMenu) { T.Zm = 0.84f; T.Fov = 6.f; T.K = 0.3f; }   // the held beat of a perfect parry
 	}
 	if (Place == 0 || bMenu) { T = { 0.f, 4.f, 0.f, 1.f, 0.f, 0.2f, 0.f, false }; }
 	// ---- and the camera following it (camApply)
@@ -696,7 +885,7 @@ void AGkMatch::Present(float Real)
 		FVector Eye(-R * FMath::Cos(Yaw), Look.Y + R * FMath::Sin(Yaw), FMath::Max(14.0, Look.Z + D * FMath::Sin(Pit)));
 		Eye += FVector(0.0, FMath::Sin(Ticks * 1.7) * Shake, FMath::Cos(Ticks * 2.3) * Shake * 0.7);
 		FRotator Rot = (Look - Eye).Rotation(); Rot.Roll = -(CamD.Roll + CamD.KRoll);
-		if (Cam) { Cam->GetCameraComponent()->SetFieldOfView(float(Fov)); Cam->SetActorLocationAndRotation(Eye, Rot); }
+		if (Cam) { Cam->GetCameraComponent()->SetFieldOfView(float(Fov)); Cam->SetActorLocationAndRotation(Wd(Eye), Anchor.GetRotation() * Rot.Quaternion()); }
 		Fx.Yaw = float(FMath::DegreesToRadians(Rot.Yaw));
 	}
 

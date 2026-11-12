@@ -1,0 +1,4 @@
+# name | map | sky preset | sky time (0-600 is the day, then 480 of night) | "auto" or x,y,z,yaw
+Dreamscape Meadows | /Game/DreamscapeSeries/DreamscapeMeadows/Maps/Demo | Classic | 330 | auto
+Dreamscape Mountains | /Game/DreamscapeSeries/DreamscapeMountains/Maps/Demo | Cinematic | 440 | auto
+Dreamscape Tower | /Game/DreamscapeSeries/DreamscapeTower/Maps/DemoMap | Dreamy | 400 | auto
