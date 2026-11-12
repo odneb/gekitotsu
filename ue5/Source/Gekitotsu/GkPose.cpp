@@ -84,6 +84,51 @@ bool FGkLibrary::Load(const FString& Path, FString& OutError)
 	Poses = MoveTemp(NewPoses); Moves = MoveTemp(NewMoves); return true;
 }
 
+// ----------------------------------------------------------------------------------------------- baked animation
+FGkAnim& GkAnim() { static FGkAnim A; return A; }
+
+bool FGkAnim::Load(const FString& Dir, FString& OutError)
+{
+	FString Text; TArray<uint8> Raw;
+	if (!FFileHelper::LoadFileToString(Text, *(Dir / TEXT("kagu_anim.txt")))) { OutError = TEXT("cannot read kagu_anim.txt"); return false; }
+	if (!FFileHelper::LoadFileToArray(Raw, *(Dir / TEXT("kagu_anim.bin")))) { OutError = TEXT("cannot read kagu_anim.bin"); return false; }
+	int32 NewFrames = 0; TArray<FName> NewBones; TMap<FName, FGkClip> NewClips;
+	TArray<FString> Lines; Text.ParseIntoArrayLines(Lines);
+	for (const FString& Line : Lines)
+	{
+		TArray<FString> T; Line.ParseIntoArrayWS(T);
+		if (T.Num() < 2 || T[0].StartsWith(TEXT("#"))) { continue; }
+		if (T[0] == TEXT("frames")) { NewFrames = FCString::Atoi(*T[1]); }
+		else if (T[0] == TEXT("bones")) { for (int32 i = 1; i < T.Num(); i++) { NewBones.Add(FName(*T[i])); } }
+		else if (T[0] == TEXT("clip") && T.Num() > 3)
+		{
+			FGkClip Clip; Clip.bLoop = T[2] == TEXT("loop");
+			for (int32 i = 3; i < T.Num(); i++) { Clip.Idx.Add(FCString::Atoi(*T[i])); }
+			NewClips.Add(FName(*T[1]), Clip);
+		}
+	}
+	const int64 Want = int64(NewFrames) * 2 * NewBones.Num() * 8 * int64(sizeof(float));
+	if (NewFrames <= 0 || NewBones.Num() == 0 || int64(Raw.Num()) != Want) { OutError = FString::Printf(TEXT("kagu_anim.bin is %d bytes, expected %lld"), Raw.Num(), Want); return false; }
+	NumFrames = NewFrames; Bones = MoveTemp(NewBones); Clips = MoveTemp(NewClips);
+	Data.SetNumUninitialized(Raw.Num() / int32(sizeof(float))); FMemory::Memcpy(Data.GetData(), Raw.GetData(), Raw.Num());
+	return true;
+}
+
+int32 FGkAnim::Frame(FName Clip, int32 Time) const
+{
+	const FGkClip* C = Clips.Find(Clip); if (!C || C->Idx.Num() == 0) { return -1; }
+	const int32 N = C->Idx.Num(); const int32 At = C->bLoop ? ((Time % N) + N) % N : FMath::Clamp(Time, 0, N - 1);
+	const int32 F = C->Idx[At]; return (F >= 0 && F < NumFrames) ? F : -1;
+}
+
+FTransform FGkAnim::Delta(int32 FrameIndex, bool bMirror, int32 Bone) const
+{
+	const int32 At = ((FrameIndex * 2 + (bMirror ? 1 : 0)) * Bones.Num() + Bone) * 8;
+	if (FrameIndex < 0 || Bone < 0 || At + 8 > Data.Num()) { return FTransform::Identity; }
+	const float* D = &Data[At];
+	return FTransform(FQuat(D[3], D[4], D[5], D[6]).GetNormalized(), FVector(D[0], D[1], D[2]), FVector(D[7]));
+}
+
 FGkPose GkBlend(const FGkPose& A, const FGkPose& B, float K)
 {
 	if (K <= 0.f) { return A; }

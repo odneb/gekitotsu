@@ -37,6 +37,21 @@ FGkLibrary& GkLib();
 FGkPose GkBlend(const FGkPose& A, const FGkPose& B, float K);
 FGkPose GkMirror(const FGkPose& P);
 
+/**
+ * Baked animation. Every frame of every clip is a key pose made by tools/anim; nothing is interpolated here.
+ * A frame holds, for each bone, the transform that carries the bind pose to the key pose, as authored and mirrored.
+ */
+struct FGkClip { TArray<int32> Idx; bool bLoop = false; };
+struct FGkAnim
+{
+	int32 NumFrames = 0; TArray<FName> Bones; TArray<float> Data; TMap<FName, FGkClip> Clips;
+	bool Load(const FString& Dir, FString& OutError);
+	/** The baked frame a clip shows at a given time, or -1 if there is no such clip. */
+	int32 Frame(FName Clip, int32 Time) const;
+	FTransform Delta(int32 FrameIndex, bool bMirror, int32 Bone) const;
+};
+FGkAnim& GkAnim();
+
 /** Turns a pose into component-space bone transforms for the character's skeleton. */
 struct FGkRig
 {

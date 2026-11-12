@@ -12,7 +12,8 @@ struct FGkView
 {
 	UPoseableMeshComponent* Mesh = nullptr; UMaterialInstanceDynamic* BodyMat = nullptr;
 	FGkPose Cur; bool bHasPose = false; TArray<FTransform> Bones;
-	FName Frozen;                                    // a pose held for inspection
+	FName Frozen; int32 FrozenTime = 0;              // a clip and time held for inspection
+	int32 Drawing = -1;                              // the baked frame on show
 	UPoseableMeshComponent* Ghost[4] = { nullptr, nullptr, nullptr, nullptr };
 	UMaterialInstanceDynamic* GhostMat[4] = { nullptr, nullptr, nullptr, nullptr };
 	float GhostAge[4] = { 99.f, 99.f, 99.f, 99.f }; int32 GhostNext = 0;
@@ -66,7 +67,8 @@ struct FGkGame
 	uint16 Cpu(int32 Me);
 	void StepOnce();
 	void OnEvent(const gk::Event& E);
-	FGkPose Target(int32 Index, float& OutSnap) const;
+	void Pick(int32 Index, FName& Clip, int32& Time, float& Roll, float& Spin) const;
+	void Pose(UPoseableMeshComponent* Mesh, int32 FrameIndex, bool bMirror, TArray<FTransform>& Bones) const;
 	void ShowFighter(int32 Index, int32 Steps);
 	void ShowWorld(float DeltaSeconds);
 	FGkFx& Spawn(int32 Kind, const FVector& Pos, float Size, float Life, const FLinearColor& Col, const FLinearColor& Core);

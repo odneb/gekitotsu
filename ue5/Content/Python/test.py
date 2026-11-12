@@ -1,5 +1,6 @@
 # Drives the game for testing: starts it in the editor, sends it commands, takes screenshots, stops it.
-import unreal, traceback
+import unreal, traceback, time
+log('recompile', time.ctime()); unreal.SystemLibrary.execute_console_command(None, 'Module Recompile Gekitotsu'); log('recompiled', time.ctime())
 LES = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
 
 def match():
@@ -29,7 +30,8 @@ def play(steps, total=None):
         except Exception: log(traceback.format_exc())
     later(t + (total or 2.5), stop)
 
-steps = [(1.0, 'cpu 0 0; cpu 1 0; set idle 9999'), (2.2, 'place 0 -105 0; place 1 105 0; set camx 400; set camy 0; set camzfix 108'), (1.5, ('shot', 'close')),
-         (1.6, 'unset camx; cpu 0 1; cpu 1 1; set idle 0; reset')]
-for k in range(4): steps += [(2.6, ('shot', 'fight%d' % k)), (0.2, 'state')]
+steps = [(1.0, 'cpu 0 0; cpu 1 0; set idle 9999; state'), (2.2, 'place 0 -105 0; place 1 105 0; set camx 400; set camy 0; set camzfix 108'), (1.5, ('shot', 'close')),
+         (1.6, 'hud 0; pause 1; set sheetgap 150; set camx 560; sheet Idle S5L:6 S5M:9 S5H:13 S2H:12'), (1.6, ('shot', 'sheetA')),
+         (1.6, 'sheet; unset camx; hud 1; pause 0; cpu 0 1; cpu 1 1; set idle 0; reset')]
+for k in range(5): steps += [(2.6, ('shot', 'fight%d' % k)), (0.2, 'state')]
 play(steps)

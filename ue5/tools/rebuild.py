@@ -109,12 +109,17 @@ if '--render' in sys.argv:
 
 # ---------------------------------------------------------------- out to Unreal
 for o in (orig, proxy): bpy.data.objects.remove(o)
-body.data.materials.clear(); body.data.materials.append(bpy.data.materials.new('Kagu'))
+import json
 bpy.ops.object.select_all(action='DESELECT'); arm.select_set(True); body.select_set(True); bpy.context.view_layer.objects.active = arm
 # leave no scale or rotation on the objects: the skeleton goes out at true size, in centimetres, with clean bones
 bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
 bpy.context.view_layer.update()
 print('applied: arm scale', tuple(round(x, 3) for x in arm.scale), 'body dims', tuple(round(x, 3) for x in body.dimensions), 'hips head', tuple(round(x, 3) for x in arm.data.bones['Hips'].head_local))
+# the animation tools work from this file: the rebuilt model with a cel material, and the joints of the bind pose
+if T: body.data.materials.clear(); body.data.materials.append(toon('col', T))
+json.dump({b.name: {'head': [round(v, 5) for v in b.head_local], 'parent': b.parent.name if b.parent else None} for b in arm.data.bones}, open(os.path.join(OUT, 'ref.json'), 'w'))
+bpy.ops.file.pack_all(); bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, 'kagu.blend'))
+body.data.materials.clear(); body.data.materials.append(bpy.data.materials.new('Kagu'))
 bpy.ops.export_scene.fbx(filepath=os.path.join(OUT, 'Kagu_V2.fbx'), use_selection=True, object_types={'ARMATURE', 'MESH'}, add_leaf_bones=False, bake_anim=False, apply_scale_options='FBX_SCALE_ALL',
                          mesh_smooth_type='OFF', use_tspace=False, use_armature_deform_only=False, primary_bone_axis='Y', secondary_bone_axis='X', axis_forward='-Z', axis_up='Y')
 print('exported')

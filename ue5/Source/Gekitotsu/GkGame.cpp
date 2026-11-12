@@ -101,6 +101,7 @@ void FGkGame::Begin(AGkMatch* InOwner)
 {
 	Owner = InOwner; World = Owner->GetWorld(); Current = this; gk::init(S); Fx.SetNum(56);
 	FString Err; if (!GkLib().Load(FPaths::ProjectContentDir() / TEXT("Gk/kagu.txt"), Err)) { UE_LOG(LogTemp, Warning, TEXT("Gekitotsu: %s"), *Err); }
+	if (!GkAnim().Load(FPaths::ProjectContentDir() / TEXT("Gk"), Err)) { UE_LOG(LogTemp, Warning, TEXT("Gekitotsu: %s"), *Err); }
 	if (!World) { return; }
 	SetLumen(false);
 	// the figures placed in the level are for looking at in the editor; the match brings its own
@@ -405,94 +406,77 @@ void FGkGame::TickFx(int32 Steps)
 }
 
 // ------------------------------------------------------------------------------------------------ the fighters
-FGkPose FGkGame::Target(int32 Index, float& Snap) const
+/** Which drawing a fighter shows this frame: a clip and a time within it, plus any whole-body tumble or turn. */
+void FGkGame::Pick(int32 Index, FName& Clip, int32& Time, float& Roll, float& Spin) const
 {
-	const gk::Player& P = S.p[Index]; Snap = 0.34f; const FGkLibrary& Lib = GkLib();
-	auto Po = [&Lib](const TCHAR* Nm) -> const FGkPose& { return Lib.Pose(FName(Nm)); };
-	const FGkPose& Idle = Po(TEXT("Idle"));
+	const gk::Player& P = S.p[Index]; Clip = TEXT("Idle"); Time = 0; Roll = 0.f; Spin = 0.f;
 	switch (P.st)
 	{
 		case gk::IDLE:
-		{
-			if (P.crouch) { return Po(TEXT("Crouch")); }
-			if (P.vx != 0) { const float K = 0.5f + 0.5f * FMath::Sin(S.frame * 0.26f); return GkBlend(Po(TEXT("WalkA")), Po(TEXT("WalkB")), GkEase(K)); }
-			return GkBlend(Idle, Po(TEXT("Idle2")), 0.5f + 0.5f * FMath::Sin(S.frame * 0.05f + Index * 2.f));
-		}
-		case gk::PREJUMP: return Po(TEXT("Crouch"));
-		case gk::LAND: return GkBlend(Po(TEXT("Crouch")), Idle, 0.4f);
-		case gk::AIR: case gk::TECH: case gk::HELPLESS:
-		{
-			FGkPose R = GkBlend(Po(TEXT("Jump")), Po(TEXT("Fall")), GkEase((900.f - P.vy) / 1500.f));
-			if (P.st == gk::TECH) { R.Roll = -360.f * GkEase(P.sf / 14.f); Snap = 1.f; }
-			if (P.st == gk::HELPLESS) { R = Po(TEXT("Launch")); R.Roll = -40.f; }
-			return R;
-		}
-		case gk::DASH: Snap = 0.6f; return Po(TEXT("Dash"));
-		case gk::BACKDASH: Snap = 0.6f; return Po(TEXT("BackDash"));
-		case gk::BLOCK: Snap = 0.8f; return Po(P.crouch ? TEXT("BlockC") : TEXT("BlockS"));
-		case gk::PARRY: Snap = 0.8f; return P.sf <= 10 ? Po(TEXT("Parry")) : GkBlend(Po(TEXT("Parry")), Idle, GkEase((P.sf - 10) / 18.f));
-		case gk::PARRIED: Snap = 0.8f; return Po(TEXT("Hit"));
-		case gk::HIT: Snap = 0.9f; return GkBlend(Po(TEXT("Hit")), Idle, GkEase(1.f - P.stun / 14.f) * 0.8f);
+			if (P.crouch) { Clip = TEXT("Crouch"); }
+			else if (P.vx != 0) { Clip = (P.vx * P.face > 0) ? TEXT("Walk") : TEXT("WalkBack"); Time = int32(S.frame); }
+			else { Time = int32(S.frame) + Index * 18; }
+			break;
+		case gk::PREJUMP: Clip = TEXT("PreJump"); break;
+		case gk::LAND: Clip = TEXT("Land"); Time = P.sf; break;
+		case gk::AIR: case gk::TECH:
+			Clip = TEXT("Air"); Time = FMath::Clamp(int32((900.f - P.vy) / 1500.f * 6.f), 0, 5);
+			if (P.st == gk::TECH) { Roll = -360.f * GkEase(P.sf / 14.f); }
+			break;
+		case gk::HELPLESS: Clip = TEXT("Launch"); Roll = -40.f; break;
+		case gk::DASH: Clip = TEXT("Dash"); Time = P.sf; break;
+		case gk::BACKDASH: Clip = TEXT("BackDash"); Time = P.sf; break;
+		case gk::BLOCK: Clip = P.crouch ? TEXT("BlockC") : TEXT("BlockS"); break;
+		case gk::PARRY: Clip = TEXT("Parry"); Time = P.sf; break;
+		case gk::PARRIED: Clip = TEXT("Hit"); break;
+		case gk::HIT: Clip = TEXT("Hit"); Time = FMath::Clamp(14 - int32(P.stun), 0, 14); break;
 		case gk::LAUNCH: case gk::KO_:
-		{
-			FGkPose R = Po(TEXT("Launch")); R.Roll = -FMath::Clamp((1200.f - P.vy) / 24.f, 0.f, 110.f);
-			if (P.y <= 0 && P.st == gk::KO_) { R = Po(TEXT("Down")); }
-			Snap = 0.7f; return R;
-		}
-		case gk::DOWN_: Snap = 0.8f; return Po(TEXT("Down"));
-		case gk::RISE_: return GkBlend(Po(TEXT("Rise")), Idle, GkEase((P.sf - 9) / 9.f));
-		case gk::GRAB: Snap = 0.8f; return P.sf < 20 ? Po(TEXT("Grab")) : Po(TEXT("MS"));
-		case gk::HELD: Snap = 0.8f; return Po(TEXT("Held"));
-		case gk::WIN_: return Po(TEXT("Win"));
+			Clip = TEXT("Launch"); Roll = -FMath::Clamp((1200.f - P.vy) / 24.f, 0.f, 110.f);
+			if (P.y <= 0 && P.st == gk::KO_) { Clip = TEXT("Down"); Roll = 0.f; }
+			break;
+		case gk::DOWN_: Clip = TEXT("Down"); break;
+		case gk::RISE_: Clip = TEXT("Rise"); Time = P.sf; break;
+		case gk::GRAB: Clip = TEXT("Grab"); Time = P.sf; break;
+		case gk::HELD: Clip = TEXT("Held"); break;
+		case gk::WIN_: Clip = TEXT("Win"); break;
 		case gk::ATK:
 		{
-			const gk::Move& M = gk::move(P.mv); const FGkMoveAnim& A = Lib.Move(FName(GkMvKey(P.mv)));
-			const FGkPose& Base = (P.y > 0) ? Po(TEXT("Jump")) : ((M.flags & gk::CROUCHING) ? Po(TEXT("Crouch")) : Idle);
-			const FGkPose& Wind = Lib.Pose(A.Wind); const FGkPose& Strike = Lib.Pose(A.Strike);
-			FGkPose R; const int32 Su = FMath::Max<int32>(1, M.su), Fr = P.mf;
-			if (Fr <= Su)
-			{
-				// wind up for most of the startup, then snap into the strike over the last three frames
-				const int32 SnapAt = FMath::Max(1, Su - 3);
-				R = Fr <= SnapAt ? GkBlend(Base, Wind, GkEase(float(Fr) / SnapAt)) : GkBlend(Wind, Strike, GkEase(float(Fr - SnapAt) / (Su - SnapAt)));
-				Snap = 0.85f;
-			}
-			else if (Fr <= Su + M.ac || P.mv == gk::HOME || P.mv == gk::DIVE) { R = Strike; Snap = 1.f; }
-			else
-			{
-				const float K = float(Fr - Su - M.ac) / FMath::Max<int32>(1, M.rc);
-				if (!A.Rec.IsNone()) { const FGkPose& Rec = Lib.Pose(A.Rec); R = K < 0.4f ? GkBlend(Strike, Rec, GkEase(K / 0.4f)) : GkBlend(Rec, Base, GkEase((K - 0.4f) / 0.6f)); }
-				else { R = GkBlend(Strike, Base, GkEase(K)); }
-				Snap = 0.6f;
-			}
-			// steer the striking limb onto the hitbox so what you see is what hits
-			if (A.Limb && Fr > Su - 2 && Fr <= Su + M.ac + 2 && M.hb.w > 0)
-			{
-				const FVector Tg(A.Limb == 1 || A.Limb == 3 ? 6.0 : -6.0, M.hb.x + M.hb.w * 0.82, FMath::Max(8.0, double(M.hb.y + M.hb.h * (M.lvy > 1500 ? 0.9 : 0.5))));
-				if (A.Limb == 1) { R.HL = Tg; } else if (A.Limb == 2) { R.HR = Tg; } else if (A.Limb == 3) { R.FL = Tg; } else { R.FR = Tg; }
-			}
-			if (P.mv == gk::RISE && Fr > Su) { R.Spin = 360.f * GkEase(float(Fr - Su) / 16.f); }
-			if (P.mv == gk::WHIRL) { R.Spin = Fr * 34.f; }
-			if (A.Spin != 0.f && Fr > Su) { R.Spin = 360.f * A.Spin * GkEase(float(Fr - Su) / FMath::Max<int32>(1, M.ac + M.rc / 2)); }
-			return R;
+			const gk::Move& M = gk::move(P.mv); const FGkMoveAnim& A = GkLib().Move(FName(GkMvKey(P.mv))); const int32 Su = FMath::Max<int32>(1, M.su), Fr = P.mf;
+			Clip = GkMvKey(P.mv); Time = Fr;
+			if (P.mv == gk::RISE && Fr > Su) { Spin = 360.f * GkEase(float(Fr - Su) / 16.f); }
+			if (P.mv == gk::WHIRL) { Spin = Fr * 34.f; }
+			if (A.Spin != 0.f && Fr > Su) { Spin = 360.f * A.Spin * GkEase(float(Fr - Su) / FMath::Max<int32>(1, M.ac + M.rc / 2)); }
+			break;
 		}
-		default: return Idle;
+		default: break;
 	}
+}
+
+/** Puts one baked frame onto a mesh. */
+void FGkGame::Pose(UPoseableMeshComponent* Mesh, int32 FrameIndex, bool bMirror, TArray<FTransform>& Bones) const
+{
+	const FGkAnim& An = GkAnim(); Bones = Rig.RefCS;
+	for (int32 a = 0; a < An.Bones.Num(); a++)
+	{
+		const int32* Ri = Rig.Index.Find(An.Bones[a]); if (!Ri) { continue; }
+		Bones[*Ri] = Rig.RefCS[*Ri] * An.Delta(FrameIndex, bMirror, a);
+	}
+	if (Mesh && Rig.IsValid()) { for (int32 b = 0; b < Bones.Num(); b++) { Mesh->SetBoneTransformByName(Rig.Names[b], Bones[b], EBoneSpaces::ComponentSpace); } }
 }
 
 void FGkGame::ShowFighter(int32 Index, int32 Steps)
 {
 	FGkView& Vw = V[Index]; const gk::Player& P = S.p[Index]; if (!Vw.Mesh) { return; }
-	float Snap = 0.34f; const FGkPose Want = Vw.Frozen.IsNone() ? Target(Index, Snap) : GkLib().Pose(Vw.Frozen);
-	// poses are held and changed in steps rather than tweened on every frame: it reads as drawn animation
-	if (!Vw.bHasPose || !Vw.Frozen.IsNone()) { Vw.Cur = Want; Vw.bHasPose = true; }
-	else if (P.hitstop == 0) { Vw.Cur = GkBlend(Vw.Cur, Want, 1.f - FMath::Pow(1.f - FMath::Min(Snap, 0.999f), float(Steps))); }
+	// every frame is a drawing: the clip and time pick one, and it is shown as it is, with no blending between
+	FName Clip; int32 Time = 0; float Roll = 0.f, Spin = 0.f; Pick(Index, Clip, Time, Roll, Spin);
+	if (!Vw.Frozen.IsNone()) { Clip = Vw.Frozen; Time = Vw.FrozenTime; Roll = 0.f; Spin = 0.f; }
+	int32 Drawing = GkAnim().Frame(Clip, Time); if (Drawing < 0) { Drawing = GkAnim().Frame(TEXT("Idle"), 0); }
+	if (P.hitstop > 0 && Vw.Drawing >= 0 && Vw.Frozen.IsNone()) { Drawing = Vw.Drawing; }
+	Vw.Drawing = Drawing;
 	// a fighter facing right is shown in mirror image, so both always show the camera their chest
-	const bool bRight = P.face > 0;
-	const FGkPose Shown = bRight ? GkMirror(Vw.Cur) : Vw.Cur;
-	Rig.Solve(Shown, Vw.Bones);
+	const bool bRight = P.face > 0; if (bRight) { Spin = -Spin; }
+	Pose(Vw.Mesh, Drawing, bRight, Vw.Bones);
 	const bool bBones = Rig.IsValid();
-	if (bBones) { for (int32 b = 0; b < Vw.Bones.Num(); b++) { Vw.Mesh->SetBoneTransformByName(Rig.Names[b], Vw.Bones[b], EBoneSpaces::ComponentSpace); } }
 	const double Sc = 1.082, Hz = 92.0;
 	FVector Jit = FVector::ZeroVector;
 	if (P.hitstop > 0 && (P.st == gk::HIT || P.st == gk::LAUNCH || P.st == gk::BLOCK)) { Jit.Y = ((Tick60 & 1) ? 1.0 : -1.0) * FMath::Min(5.0, P.hitstop * 0.7); }
@@ -500,7 +484,7 @@ void FGkGame::ShowFighter(int32 Index, int32 Steps)
 	const FVector Base = FVector(Index ? -6.0 : 6.0, -double(P.x) / gk::F, double(P.y) / gk::F) + Jit;
 	const FQuat Yaw = FRotator(0.0, bRight ? 180.0 : 0.0, 0.0).Quaternion();
 	// tumble about the hips rather than the feet
-	const FQuat Tumble = FQuat(FVector(1, 0, 0), FMath::DegreesToRadians(Shown.Roll)) * FQuat(FVector(0, 0, 1), FMath::DegreesToRadians(Shown.Spin));
+	const FQuat Tumble = FQuat(FVector(1, 0, 0), FMath::DegreesToRadians(Roll)) * FQuat(FVector(0, 0, 1), FMath::DegreesToRadians(Spin));
 	const FVector Pivot = FVector(0, 0, Hz) - Tumble.RotateVector(FVector(0, 0, Hz));
 	const FVector Loc = Base + Yaw.RotateVector(Pivot); const FQuat Rot = Yaw * Tumble;
 	Vw.Mesh->SetWorldLocationAndRotation(Loc, Rot); Vw.Mesh->SetWorldScale3D(FVector(Sc));
@@ -613,8 +597,8 @@ FString FGkGame::Debug(const FString& Command)
 	if (C == TEXT("step")) { bPaused = true; StepsOwed += Int(1, 1); return TEXT("ok"); }
 	if (C == TEXT("in")) { ScriptIn[Pl] = Int(2, 0); ScriptFrames[Pl] = Int(3, 1); return TEXT("ok"); }
 	if (C == TEXT("cpu")) { bCpu[Pl] = Int(2, 1) != 0; return TEXT("ok"); }
-	if (C == TEXT("pose")) { V[Pl].Frozen = (T.Num() > 2 && T[2] != TEXT("-")) ? FName(*T[2]) : FName(); return TEXT("ok"); }
-	if (C == TEXT("reload")) { FString Err; const bool bOk = GkLib().Load(FPaths::ProjectContentDir() / TEXT("Gk/kagu.txt"), Err); return bOk ? FString::Printf(TEXT("ok %d poses %d moves"), GkLib().Poses.Num(), GkLib().Moves.Num()) : Err; }
+	if (C == TEXT("pose")) { V[Pl].Frozen = (T.Num() > 2 && T[2] != TEXT("-")) ? FName(*T[2]) : FName(); V[Pl].FrozenTime = Int(3, 0); return TEXT("ok"); }
+	if (C == TEXT("reload")) { FString Err; const bool bOk = GkLib().Load(FPaths::ProjectContentDir() / TEXT("Gk/kagu.txt"), Err) && GkAnim().Load(FPaths::ProjectContentDir() / TEXT("Gk"), Err); return bOk ? FString::Printf(TEXT("ok %d frames %d clips"), GkAnim().NumFrames, GkAnim().Clips.Num()) : Err; }
 	if (C == TEXT("set")) { if (T.Num() > 2) { Tune.Add(FName(*T[1]), Flt(2, 0.f)); } return TEXT("ok"); }
 	if (C == TEXT("unset")) { if (T.Num() > 1) { Tune.Remove(FName(*T[1])); } return TEXT("ok"); }
 	if (C == TEXT("reset")) { gk::init(S); OverTimer = 0; return TEXT("ok"); }
@@ -643,8 +627,9 @@ FString FGkGame::Debug(const FString& Command)
 		for (int32 k = 0; k < Sheet.Num(); k++)
 		{
 			const bool bShow = k < Want; Sheet[k]->SetVisibility(bShow); if (!bShow) { continue; }
-			TArray<FTransform> Bn; Rig.Solve(GkLib().Pose(FName(*T[k + 1])), Bn);
-			if (Rig.IsValid()) { for (int32 b = 0; b < Bn.Num(); b++) { Sheet[k]->SetBoneTransformByName(Rig.Names[b], Bn[b], EBoneSpaces::ComponentSpace); } }
+			// "Clip" or "Clip:time"
+			const FString Full = T[k + 1]; FString Nm = Full, Tm; int32 Tk = 0; if (Full.Split(TEXT(":"), &Nm, &Tm)) { Tk = FCString::Atoi(*Tm); }
+			TArray<FTransform> Bn; Pose(Sheet[k], FMath::Max(0, GkAnim().Frame(FName(*Nm), Tk)), false, Bn);
 			Sheet[k]->SetWorldLocationAndRotation(FVector(0.0, (k - (Want - 1) * 0.5) * -Gap, 0.0), FRotator(0.0, Turn, 0.0)); Sheet[k]->SetWorldScale3D(FVector(1.082));
 		}
 		return FString::Printf(TEXT("ok %d"), Want);
