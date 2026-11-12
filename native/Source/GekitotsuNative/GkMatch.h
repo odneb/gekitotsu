@@ -15,7 +15,7 @@ class UPoseableMeshComponent; class USkeletalMeshComponent; class UAnimSequence;
 /** A place to fight. Kind 0 is the measured training room and 1 the canyon, both built by the game on its own bare map; 2 is a dressed map from an environment pack, opened as it was shipped, with the fight set down in it. */
 struct FGkStage { FString Name, Map, Sky; int32 Kind = 2; double Time = 500.0; bool bFixed = false; FVector At = FVector::ZeroVector; double Yaw = 0.0; };
 /** What has been chosen in the menus. It outlives a change of map. Char: 0 is Kagu, 1 Noa, 2 and 3 the mannequins. */
-struct FGkSetup { int32 Stage = 1, Mode = 0, Level = 2, Dummy = 0, Char[2] = { 0, 0 }; bool bGo = false; };
+struct FGkSetup { int32 Stage = 1, Mode = 0, Level = 2, Dummy = 0, Char[2] = { 2, 2 }; bool bGo = false; };
 
 UCLASS()
 class GEKITOTSUNATIVE_API AGkGameMode : public AGameModeBase
@@ -66,12 +66,14 @@ public:
 	struct FGkClip { TObjectPtr<UAnimSequence> Anim; bool bLoop = false; float From = 0.f, To = 1.f; };
 	UPROPERTY() TObjectPtr<USkeletalMeshComponent> Anim[2];
 	UPROPERTY() TArray<TObjectPtr<UAnimSequence>> ClipKeep;
-	TMap<FName, FGkClip> Clips[2]; int32 ClipSet[2] = { -1, -1 }; TObjectPtr<UAnimSequence> Playing[2];   // clip sets: 0 Kagu's, 1 Noa's
+	TMap<FName, FGkClip> Clips[3]; int32 ClipSet[2] = { -1, -1 }; TObjectPtr<UAnimSequence> Playing[2];   // clip sets: 0 Kagu's, 1 Noa's
 	void LoadClips(); const FGkClip* ClipFor(int32 Set, FName Pose, int32 MoveId) const;
 	// The animation lab (Screen 4): one fighter alone, every move and state in turn, and every clip he has to try on it.
 	// What is chosen is kept in Content/Gk/anims.txt (set | slot | clip | from | to | loop) and used by the game from then on.
-	TArray<FName> LabSlots; TArray<FString> LabList; int32 LabSlot = 0, LabClip = -1, LabFrame = 0, LabSet = 0; bool bLabPlay = true, bLabPose = false; FString LabNote; int32 LabNoteTimer = 0;
-	void LabOpen(); void LabApply(); void LabSave(); void LoadPicks(); FString PicksFile(bool bProject) const;
+	struct FLabSlot { FName Slot; FString Label; int32 Cat = 0; };
+	struct FLabClip { FString Path, Label; int32 Cat = 0; };
+	TArray<FLabSlot> LabSlots; TArray<FLabClip> LabList; int32 LabSlot = 0, LabFrame = 0, LabSet = 2, LabCat = 0, LabDropCat = 0, LabScroll = 0, LabHot = 0, LabNoteTimer = 0, LabTryAt = -2; bool bLabDrop = false; float LabClock = 0.f; FString LabNote; FGkClip LabTry;
+	void LabOpen(); void LabClose(); void LabClick(int32 Id); void LabPick(int32 ClipIndex); void LabSave(); void LoadPicks(); FString PicksFile(bool bProject) const;
 	// hit, guard and dust effects and their sounds (Vefects' Combat Flipbook VFX)
 	UPROPERTY() TMap<FName, TObjectPtr<UNiagaraSystem>> Vfx;
 	UPROPERTY() TMap<FName, TObjectPtr<USoundBase>> Sfx;

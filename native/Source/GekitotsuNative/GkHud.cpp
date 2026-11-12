@@ -145,22 +145,72 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 
 	if (Screen == 4)
 	{
-		// the animation lab: what is being looked at, and what can be changed
-		const float Lx = 40.f * U, Ly = H * 0.16f; GkRect(Cv, Lx - 16.f * U, Ly - 16.f * U, 660.f * U, 470.f * U, Ink);
-		const FName Slot = LabSlots.IsValidIndex(LabSlot) ? LabSlots[LabSlot] : NAME_None; const int32 Mv = MoveClip.Find(Slot); const int32 Count = Poses.Length(Slot);
-		const FGkClip* Has = Clips[LabSet].Find(Slot);
-		GkText(Cv, FString::Printf(TEXT("ANIMATION LAB   %s"), LabSet ? TEXT("NOA") : TEXT("KAGU")), Lx, Ly, 30.f * U, Bone);
-		GkText(Cv, FString::Printf(TEXT("%d / %d    %s"), LabSlot + 1, LabSlots.Num(), *Slot.ToString()), Lx, Ly + 50.f * U, 26.f * U, Gold);
-		GkText(Cv, Mv != INDEX_NONE ? FString::Printf(TEXT("%s    %d frames"), UTF8_TO_TCHAR(gk::moveName(Mv)), Count) : FString::Printf(TEXT("state    %d frames"), Count), Lx, Ly + 86.f * U, 20.f * U, Bone);
-		const FString ClipName = (Has && Has->Anim) ? Has->Anim->GetName().Replace(TEXT("A_UnarmedFightingAnimation"), TEXT("")).Replace(TEXT("_Kagu"), TEXT("")).Replace(TEXT("_Noa"), TEXT("")) : FString(Has ? TEXT("none: the solved pose") : TEXT("by kind of attack, or the solved pose"));
-		GkText(Cv, FString::Printf(TEXT("clip  %d / %d"), LabClip + 1, LabList.Num()), Lx, Ly + 130.f * U, 18.f * U, GkFade(Bone, 0.7f));
-		GkText(Cv, ClipName, Lx, Ly + 156.f * U, 24.f * U, Bone);
-		if (Has) { GkText(Cv, FString::Printf(TEXT("from %.2f   to %.2f   %s"), Has->From, Has->To, Has->bLoop ? TEXT("loops") : TEXT("fitted to the move")), Lx, Ly + 194.f * U, 20.f * U, Bone); }
-		GkText(Cv, FString::Printf(TEXT("frame %d%s%s"), LabFrame, bLabPlay ? TEXT("") : TEXT("   paused"), bLabPose ? TEXT("   SHOWING THE SOLVED POSE") : TEXT("")), Lx, Ly + 226.f * U, 20.f * U, Gold);
-		static const TCHAR* Help[] = { TEXT("UP / DOWN   next move or state"), TEXT("LEFT / RIGHT   next clip (SHIFT: ten at a time)"), TEXT("Q E   trim the start      Z C   trim the end"), TEXT("O   loop on or off      X   compare with the solved pose"),
-			TEXT("SPACE   play or pause      , .   step a frame"), TEXT("ENTER   save      ESC   back") };
-		for (int32 k = 0; k < 6; k++) { GkText(Cv, Help[k], Lx, Ly + (268.f + k * 28.f) * U, 17.f * U, GkFade(Bone, 0.85f)); }
-		if (LabNoteTimer > 0) { GkText(Cv, LabNote, Mid, H * 0.1f, 40.f * U, Gold, true, 3); }
+		// the animation lab: tabs by kind of move, a grid of the moves, and a drop-down of clips on the one that is clicked
+		float Mx = -1.f, My = -1.f; if (APlayerController* Ptr = GetWorld()->GetFirstPlayerController()) { Ptr->GetMousePosition(Mx, My); }
+		int32 Hot = 0;
+		auto Btn = [&](float X, float Y, float Bw, float Bh, int32 Id, const FString& Text, float Size, bool bOn, const FString& Sub = FString(), bool bSubGold = true)
+		{
+			const bool bOver = Mx >= X && Mx < X + Bw && My >= Y && My < Y + Bh; if (bOver) { Hot = Id; }
+			GkRect(Cv, X, Y, Bw, Bh, bOn ? FLinearColor(0.6f, 0.38f, 0.04f, 0.97f) : (bOver ? FLinearColor(0.24f, 0.24f, 0.3f, 0.97f) : FLinearColor(0.09f, 0.09f, 0.12f, 0.95f)));
+			GkText(Cv, Text, X + 10.f * U, Sub.IsEmpty() ? Y + (Bh - Size * 1.5f) * 0.5f : Y + 6.f * U, Size, Bone, false, 1);
+			if (!Sub.IsEmpty()) { GkText(Cv, Sub, X + 10.f * U, Y + Bh - 24.f * U, 12.f * U, bSubGold ? Gold : Slate, false, 1); }
+		};
+		auto ClipLabel = [&](FName Slot) -> FString
+		{
+			const FGkClip* Has = Clips[LabSet].Find(Slot); if (!Has || !Has->Anim) { return FString(); }
+			const FString Path = Has->Anim->GetPathName(); for (const FLabClip& L : LabList) { if (L.Path == Path) { return L.Label; } } return Has->Anim->GetName();
+		};
+		static const TCHAR* Who[3] = { TEXT("KAGU"), TEXT("NOA"), TEXT("ROBOT") };
+		static const TCHAR* Tabs[9] = { TEXT("MOVEMENT"), TEXT("GUARD"), TEXT("HIT REACTIONS"), TEXT("PUNCHES"), TEXT("KICKS"), TEXT("AIR"), TEXT("SPECIALS"), TEXT("SUPERS"), TEXT("THROWS") };
+		static const TCHAR* Kinds[8] = { TEXT("MOVEMENT"), TEXT("BLOCKS"), TEXT("HITS"), TEXT("FALL / GET UP"), TEXT("PUNCHES"), TEXT("KICKS"), TEXT("COMBOS"), TEXT("ENERGY") };
+		const float Pw = W * 0.6f, Lx = 24.f * U, Gw = Pw - 48.f * U;
+		GkRect(Cv, 0.f, 0.f, Pw, H, FLinearColor(0.02f, 0.02f, 0.03f, 0.88f));
+		GkText(Cv, TEXT("ANIMATIONS"), Lx, 18.f * U, 30.f * U, Bone);
+		Btn(Lx + 260.f * U, 18.f * U, 250.f * U, 44.f * U, 7, FString::Printf(TEXT("CHARACTER:  %s"), Who[FMath::Clamp(LabSet, 0, 2)]), 16.f * U, false);
+		Btn(Pw - 24.f * U - 130.f * U, 18.f * U, 130.f * U, 44.f * U, 1, TEXT("BACK"), 16.f * U, false);
+		const float Tw = Gw / 9.f;
+		for (int32 k = 0; k < 9; k++) { Btn(Lx + k * Tw, 78.f * U, Tw - 4.f * U, 42.f * U, 100 + k, Tabs[k], 12.f * U, LabCat == k); }
+		const float Sp = 8.f * U, Cw = (Gw - 2.f * Sp) / 3.f, Ch = 58.f * U, Gy = 134.f * U;
+		int32 Cell = 0; float DropX = 0.f, DropY = 0.f;
+		for (int32 k = 0; k < LabSlots.Num(); k++)
+		{
+			if (LabSlots[k].Cat != LabCat) { continue; }
+			const float X = Lx + (Cell % 3) * (Cw + Sp), Y = Gy + (Cell / 3) * (Ch + Sp); Cell++;
+			const FString Has = ClipLabel(LabSlots[k].Slot);
+			Btn(X, Y, Cw, Ch, 1000 + k, LabSlots[k].Label, 15.f * U, k == LabSlot, Has.IsEmpty() ? FString(TEXT("hand pose (no clip)")) : Has, !Has.IsEmpty());
+			if (k == LabSlot) { DropX = X; DropY = Y + Ch; }
+		}
+		// the fighter's side: what is selected, and its trim
+		if (LabSlots.IsValidIndex(LabSlot))
+		{
+			const float Rx = Pw + 30.f * U, Ry = H - 190.f * U; const FGkClip* Has = Clips[LabSet].Find(LabSlots[LabSlot].Slot); const FString Name = ClipLabel(LabSlots[LabSlot].Slot);
+			GkText(Cv, LabSlots[LabSlot].Label, Rx, Ry, 26.f * U, Bone);
+			GkText(Cv, bLabDrop && LabList.IsValidIndex(LabTryAt) ? FString::Printf(TEXT("trying:  %s"), *LabList[LabTryAt].Label) : (Name.IsEmpty() ? FString(TEXT("hand pose (no clip)")) : Name), Rx, Ry + 40.f * U, 18.f * U, Gold);
+			if (Has && Has->Anim && !bLabDrop)
+			{
+				GkText(Cv, FString::Printf(TEXT("START  %.2f"), Has->From), Rx, Ry + 86.f * U, 15.f * U, Bone); Btn(Rx + 130.f * U, Ry + 78.f * U, 40.f * U, 36.f * U, 2, TEXT("-"), 16.f * U, false); Btn(Rx + 176.f * U, Ry + 78.f * U, 40.f * U, 36.f * U, 3, TEXT("+"), 16.f * U, false);
+				GkText(Cv, FString::Printf(TEXT("END  %.2f"), Has->To), Rx + 250.f * U, Ry + 86.f * U, 15.f * U, Bone); Btn(Rx + 360.f * U, Ry + 78.f * U, 40.f * U, 36.f * U, 4, TEXT("-"), 16.f * U, false); Btn(Rx + 406.f * U, Ry + 78.f * U, 40.f * U, 36.f * U, 5, TEXT("+"), 16.f * U, false);
+				Btn(Rx + 480.f * U, Ry + 78.f * U, 150.f * U, 36.f * U, 6, Has->bLoop ? TEXT("LOOP: ON") : TEXT("LOOP: OFF"), 14.f * U, Has->bLoop);
+			}
+			GkText(Cv, TEXT("Click a move, then pick a clip from the list. Pointing at a clip plays it. Choices save on their own."), Rx, H - 44.f * U, 13.f * U, GkFade(Bone, 0.7f));
+		}
+		if (bLabDrop && LabSlots.IsValidIndex(LabSlot))
+		{
+			const int32 Rows = 12; const float Rh = 30.f * U, Dw = FMath::Max(Cw, 520.f * U), Dh = 2.f * 34.f * U + (Rows + 1) * Rh + 34.f * U;
+			float X = FMath::Min(DropX, Pw - Dw - 10.f * U), Y = DropY; if (Y + Dh > H - 10.f * U) { Y = FMath::Max(10.f * U, DropY - Ch - Dh); }
+			if (Mx >= X && Mx < X + Dw && My >= Y && My < Y + Dh) { Hot = -1; }
+			GkRect(Cv, X - 3.f * U, Y - 3.f * U, Dw + 6.f * U, Dh + 6.f * U, Gold); GkRect(Cv, X, Y, Dw, Dh, FLinearColor(0.03f, 0.03f, 0.05f, 1.f));
+			for (int32 k = 0; k < 8; k++) { Btn(X + (k % 4) * (Dw / 4.f), Y + (k / 4) * 34.f * U, Dw / 4.f - 3.f * U, 31.f * U, 200 + k, Kinds[k], 11.f * U, LabDropCat == k); }
+			TArray<int32> Show; for (int32 k = 0; k < LabList.Num(); k++) { if (LabList[k].Cat == LabDropCat) { Show.Add(k); } }
+			LabScroll = FMath::Clamp(LabScroll, 0, FMath::Max(0, Show.Num() - Rows));
+			const FGkClip* Has = Clips[LabSet].Find(LabSlots[LabSlot].Slot); const FString Now = (Has && Has->Anim) ? Has->Anim->GetPathName() : FString();
+			float Ry = Y + 2.f * 34.f * U;
+			Btn(X, Ry, Dw, Rh - 2.f * U, 9999, TEXT("NONE  (hand pose)"), 13.f * U, Now.IsEmpty()); Ry += Rh;
+			for (int32 r = 0; r < Rows && LabScroll + r < Show.Num(); r++) { const int32 k = Show[LabScroll + r]; Btn(X, Ry + r * Rh, Dw, Rh - 2.f * U, 10000 + k, LabList[k].Label, 13.f * U, LabList[k].Path == Now); }
+			GkText(Cv, FString::Printf(TEXT("%d - %d of %d      scroll for more"), Show.Num() ? LabScroll + 1 : 0, FMath::Min(Show.Num(), LabScroll + Rows), Show.Num()), X + 10.f * U, Y + Dh - 28.f * U, 12.f * U, Slate, false, 1);
+		}
+		LabHot = Hot;
+		if (LabNoteTimer > 0) { GkText(Cv, LabNote, Pw + 30.f * U, 24.f * U, 18.f * U, Jade, false, 2); }
 		return;
 	}
 	if (bMenu || Screen != 3 || !bPlaced)
@@ -204,12 +254,12 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 		else if (Screen == 0)
 		{
 			GkText(Cv, TEXT("GEKITOTSU"), Mid, H * 0.035f, 64.f * U, Bone, true, 4);
-			List(TEXT("MAIN MENU"), { FString(TEXT("VERSUS CPU")), FString(TEXT("TRAINING")), FString(TEXT("WATCH")), FString::Printf(TEXT("CPU LEVEL    <  %d  >"), Level), FString(TEXT("SET UP BUTTONS")), FString(TEXT("QUIT")), FString(TEXT("ANIMATION LAB")) }, MenuAt, 68.f);
+			List(TEXT("MAIN MENU"), { FString(TEXT("VERSUS CPU")), FString(TEXT("TRAINING")), FString(TEXT("WATCH")), FString::Printf(TEXT("CPU LEVEL    <  %d  >"), Level), FString(TEXT("SET UP BUTTONS")), FString(TEXT("QUIT")), FString(TEXT("ANIMATIONS")) }, MenuAt, 68.f);
 		}
 		else if (Screen == 1)
 		{
 			// choosing fighters: the roster's two rows of tiles, most of them still empty
-			static const TCHAR* Who[4] = { TEXT("KAGU"), TEXT("NOA"), TEXT("MANNY"), TEXT("QUINN") };
+			static const TCHAR* Who[4] = { TEXT("KAGU"), TEXT("NOA"), TEXT("ROBOT"), TEXT("ROBOT 2") };
 			GkText(Cv, TEXT("SELECT CHARACTER"), Mid, H * 0.06f, 56.f * U, Bone, true, 4);
 			const float Tile = 104.f * U, Sp = 6.f * U, X0 = Mid - 4.f * (Tile + Sp), Y0 = H * 0.66f;
 			for (int32 r = 0; r < 2; r++) { for (int32 c = 0; c < 8; c++)
