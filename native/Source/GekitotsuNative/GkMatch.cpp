@@ -111,10 +111,20 @@ void AGkMatch::BeginPlay()
 		UPoseableMeshComponent* C = NewObject<UPoseableMeshComponent>(this); C->SetupAttachment(RootComponent);
 		C->SetUsingAbsoluteLocation(true); C->SetUsingAbsoluteRotation(true); C->SetUsingAbsoluteScale(true); C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		C->RegisterComponent();
-		if (USkeletalMesh* M = LoadObject<USkeletalMesh>(nullptr, Meshes[i])) { C->SetSkinnedAssetAndUpdate(M); }
-		// Player one is red, the other blue. The surfaces are MeshBites' Stylized Anime Shader (cel shading read from the
-		// sun's direction) with its outline shell laid over the mesh; the instances are made by tools/make_materials.py.
+		// The fighters are Unreal's mannequins, red and blue. The surface is MeshBites' Stylized Anime
+		// Shader (cel shading read from the sun's direction) with its outline shell laid over the mesh.
+		// (-gkfighter on the command line tries the stand-in human model instead; it is off by default.)
+		USkeletalMesh* Model = FParse::Param(FCommandLine::Get(), TEXT("gkfighter")) ? LoadObject<USkeletalMesh>(nullptr, TEXT("/Game/Fighter/SK_Fighter.SK_Fighter")) : nullptr;
+		UMaterialInterface* Skin = Model ? LoadObject<UMaterialInterface>(nullptr, i ? TEXT("/Game/Fighter/MI_Fighter_P2.MI_Fighter_P2") : TEXT("/Game/Fighter/MI_Fighter_P1.MI_Fighter_P1")) : nullptr;
+		if (Model && Skin)
 		{
+			C->SetSkinnedAssetAndUpdate(Model);
+			for (int32 k = 0; k < C->GetNumMaterials(); k++) { C->SetMaterial(k, Skin); }
+			if (UMaterialInterface* Ink = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Fighter/MI_Fighter_Outline.MI_Fighter_Outline"))) { C->SetOverlayMaterial(Ink); }
+		}
+		else
+		{
+			if (USkeletalMesh* M = LoadObject<USkeletalMesh>(nullptr, Meshes[i])) { C->SetSkinnedAssetAndUpdate(M); }
 			const TCHAR* Side = i ? TEXT("P2") : TEXT("P1"); bool bAnime = true;
 			for (int32 k = 0; k < C->GetNumMaterials(); k++)
 			{

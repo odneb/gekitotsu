@@ -115,7 +115,11 @@ void FGkBody::Apply(const float* In, bool bAir, bool bMirror, float Roll, float 
 	};
 	const FVector Up(0, 0, 1), Right(-1, 0, 0), Fwd(0, 1, 0); const FQuat Stand = Basis(Up, Right).Inverse();
 	// hips and spine: each part points along the browser's spine and is squared to its hip or shoulder line
-	const FVector HipAt = FVector(0.0, hip.x * K, hip.y * K);
+	// the hips ride at the height this skeleton's own legs reach (the browser's leg is 46 long and its ankle 4 off the floor)
+	double LegK = 1.0;
+	{ const FTransform* T = Ref.Find(TEXT("thigh_l")); const FTransform* C = Ref.Find(TEXT("calf_l")); const FTransform* F = Ref.Find(TEXT("foot_l"));
+	  if (T && C && F) { LegK = FMath::Clamp((FVector::Dist(T->GetLocation(), C->GetLocation()) + FVector::Dist(C->GetLocation(), F->GetLocation()) + F->GetLocation().Z) / (50.0 * K), 0.7, 1.3); } }
+	const FVector HipAt = FVector(0.0, hip.x * K, hip.y * K * LegK);
 	Set(TEXT("pelvis"), Basis(Dir({ FMath::Sin(a1 * 0.5), FMath::Cos(a1 * 0.5), 0 }), Dir(pax)) * Stand, &HipAt);
 	const FQuat Low = Basis(Dir(cb - hip), Dir(mid)) * Stand, High = Basis(Dir(nk - cb), Dir(cax)) * Stand, Head = Basis(Dir({ FMath::Sin(ha), FMath::Cos(ha), 0 }), Dir(headSide)) * Stand;
 	Set(TEXT("spine_01"), Low, nullptr); Set(TEXT("spine_02"), Low, nullptr); Set(TEXT("spine_03"), High, nullptr); Set(TEXT("spine_04"), High, nullptr); Set(TEXT("spine_05"), High, nullptr);
