@@ -137,6 +137,50 @@ void FGkGame::DrawHud(UCanvas* Cv)
 		GkText(Cv, SuperKanji[Lv], Mid + Slide * 0.4f, Yb - 70.f * U, 170.f * U, GkFade(Tint[Wh], 0.4f * Vis), true, TEXT("Bold"));
 		GkText(Cv, SuperName[Lv], Mid + Slide, Yb + 6.f * U, 72.f * U, GkFade(Bone, Vis), true, TEXT("BlackItalic"), 3);
 	}
+	// which mode this is, and how to reach the menu
+	static const TCHAR* ModeName[] = { TEXT("WATCH"), TEXT("VS CPU"), TEXT("TRAINING") };
+	GkText(Cv, ModeName[FMath::Clamp(Mode, 0, 2)], Mid, Top + 72.f * U, 17.f * U, Gold, true, TEXT("Bold"));
+	GkText(Cv, TEXT("TAB / START  MENU      1  VS CPU      2  TRAINING      3  WATCH      R  RESTART"), Mid, H - 30.f * U, 12.f * U, GkFade(Bone, 0.6f), true, TEXT("Bold"));
+	// what the controls are sending right now: the way to check a controller
+	{
+		static const TCHAR* Lab[] = { TEXT("L"), TEXT("M"), TEXT("H"), TEXT("S"), TEXT("P") }; static const uint16 Bit[] = { gk::BL, gk::BM, gk::BH, gk::BS, gk::BP };
+		const float Sz = 34.f * U, Gp = 5.f * U, Bx = Mid - 4.5f * (Sz + Gp), By = H - 112.f * U;
+		auto Key = [&](float X, float Y, bool bOn, const TCHAR* Txt)
+		{
+			GkBar(Cv, X, Y, Sz, Sz, 0.f, bOn ? Gold : Ink);
+			if (Txt) { GkText(Cv, Txt, X + Sz * 0.5f, Y + 4.f * U, 17.f * U, bOn ? Ink : Bone, true, TEXT("Bold")); }
+		};
+		Key(Bx, By, (LastIn & gk::LEFT) != 0, TEXT("<")); Key(Bx + Sz + Gp, By, (LastIn & gk::DOWN) != 0, TEXT("v")); Key(Bx + 2 * (Sz + Gp), By, (LastIn & gk::RIGHT) != 0, TEXT(">"));
+		Key(Bx + Sz + Gp, By - Sz - Gp, (LastIn & gk::UP) != 0, TEXT("^"));
+		for (int32 k = 0; k < 5; k++) { Key(Bx + (4 + k) * (Sz + Gp), By, (LastIn & Bit[k]) != 0, Lab[k]); }
+	}
+	if (bMenu)
+	{
+		GkBar(Cv, 0.f, 0.f, W, H, 0.f, FLinearColor(0.f, 0.f, 0.f, 0.74f));
+		const float Px = Mid - 390.f * U, Py = H * 0.2f;
+		GkBar(Cv, Px, Py, 780.f * U, 540.f * U, 0.f, Ink); GkBar(Cv, Px, Py + 540.f * U, 780.f * U, 5.f * U, 0.f, Blood);
+		if (MenuPage == 1)
+		{
+			static const TCHAR* Act[] = { TEXT("LIGHT"), TEXT("MEDIUM"), TEXT("HEAVY"), TEXT("SPECIAL"), TEXT("PARRY"), TEXT("THROW"), TEXT("SLIPSTREAM"), TEXT("SUPER") };
+			GkText(Cv, TEXT("SET UP BUTTONS"), Mid, Py + 30.f * U, 40.f * U, Bone, true);
+			GkText(Cv, FString::Printf(TEXT("Press the button for  %s   (%d of 8)"), Act[FMath::Clamp(BindAt, 0, 7)], BindAt + 1), Mid, Py + 210.f * U, 30.f * U, Gold, true, TEXT("Bold"));
+			GkText(Cv, TEXT("TAB or START cancels.  Directions use the stick or d-pad."), Mid, Py + 440.f * U, 16.f * U, GkFade(Bone, 0.75f), true, TEXT("Bold"));
+		}
+		else
+		{
+			static const TCHAR* DummyName[] = { TEXT("STANDS"), TEXT("CROUCHES"), TEXT("JUMPS"), TEXT("BLOCKS"), TEXT("FIGHTS BACK") };
+			const FString Items[5] = { FString(TEXT("RESUME")), FString::Printf(TEXT("MODE    <  %s  >"), ModeName[FMath::Clamp(Mode, 0, 2)]),
+				FString::Printf(TEXT("TRAINING DUMMY    <  %s  >"), DummyName[FMath::Clamp(Dummy, 0, 4)]), FString(TEXT("SET UP BUTTONS")), FString(TEXT("RESTART MATCH")) };
+			GkText(Cv, TEXT("GEKITOTSU"), Mid, Py + 24.f * U, 44.f * U, Bone, true);
+			for (int32 k = 0; k < 5; k++)
+			{
+				const bool bSel = k == MenuAt; const float Iy = Py + (120.f + k * 74.f) * U;
+				if (bSel) { GkBar(Cv, Px + 40.f * U, Iy, 700.f * U, 56.f * U, 0.f, Blood); }
+				GkText(Cv, Items[k], Mid, Iy + 8.f * U, 26.f * U, bSel ? Bone : GkFade(Bone, 0.7f), true, TEXT("Bold"));
+			}
+			GkText(Cv, TEXT("UP / DOWN choose     LEFT / RIGHT change     LIGHT or ENTER confirm"), Mid, Py + 500.f * U, 14.f * U, GkFade(Bone, 0.7f), true, TEXT("Bold"));
+		}
+	}
 	// the white of a decisive blow
 	if (White > 0.02f) { GkBar(Cv, 0.f, 0.f, W, H, 0.f, FLinearColor(1.f, 1.f, 1.f, FMath::Min(1.f, White))); }
 }

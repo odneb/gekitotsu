@@ -2,6 +2,7 @@
 #include "CoreMinimal.h"
 #include "Core/gk_core.h"
 #include "GkPose.h"
+#include "InputCoreTypes.h"
 
 class AGkMatch; class UCanvas; class USkeletalMesh; class ACameraActor; class UWorld;
 class UPoseableMeshComponent; class UStaticMeshComponent; class UMaterialInstanceDynamic; class UMaterialInterface;
@@ -54,10 +55,13 @@ struct FGkGame
 	// testing
 	bool bPaused = false; int32 StepsOwed = 0; int32 ScriptIn[2] = { 0, 0 }, ScriptFrames[2] = { 0, 0 }; bool bCpu[2] = { true, true }; bool bHud = true;
 	TMap<FName, float> Tune;
+	// how the match is being played: 0 watch (CPU both sides), 1 versus CPU, 2 training
+	int32 Mode = 1, Dummy = 0, MenuAt = 0, MenuPage = 0, BindAt = 0; bool bMenu = false; uint16 LastIn = 0; FKey Bind[8];
 
 	~FGkGame();
 	void Begin(AGkMatch* InOwner);
 	void SetLumen(bool bOn);
+	void Restart(); uint16 DummyInput(); void MenuInput(); void SaveBinds() const; void LoadBinds();
 	void Tick(float DeltaSeconds);
 	FString Debug(const FString& Command);
 	void DrawHud(UCanvas* Cv);

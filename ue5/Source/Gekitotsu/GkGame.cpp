@@ -25,6 +25,7 @@
 #include "InputCoreTypes.h"
 #include "Misc/Paths.h"
 #include "HAL/IConsoleManager.h"
+#include "Misc/FileHelper.h"
 
 FGkGame* FGkGame::Current = nullptr;
 FGkGame::~FGkGame() { SetLumen(true); if (Current == this) { Current = nullptr; } }
@@ -102,6 +103,9 @@ void FGkGame::Begin(AGkMatch* InOwner)
 	Owner = InOwner; World = Owner->GetWorld(); Current = this; gk::init(S); Fx.SetNum(56);
 	FString Err; if (!GkLib().Load(FPaths::ProjectContentDir() / TEXT("Gk/kagu.txt"), Err)) { UE_LOG(LogTemp, Warning, TEXT("Gekitotsu: %s"), *Err); }
 	if (!GkAnim().Load(FPaths::ProjectContentDir() / TEXT("Gk"), Err)) { UE_LOG(LogTemp, Warning, TEXT("Gekitotsu: %s"), *Err); }
+	Bind[0] = EKeys::Gamepad_FaceButton_Left; Bind[1] = EKeys::Gamepad_FaceButton_Top; Bind[2] = EKeys::Gamepad_RightShoulder; Bind[3] = EKeys::Gamepad_LeftShoulder;
+	Bind[4] = EKeys::Gamepad_FaceButton_Bottom; Bind[5] = EKeys::Gamepad_FaceButton_Right; Bind[6] = EKeys::Gamepad_RightTrigger; Bind[7] = EKeys::Gamepad_LeftTrigger;
+	LoadBinds();
 	if (!World) { return; }
 	SetLumen(false);
 	// the figures placed in the level are for looking at in the editor; the match brings its own
@@ -176,15 +180,10 @@ uint16 FGkGame::ReadPlayer() const
 	if (K(EKeys::D) || K(EKeys::Right) || K(EKeys::Gamepad_DPad_Right) || SX > 0.5f) { In |= gk::RIGHT; }
 	if (K(EKeys::W) || K(EKeys::Up) || K(EKeys::SpaceBar) || K(EKeys::Gamepad_DPad_Up) || SY > 0.5f) { In |= gk::UP; }
 	if (K(EKeys::S) || K(EKeys::Down) || K(EKeys::Gamepad_DPad_Down) || SY < -0.5f) { In |= gk::DOWN; }
-	// leverless layout. Top row: Light, Medium, Heavy, Special. Bottom row: Parry, Throw, Slipstream, Super.
-	if (K(EKeys::J) || K(EKeys::Gamepad_FaceButton_Left)) { In |= gk::BL; }
-	if (K(EKeys::K) || K(EKeys::Gamepad_FaceButton_Top)) { In |= gk::BM; }
-	if (K(EKeys::L) || K(EKeys::Gamepad_RightShoulder)) { In |= gk::BH; }
-	if (K(EKeys::I) || K(EKeys::Gamepad_LeftShoulder)) { In |= gk::BS; }
-	if (K(EKeys::U) || K(EKeys::Gamepad_FaceButton_Bottom)) { In |= gk::BP; }
-	if (K(EKeys::O) || K(EKeys::Gamepad_FaceButton_Right)) { In |= gk::BL | gk::BM; }
-	if (K(EKeys::H) || K(EKeys::Gamepad_RightTrigger)) { In |= gk::BM | gk::BH; }
-	if (K(EKeys::P) || K(EKeys::Gamepad_LeftTrigger)) { In |= gk::BH | gk::BS; }
+	// Light, Medium, Heavy, Special, Parry, Throw, Slipstream, Super: fixed keys, plus the pad buttons the player has bound
+	static const FKey Keys[8] = { EKeys::J, EKeys::K, EKeys::L, EKeys::I, EKeys::U, EKeys::O, EKeys::H, EKeys::P };
+	static const uint16 Bits[8] = { gk::BL, gk::BM, gk::BH, gk::BS, gk::BP, gk::BL | gk::BM, gk::BM | gk::BH, gk::BH | gk::BS };
+	for (int32 a = 0; a < 8; a++) { if (K(Keys[a]) || (Bind[a].IsValid() && K(Bind[a]))) { In |= Bits[a]; } }
 	return In;
 }
 
@@ -219,6 +218,83 @@ uint16 FGkGame::Cpu(int32 Me)
 	return R < 150 ? gk::BL : R < 280 ? gk::BM : R < 380 ? uint16(gk::BM | gk::DOWN) : R < 450 ? gk::BH : R < 500 ? uint16(gk::BH | gk::DOWN) : R < 550 ? uint16(gk::BL | gk::BM) : R < 590 ? uint16(gk::BS | gk::DOWN) : R < 620 ? gk::BP : R < 640 ? uint16(gk::BH | gk::BS) : R < 700 ? Back : 0;
 }
 
+// ------------------------------------------------------------------------------------------------ modes, menu, buttons
+void FGkGame::Restart() { gk::init(S); OverTimer = 0; Combo[0] = Combo[1] = 0; ComboTimer[0] = ComboTimer[1] = 0; }
+
+/** What the training dummy does: stand, crouch, jump, block what is thrown at it, or fight back. */
+uint16 FGkGame::DummyInput()
+{
+	const gk::Player& D = S.p[1]; const gk::Player& A = S.p[0]; const uint16 Away = D.face > 0 ? gk::LEFT : gk::RIGHT;
+	switch (Dummy)
+	{
+		case 1: return gk::DOWN;
+		case 2: return (S.frame % 50) < 3 ? gk::UP : uint16(0);
+		case 3: return (A.st == gk::ATK || S.shot[0].on) ? Away : uint16(0);
+		case 4: return Cpu(1);
+		default: return 0;
+	}
+}
+
+void FGkGame::SaveBinds() const
+{
+	FString Out; for (int32 a = 0; a < 8; a++) { Out += Bind[a].GetFName().ToString() + TEXT("\n"); }
+	FFileHelper::SaveStringToFile(Out, *(FPaths::ProjectSavedDir() / TEXT("gk_binds.txt")));
+}
+
+void FGkGame::LoadBinds()
+{
+	FString Text; if (!FFileHelper::LoadFileToString(Text, *(FPaths::ProjectSavedDir() / TEXT("gk_binds.txt")))) { return; }
+	TArray<FString> Lines; Text.ParseIntoArrayLines(Lines);
+	for (int32 a = 0; a < FMath::Min(8, Lines.Num()); a++) { const FKey Key = FKey(FName(*Lines[a])); if (Key.IsValid()) { Bind[a] = Key; } }
+}
+
+/** The menu is drawn by the HUD; this reads it. TAB or START opens it, and the match waits while it is open. */
+void FGkGame::MenuInput()
+{
+	APlayerController* PC = World ? World->GetFirstPlayerController() : nullptr; if (!PC) { return; }
+	auto Hit = [PC](const FKey& Key) { return PC->WasInputKeyJustPressed(Key); };
+	const bool bToggle = Hit(EKeys::Tab) || Hit(EKeys::Gamepad_Special_Right);
+	if (!bMenu)
+	{
+		if (Hit(EKeys::One)) { Mode = 1; Restart(); }
+		if (Hit(EKeys::Two)) { Mode = 2; Restart(); }
+		if (Hit(EKeys::Three)) { Mode = 0; Restart(); }
+		if (Hit(EKeys::R) || Hit(EKeys::Gamepad_Special_Left)) { Restart(); }
+		if (bToggle) { bMenu = true; MenuAt = 0; MenuPage = 0; }
+		return;
+	}
+	if (MenuPage == 1)
+	{
+		// the next pad button pressed becomes the action being asked for
+		static const FKey Pad[] = { EKeys::Gamepad_FaceButton_Bottom, EKeys::Gamepad_FaceButton_Right, EKeys::Gamepad_FaceButton_Left, EKeys::Gamepad_FaceButton_Top, EKeys::Gamepad_LeftShoulder, EKeys::Gamepad_RightShoulder,
+			EKeys::Gamepad_LeftTrigger, EKeys::Gamepad_RightTrigger, EKeys::Gamepad_LeftThumbstick, EKeys::Gamepad_RightThumbstick, EKeys::Gamepad_Special_Left };
+		if (bToggle) { MenuPage = 0; return; }
+		for (const FKey& Key : Pad)
+		{
+			if (!Hit(Key)) { continue; }
+			Bind[BindAt] = Key; if (++BindAt >= 8) { BindAt = 0; MenuPage = 0; SaveBinds(); }
+			break;
+		}
+		return;
+	}
+	if (bToggle) { bMenu = false; return; }
+	const int32 Count = 5;
+	if (Hit(EKeys::W) || Hit(EKeys::Up) || Hit(EKeys::Gamepad_DPad_Up) || Hit(EKeys::Gamepad_LeftStick_Up)) { MenuAt = (MenuAt + Count - 1) % Count; }
+	if (Hit(EKeys::S) || Hit(EKeys::Down) || Hit(EKeys::Gamepad_DPad_Down) || Hit(EKeys::Gamepad_LeftStick_Down)) { MenuAt = (MenuAt + 1) % Count; }
+	const bool bNext = Hit(EKeys::D) || Hit(EKeys::Right) || Hit(EKeys::Gamepad_DPad_Right) || Hit(EKeys::Gamepad_LeftStick_Right);
+	const bool bPrev = Hit(EKeys::A) || Hit(EKeys::Left) || Hit(EKeys::Gamepad_DPad_Left) || Hit(EKeys::Gamepad_LeftStick_Left);
+	const bool bOk = Hit(EKeys::Enter) || Hit(EKeys::J) || Hit(EKeys::SpaceBar) || Hit(EKeys::Gamepad_FaceButton_Bottom);
+	const int32 Way = bPrev ? -1 : ((bNext || bOk) ? 1 : 0);
+	switch (MenuAt)
+	{
+		case 0: if (bOk) { bMenu = false; } break;
+		case 1: if (Way != 0) { Mode = (Mode + Way + 3) % 3; Restart(); } break;
+		case 2: if (Way != 0) { Dummy = (Dummy + Way + 5) % 5; } break;
+		case 3: if (bOk) { MenuPage = 1; BindAt = 0; } break;
+		default: if (bOk) { Restart(); bMenu = false; } break;
+	}
+}
+
 // ------------------------------------------------------------------------------------------------ running the match
 void FGkGame::Tick(float DeltaSeconds)
 {
@@ -226,11 +302,12 @@ void FGkGame::Tick(float DeltaSeconds)
 	const double Now = FPlatformTime::Seconds(); const double Real = LastReal > 0.0 ? FMath::Clamp(Now - LastReal, 0.0, 0.25) : double(DeltaSeconds); LastReal = Now;
 	Acc += Real; FrameMs = FrameMs * 0.9f + float(Real) * 100.f;
 	const double Step = 1.0 / 60.0, T0 = FPlatformTime::Seconds();
+	MenuInput();
 	int32 Steps = 0;
 	while (Acc >= Step && Steps < 12)
 	{
 		Acc -= Step; Tick60++; Steps++;
-		bool bRun = !bPaused;
+		bool bRun = !bPaused && !bMenu;
 		if (bPaused && StepsOwed > 0) { StepsOwed--; bRun = true; }
 		// the last blow of a round plays out slowly
 		if (bRun && SlowFrames > 0) { SlowFrames--; if (SlowFrames % 3 != 0) { bRun = false; } }
@@ -253,11 +330,18 @@ void FGkGame::StepOnce()
 	IdleSeconds = Human ? 0.0 : IdleSeconds + 1.0 / 60.0;
 	// nobody at the controls for a while: the sparring partner takes both sides, so the game demonstrates itself
 	uint16 In[2];
-	In[0] = (bCpu[0] && IdleSeconds > Tn(TEXT("idle"), 6.f)) ? Cpu(0) : Human;
-	In[1] = bCpu[1] ? Cpu(1) : uint16(0);
+	In[0] = Mode == 0 ? Cpu(0) : Human;      // player one is always the person at the controls, unless the mode is to watch
+	In[1] = Mode == 2 ? DummyInput() : (bCpu[1] ? Cpu(1) : uint16(0));
+	LastIn = Human;
 	for (int32 i = 0; i < 2; i++) { if (ScriptFrames[i] > 0) { ScriptFrames[i]--; In[i] = uint16(ScriptIn[i]); } }
 	gk::step(S, In[0], In[1]);
 	for (int32 e = 0; e < S.nev; e++) { OnEvent(S.ev[e]); }
+	if (Mode == 2)
+	{
+		// training: the clock never runs out, you never tire, and the dummy recovers as soon as a combo ends
+		S.time = gk::ROUND_TIME; S.p[0].hp = gk::MAX_HP; S.p[0].meter = gk::MAX_METER; S.p[1].meter = gk::MAX_METER;
+		if ((S.p[1].st == gk::IDLE || S.p[1].st == gk::BLOCK) && S.p[1].stun == 0 && S.p[1].hp > 0) { S.p[1].hp = gk::MAX_HP; }
+	}
 	for (int32 i = 0; i < 2; i++)
 	{
 		const gk::Player& P = S.p[i];
@@ -614,6 +698,9 @@ FString FGkGame::Debug(const FString& Command)
 	if (C == TEXT("meter")) { S.p[Pl].meter = int16(FMath::Clamp(Int(2, gk::MAX_METER), 0, gk::MAX_METER)); return TEXT("ok"); }
 	if (C == TEXT("place")) { S.p[Pl].x = Int(2, 0) * gk::F; S.p[Pl].y = Int(3, 0) * gk::F; return TEXT("ok"); }
 	if (C == TEXT("hud")) { bHud = Int(1, 1) != 0; return TEXT("ok"); }
+	if (C == TEXT("mode")) { Mode = FMath::Clamp(Int(1, 1), 0, 2); return TEXT("ok"); }
+	if (C == TEXT("menu")) { bMenu = Int(1, 1) != 0; MenuPage = FMath::Clamp(Int(2, 0), 0, 1); return TEXT("ok"); }
+	if (C == TEXT("dummy")) { Dummy = FMath::Clamp(Int(1, 0), 0, 4); return TEXT("ok"); }
 	if (C == TEXT("lumen")) { SetLumen(Int(1, 1) != 0); return TEXT("ok"); }
 	if (C == TEXT("fx"))
 	{
