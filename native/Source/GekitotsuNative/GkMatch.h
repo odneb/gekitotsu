@@ -68,6 +68,10 @@ public:
 	UPROPERTY() TArray<TObjectPtr<UAnimSequence>> ClipKeep;
 	TMap<FName, FGkClip> Clips[2]; int32 ClipSet[2] = { -1, -1 }; TObjectPtr<UAnimSequence> Playing[2];   // clip sets: 0 Kagu's, 1 Noa's
 	void LoadClips(); const FGkClip* ClipFor(int32 Set, FName Pose, int32 MoveId) const;
+	// The animation lab (Screen 4): one fighter alone, every move and state in turn, and every clip he has to try on it.
+	// What is chosen is kept in Content/Gk/anims.txt (set | slot | clip | from | to | loop) and used by the game from then on.
+	TArray<FName> LabSlots; TArray<FString> LabList; int32 LabSlot = 0, LabClip = -1, LabFrame = 0, LabSet = 0; bool bLabPlay = true, bLabPose = false; FString LabNote; int32 LabNoteTimer = 0;
+	void LabOpen(); void LabApply(); void LabSave(); void LoadPicks(); FString PicksFile(bool bProject) const;
 	// hit, guard and dust effects and their sounds (Vefects' Combat Flipbook VFX)
 	UPROPERTY() TMap<FName, TObjectPtr<UNiagaraSystem>> Vfx;
 	UPROPERTY() TMap<FName, TObjectPtr<USoundBase>> Sfx;

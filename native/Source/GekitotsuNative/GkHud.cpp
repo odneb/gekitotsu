@@ -143,6 +143,26 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 	// exactly what is arriving from the stick, so a controller that is seen but not heard can be told apart from one that is mapped wrongly
 	if (Pads && Mode == 1 && bBoxes) { GkText(Cv, FString::Printf(TEXT("%s   buttons %08x  dirs %d"), *Pads->Debug(), PadNow, PadDirs), Mid, H - 48.f * U, 12.f * U, Gold, true); }
 
+	if (Screen == 4)
+	{
+		// the animation lab: what is being looked at, and what can be changed
+		const float Lx = 40.f * U, Ly = H * 0.16f; GkRect(Cv, Lx - 16.f * U, Ly - 16.f * U, 660.f * U, 470.f * U, Ink);
+		const FName Slot = LabSlots.IsValidIndex(LabSlot) ? LabSlots[LabSlot] : NAME_None; const int32 Mv = MoveClip.Find(Slot); const int32 Count = Poses.Length(Slot);
+		const FGkClip* Has = Clips[LabSet].Find(Slot);
+		GkText(Cv, FString::Printf(TEXT("ANIMATION LAB   %s"), LabSet ? TEXT("NOA") : TEXT("KAGU")), Lx, Ly, 30.f * U, Bone);
+		GkText(Cv, FString::Printf(TEXT("%d / %d    %s"), LabSlot + 1, LabSlots.Num(), *Slot.ToString()), Lx, Ly + 50.f * U, 26.f * U, Gold);
+		GkText(Cv, Mv != INDEX_NONE ? FString::Printf(TEXT("%s    %d frames"), UTF8_TO_TCHAR(gk::moveName(Mv)), Count) : FString::Printf(TEXT("state    %d frames"), Count), Lx, Ly + 86.f * U, 20.f * U, Bone);
+		const FString ClipName = (Has && Has->Anim) ? Has->Anim->GetName().Replace(TEXT("A_UnarmedFightingAnimation"), TEXT("")).Replace(TEXT("_Kagu"), TEXT("")).Replace(TEXT("_Noa"), TEXT("")) : FString(Has ? TEXT("none: the solved pose") : TEXT("by kind of attack, or the solved pose"));
+		GkText(Cv, FString::Printf(TEXT("clip  %d / %d"), LabClip + 1, LabList.Num()), Lx, Ly + 130.f * U, 18.f * U, GkFade(Bone, 0.7f));
+		GkText(Cv, ClipName, Lx, Ly + 156.f * U, 24.f * U, Bone);
+		if (Has) { GkText(Cv, FString::Printf(TEXT("from %.2f   to %.2f   %s"), Has->From, Has->To, Has->bLoop ? TEXT("loops") : TEXT("fitted to the move")), Lx, Ly + 194.f * U, 20.f * U, Bone); }
+		GkText(Cv, FString::Printf(TEXT("frame %d%s%s"), LabFrame, bLabPlay ? TEXT("") : TEXT("   paused"), bLabPose ? TEXT("   SHOWING THE SOLVED POSE") : TEXT("")), Lx, Ly + 226.f * U, 20.f * U, Gold);
+		static const TCHAR* Help[] = { TEXT("UP / DOWN   next move or state"), TEXT("LEFT / RIGHT   next clip (SHIFT: ten at a time)"), TEXT("Q E   trim the start      Z C   trim the end"), TEXT("O   loop on or off      X   compare with the solved pose"),
+			TEXT("SPACE   play or pause      , .   step a frame"), TEXT("ENTER   save      ESC   back") };
+		for (int32 k = 0; k < 6; k++) { GkText(Cv, Help[k], Lx, Ly + (268.f + k * 28.f) * U, 17.f * U, GkFade(Bone, 0.85f)); }
+		if (LabNoteTimer > 0) { GkText(Cv, LabNote, Mid, H * 0.1f, 40.f * U, Gold, true, 3); }
+		return;
+	}
 	if (bMenu || Screen != 3 || !bPlaced)
 	{
 		GkRect(Cv, 0.f, 0.f, W, H, FLinearColor(0.f, 0.f, 0.f, Screen == 3 ? 0.72f : 0.5f));
@@ -184,7 +204,7 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 		else if (Screen == 0)
 		{
 			GkText(Cv, TEXT("GEKITOTSU"), Mid, H * 0.035f, 64.f * U, Bone, true, 4);
-			List(TEXT("MAIN MENU"), { FString(TEXT("VERSUS CPU")), FString(TEXT("TRAINING")), FString(TEXT("WATCH")), FString::Printf(TEXT("CPU LEVEL    <  %d  >"), Level), FString(TEXT("SET UP BUTTONS")), FString(TEXT("QUIT")) }, MenuAt, 76.f);
+			List(TEXT("MAIN MENU"), { FString(TEXT("VERSUS CPU")), FString(TEXT("TRAINING")), FString(TEXT("WATCH")), FString::Printf(TEXT("CPU LEVEL    <  %d  >"), Level), FString(TEXT("SET UP BUTTONS")), FString(TEXT("QUIT")), FString(TEXT("ANIMATION LAB")) }, MenuAt, 68.f);
 		}
 		else if (Screen == 1)
 		{
