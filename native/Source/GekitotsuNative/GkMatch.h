@@ -81,7 +81,7 @@ public:
 	int32 PerfectT[2] = { 0, 0 }; float Lean[2] = { 0.f, 0.f }, Squash[2] = { 0.f, 0.f }, Flash = 0.f, RainDue = 0.f, BoltDue = 3.f;
 	void LookFighter(int32 i); void StateFx(int32 i);
 	// scripted pictures (-gkscript): a list of commands in Saved/script.txt that pose the game and save screenshots
-	TArray<FString> Script; int32 ScriptAt = 0, ScriptWait = 0; bool bScript = false; FName ScriptSlot; float ScriptStorm = -1.f; FString ScriptNote; int32 ScriptRunLeft = 0, ScriptIn[2] = { 0, 0 }; void RunScript();
+	TArray<FString> Script; int32 ScriptAt = 0, ScriptWait = 0; bool bScript = false; FName ScriptSlot; float ScriptStorm = -1.f; FString ScriptNote; bool bLabUi = false; int32 ScriptRunLeft = 0, ScriptIn[2] = { 0, 0 }; void RunScript();
 	// The animation lab (Screen 4): one fighter alone, every move and state in turn, and every clip he has to try on it.
 	// What is chosen is kept in Content/Gk/anims.txt (set | slot | clip | from | to | loop) and used by the game from then on.
 	struct FLabSlot { FName Slot; FString Label; int32 Cat = 0; };

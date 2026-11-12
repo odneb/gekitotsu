@@ -113,21 +113,21 @@ void FGkFx::Dust(const FVector& At, float Amount, float Dir)
 		const float Side = Dir != 0.f ? -Dir : (Rng.FRand() < 0.5f ? -1.f : 1.f);
 		FP& D = Add(1, FVector(At.X + Rng.FRandRange(-30.f, 20.f), At.Y + Rng.FRandRange(-18.f, 18.f), Rng.FRandRange(4.f, 16.f)),
 			FVector(Rng.FRandRange(-30.f, 30.f), Side * Rng.FRandRange(40.f, 240.f) * Amount, Rng.FRandRange(15.f, 110.f) * Amount),
-			Rng.FRandRange(0.45f, 0.95f), Rng.FRandRange(18.f, 34.f), Rng.FRandRange(70.f, 130.f) * FMath::Clamp(Amount, 0.6f, 1.6f), DustCol, 0.42f);
+			Rng.FRandRange(0.4f, 0.8f), Rng.FRandRange(12.f, 22.f), Rng.FRandRange(40.f, 72.f) * FMath::Clamp(Amount, 0.6f, 1.3f), DustCol, 0.24f);
 		D.Drag = 2.6f;
 	}
 }
 
 void FGkFx::Aura(const FVector& At, const FLinearColor& Col, float Amount)
 {
-	Add(0, At + FVector(-20, 0, 95), FVector::ZeroVector, 0.3f, 120.f, 420.f * Amount, Col * 0.6f);
+	Add(0, At + FVector(-20, 0, 95), FVector::ZeroVector, 0.26f, 90.f, 240.f * FMath::Min(Amount, 1.6f), Col * 0.22f);
 	const int32 Count = int32(14 * Amount);
 	for (int32 i = 0; i < Count; i++)
 	{
 		FP& S = Add(0, At + FVector(Rng.FRandRange(-40.f, 20.f), Rng.FRandRange(-45.f, 45.f), Rng.FRandRange(0.f, 150.f)), FVector(0, Rng.FRandRange(-40.f, 40.f), Rng.FRandRange(180.f, 520.f)), Rng.FRandRange(0.3f, 0.7f), Rng.FRandRange(8.f, 16.f), 3.f, Col);
 		S.Stretch = 4.f;
 	}
-	Dust(FVector(At.X, At.Y, 0), 0.8f * Amount, 0.f);
+	Dust(FVector(At.X, At.Y, 0), FMath::Min(0.8f, 0.5f * Amount), 0.f);
 }
 
 void FGkFx::Trail(const FVector& At, const FLinearColor& Col)
