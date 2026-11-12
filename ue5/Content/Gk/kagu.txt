@@ -1,0 +1,65 @@
+# GEKITOTSU: poses and move animation for the fighter. Written by tools/make_kagu.py; edit that, not this.
+pose Idle hip 0 -7 83 ln -7 ln2 2 sd 0 tw -52 pt -34 hd 6 hy 42 hl 13 46 132 hr -25 -18 80 fl 9 26 9 fr -13 -27 9 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose Idle2 hip 0 -3 81 ln 2 ln2 10 sd 0 tw -48 pt -32 hd -2 hy 40 hl 15 44 124 hr -24 -14 84 fl 9 26 9 fr -13 -27 9 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose Crouch hip 0 -8 50 ln 30 ln2 40 sd 0 tw -40 pt -26 hd -30 hy 30 hl 12 40 70 hr -22 -20 56 fl 11 30 9 fr -15 -34 11 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.7 1 0.3 kr -0.9 0.5 0.2 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose WalkA hip 0 0 84 ln 2 ln2 6 sd 0 tw -46 pt -30 hd 2 hy 36 hl 14 44 128 hr -24 -12 84 fl 9 34 9 fr -12 -10 16 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose WalkB hip 0 2 82 ln 4 ln2 8 sd 0 tw -46 pt -30 hd 0 hy 36 hl 15 42 126 hr -24 -16 82 fl 9 4 15 fr -13 -30 9 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose Jump hip 0 0 95 ln 24 ln2 34 sd 0 tw -30 pt -20 hd -20 hy 20 hl 14 26 104 hr -18 10 98 fl 10 24 58 fr -10 2 50 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose Fall hip 0 0 95 ln -12 ln2 -18 sd 0 tw -40 pt -30 hd 12 hy 30 hl 34 10 140 hr -36 -12 134 fl 10 14 24 fr -12 -16 30 el 1 0 -0.3 er -1 0 -0.3 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose Dash hip 0 10 70 ln 46 ln2 54 sd 0 tw -24 pt -14 hd -40 hy 14 hl 16 -22 96 hr -20 -34 92 fl 9 40 9 fr -12 -36 22 el 0.4 -1 0.4 er -0.4 -1 0.4 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose BackDash hip 0 -14 82 ln -26 ln2 -32 sd 0 tw -60 pt -40 hd 22 hy 40 hl 20 30 120 hr -26 -6 100 fl 9 22 14 fr -12 -30 9 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose BlockS hip 0 -10 84 ln -4 ln2 4 sd 0 tw -30 pt -26 hd 2 hy 24 hl 6 30 128 hr -8 26 108 fl 9 22 9 fr -13 -28 9 el 0.6 -0.3 -1 er -0.6 -0.3 -1 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose BlockC hip 0 -8 50 ln 22 ln2 30 sd 0 tw -30 pt -22 hd -22 hy 24 hl 6 30 84 hr -8 26 70 fl 11 28 9 fr -15 -32 11 el 0.6 -0.3 -1 er -0.6 -0.3 -1 kl 0.7 1 0.3 kr -0.9 0.5 0.2 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose Hit hip 0 -14 80 ln -22 ln2 -34 sd 0 tw -60 pt -40 hd -20 hy 30 hl 24 10 124 hr -28 -20 104 fl 9 20 9 fr -13 -32 9 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose Launch hip 0 0 60 ln -40 ln2 -56 sd 0 tw -50 pt -30 hd -26 hy 20 hl 30 -10 90 hr -34 -30 70 fl 12 34 70 fr -10 20 44 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose Down hip 0 -10 14 ln -84 ln2 -90 sd 0 tw -20 pt -10 hd -10 hy 0 hl 34 -40 10 hr -36 -60 10 fl 12 60 12 fr -12 50 26 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose Rise hip 0 -6 46 ln 34 ln2 44 sd 0 tw -30 pt -20 hd -30 hy 20 hl 14 34 10 hr -20 -10 60 fl 11 26 9 fr -15 -34 11 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.7 1 0.3 kr -0.9 0.5 0.2 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose Parry hip 0 -6 82 ln -2 ln2 2 sd 0 tw -66 pt -38 hd 2 hy 54 hl 4 40 120 hr -22 -10 96 fl 9 24 9 fr -13 -28 9 el 0.8 0 -0.6 er -0.8 -0.6 0.2 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose LS hip 0 -2 84 ln -4 ln2 0 sd 0 tw -70 pt -40 hd 4 hy 60 hl 6 80 130 hr -24 -16 84 fl 9 26 9 fr -13 -27 9 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose MW hip 0 -10 82 ln -12 ln2 -8 sd 0 tw -76 pt -44 hd 6 hy 66 hl 10 30 120 hr -22 -10 112 fl 9 24 9 fr -13 -28 9 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose MS hip 0 14 74 ln 30 ln2 36 sd 0 tw 28 pt 6 hd -26 hy -20 hl 22 -10 96 hr -4 60 116 fl 9 40 9 fr -13 -34 14 el 0.6 -1 0 er -0.5 -0.3 -1 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose HW hip 0 -12 82 ln -18 ln2 -26 sd 0 tw -84 pt -50 hd 10 hy 70 hl 12 34 116 hr -30 -24 150 fl 9 24 10 fr -13 -28 9 el 0.3 -0.2 -1 er -1 -0.4 0.4 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose HS hip 0 16 72 ln 34 ln2 42 sd 0 tw 46 pt 14 hd -28 hy -34 hl 26 -16 84 hr -2 66 112 fl 9 44 9 fr -13 -36 16 el 0.6 -1 0 er -0.5 -0.2 1 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose CL hip 0 -10 48 ln 10 ln2 14 sd 0 tw -50 pt -36 hd -10 hy 40 hl 14 20 62 hr -22 -22 40 fl 8 70 14 fr -15 -30 11 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.3 1 0.6 kr -0.9 0.5 0.2 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose CM hip 0 -4 30 ln -36 ln2 -30 sd 0 tw -60 pt -44 hd 30 hy 50 hl 16 -6 50 hr -24 -34 14 fl 6 88 14 fr -16 -10 12 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.3 1 0.6 kr -1 0.4 0.3 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose CHW hip 0 -4 44 ln 36 ln2 46 sd 0 tw -60 pt -40 hd -30 hy 50 hl 14 30 70 hr -10 10 40 fl 11 28 9 fr -15 -32 11 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.7 1 0.3 kr -0.9 0.5 0.2 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose CHS hip 0 8 88 ln -10 ln2 -16 sd 0 tw 40 pt 10 hd -18 hy -30 hl 22 -14 96 hr -6 36 186 fl 9 26 12 fr -13 -24 9 el 0.6 -1 0 er -0.6 0.4 -0.4 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose JL hip 0 0 95 ln 20 ln2 26 sd 0 tw -60 pt -40 hd -12 hy 50 hl 6 50 96 hr -20 0 100 fl 10 20 56 fr -10 -4 48 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose JM hip 0 0 95 ln -20 ln2 -16 sd 0 tw -70 pt -60 hd 14 hy 60 hl 20 10 120 hr -26 -20 110 fl 6 74 70 fr -10 -10 52 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.4 0.6 1 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose JH hip 0 0 95 ln -16 ln2 -12 sd 0 tw 60 pt 70 hd 10 hy -50 hl 26 -10 118 hr -22 -26 112 fl 10 -10 54 fr -4 76 70 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.5 1 0 kr -0.4 0.6 1 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose JD hip 0 0 100 ln 16 ln2 20 sd 0 tw -40 pt -30 hd -14 hy 30 hl 30 10 142 hr -32 -10 138 fl 6 40 30 fr -10 -14 74 el 1 0 -0.2 er -1 0 -0.2 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose FireW hip 0 -12 80 ln -8 ln2 -4 sd 0 tw -80 pt -50 hd 4 hy 70 hl 4 -4 96 hr -14 -10 92 fl 9 24 9 fr -13 -28 9 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose FireS hip 0 12 72 ln 22 ln2 26 sd 0 tw -70 pt -30 hd -18 hy 60 hl 6 62 112 hr -28 -40 104 fl 9 46 9 fr -13 -38 12 el 0.3 -0.2 -1 er -0.6 -1 0.3 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose SurgeW hip 0 4 86 ln 4 ln2 6 sd 0 tw 30 pt 30 hd 0 hy -20 hl 18 20 118 hr -22 6 110 fl 9 6 9 fr -6 10 40 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose SurgeS hip 0 18 86 ln -28 ln2 -24 sd 0 tw 60 pt 64 hd 16 hy -50 hl 24 -12 116 hr -26 -24 104 fl 9 6 9 fr -2 96 100 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.5 1 0 kr -0.4 0.5 1 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose RiseS hip 0 4 96 ln -10 ln2 -16 sd 0 tw 70 pt 40 hd -16 hy -50 hl 24 -10 100 hr -4 26 190 fl 10 26 40 fr -10 0 14 el 0.6 -1 0 er -0.6 0.4 -0.4 kl 0.3 1 0.8 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose Vanish hip 0 0 84 ln 0 ln2 0 sd 0 tw -88 pt -60 hd 4 hy 80 hl 8 12 112 hr -8 10 104 fl 8 10 9 fr -10 -10 9 el 0.9 -0.2 -0.6 er -0.9 -0.2 -0.6 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose Whirl hip 0 0 95 ln -8 ln2 -6 sd 0 tw -20 pt -10 hd 6 hy 10 hl 44 6 128 hr -44 -6 124 fl 60 0 76 fr -8 0 44 el 1 0 0.2 er -1 0 0.2 kl 0.6 0.2 1 kr -0.6 1 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose Dive hip 0 0 100 ln -30 ln2 -22 sd 0 tw -80 pt -70 hd 22 hy 70 hl 26 -16 146 hr -30 -30 130 fl 4 60 34 fr -10 -16 96 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.3 1 0.4 kr -0.6 1 0.4 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose HomeW hip 0 -6 56 ln 50 ln2 58 sd 0 tw -40 pt -26 hd -40 hy 30 hl 16 -20 80 hr -20 -30 74 fl 10 24 9 fr -13 -26 10 el 0.4 -1 0.4 er -0.4 -1 0.4 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose HomeS hip 0 0 90 ln 60 ln2 66 sd 0 tw -30 pt -20 hd -62 hy 20 hl 8 60 150 hr -22 -40 96 fl 8 -30 60 fr -10 -50 54 el 0.3 -0.2 -1 er -0.4 -1 0.4 kl 0.3 0.4 -1 kr -0.3 0.4 -1 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose Grab hip 0 6 80 ln 14 ln2 18 sd 0 tw -30 pt -20 hd -8 hy 20 hl 10 52 124 hr -10 50 112 fl 9 34 9 fr -13 -28 9 el 0.6 -0.3 -1 er -0.6 -0.3 -1 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose Held hip 0 0 84 ln -14 ln2 -22 sd 0 tw -40 pt -30 hd -20 hy 20 hl 22 -6 100 hr -24 -16 92 fl 9 10 12 fr -12 -14 10 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose SuperS hip 0 20 70 ln 40 ln2 46 sd 0 tw 40 pt 12 hd -34 hy -30 hl 26 -30 90 hr -2 70 112 fl 9 50 9 fr -13 -40 18 el 0.4 -1 0.4 er -0.5 -0.2 1 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose Win hip 0 0 90 ln -4 ln2 -2 sd 0 tw -90 pt -80 hd 8 hy 80 hl 10 10 108 hr -12 6 102 fl 8 8 9 fr -9 -8 9 el 0.9 0 -0.4 er -0.9 0 -0.4 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+move S5L wind Idle2 strike LS rec - limb 1 arc 0 size 90 kind 3 spin 0
+move S5M wind MW strike MS rec - limb 2 arc 10 size 150 kind 4 spin 0
+move S5H wind HW strike HS rec - limb 2 arc -25 size 210 kind 4 spin 0
+move S2L wind Crouch strike CL rec - limb 3 arc 0 size 90 kind 3 spin 0
+move S2M wind Crouch strike CM rec - limb 3 arc -8 size 170 kind 4 spin 0
+move S2H wind CHW strike CHS rec - limb 2 arc 70 size 230 kind 4 spin 0
+move JL wind Jump strike JL rec - limb 1 arc -10 size 90 kind 3 spin 0
+move JM wind Jump strike JM rec - limb 3 arc 0 size 150 kind 4 spin 0
+move JH wind Jump strike JH rec - limb 4 arc -40 size 200 kind 4 spin 0
+move J2H wind Fall strike JD rec - limb 3 arc -90 size 210 kind 4 spin 0
+move FIRE wind FireW strike FireS rec - limb 0 arc 0 size 0 kind 4 spin 0
+move SURGE wind SurgeW strike SurgeS rec - limb 4 arc 5 size 240 kind 4 spin 0
+move RISE wind CHW strike RiseS rec - limb 2 arc 90 size 260 kind 4 spin 0
+move VANISH wind Vanish strike Vanish rec - limb 0 arc 0 size 0 kind 4 spin 0
+move WHIRL wind Jump strike Whirl rec - limb 0 arc 0 size 230 kind 2 spin 0
+move DIVE wind Jump strike Dive rec - limb 3 arc -60 size 200 kind 4 spin 0
+move HOME wind HomeW strike HomeS rec - limb 1 arc 0 size 0 kind 4 spin 0
+move THROW wind Idle2 strike Grab rec - limb 0 arc 0 size 0 kind 4 spin 0
+move SUPER1 wind MW strike SuperS rec - limb 2 arc 0 size 320 kind 4 spin 0
+move SUPER2 wind MW strike SuperS rec - limb 2 arc 0 size 380 kind 4 spin 0
+move SUPER3 wind MW strike SuperS rec - limb 2 arc 0 size 460 kind 4 spin 0

@@ -9,6 +9,7 @@ namespace gk {
 constexpr int F = 100;                 // sub-units per centimetre
 constexpr int STAGE = 750 * F;         // half the stage width
 constexpr int START_X = 200 * F;
+constexpr int MAX_SEP = 860 * F;         // the two fighters are never farther apart than this
 constexpr int MAX_HP = 1000, BAR = 1000, MAX_METER = 3 * BAR;
 constexpr int ROUND_TIME = 99 * 60, INTRO = 90, KO_TIME = 200;
 

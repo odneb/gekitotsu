@@ -15,14 +15,27 @@ struct FGkPose
 	float Roll = 0, Spin = 0;   // whole-body tumble about the side axis, and turn about the vertical
 };
 
-enum class EGkPose : uint8
+/** How one move is shown: the poses it passes through, the limb steered onto its hitbox, and its swing trail. */
+struct FGkMoveAnim
 {
-	Idle, Idle2, Crouch, WalkA, WalkB, Jump, Fall, Dash, BackDash, BlockS, BlockC, Hit, Launch, Down, Rise, Parry,
-	LS, MW, MS, HW, HS, CL, CM, CHW, CHS, JL, JM, JH, JD, FireW, FireS, SurgeW, SurgeS, RiseS, Vanish, Whirl, Dive, HomeW, HomeS, Grab, Held, SuperS, Win, Count
+	FName Wind, Strike, Rec;
+	int32 Limb = 0;                 // 0 none, 1 left hand, 2 right hand, 3 left foot, 4 right foot
+	float Arc = 0.f, ArcSize = 0.f; // trail angle on screen for a fighter facing right, and its size in centimetres
+	int32 ArcKind = 4;
+	float Spin = 0.f;
 };
 
-const FGkPose& GkPose(EGkPose P);
+/** Every pose and move animation, read from Content/Gk/kagu.txt so they can be reworked without rebuilding the game. */
+struct FGkLibrary
+{
+	TMap<FName, FGkPose> Poses; TMap<FName, FGkMoveAnim> Moves;
+	bool Load(const FString& Path, FString& OutError);
+	const FGkPose& Pose(FName Name) const;
+	const FGkMoveAnim& Move(FName Name) const;
+};
+FGkLibrary& GkLib();
 FGkPose GkBlend(const FGkPose& A, const FGkPose& B, float K);
+FGkPose GkMirror(const FGkPose& P);
 
 /** Turns a pose into component-space bone transforms for the character's skeleton. */
 struct FGkRig

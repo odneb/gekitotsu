@@ -303,6 +303,17 @@ static void pushApart(State& s) {
   a.x = clampi(a.x, -lim, lim); b.x = clampi(b.x, -lim, lim);
 }
 
+// Neither fighter can leave the other behind: the two always fit on one screen. Whoever is moving away gives way.
+static void limitSep(State& s) {
+  Player& a = s.p[0]; Player& b = s.p[1];
+  int dx = b.x - a.x, over = absi(dx) - MAX_SEP; if (over <= 0) return;
+  int dir = dx > 0 ? 1 : -1; bool aAway = a.vx * dir < 0, bAway = b.vx * dir > 0;
+  int ta = aAway && bAway ? over / 2 : aAway ? over : bAway ? 0 : over / 2, tb = over - ta;
+  a.x += dir * ta; b.x -= dir * tb;
+  if (aAway && a.st != LAUNCH) a.vx = 0;
+  if (bAway && b.st != LAUNCH) b.vx = 0;
+}
+
 // --------------------------------------------------------------------------------------------- hits
 struct Pending { bool on; uint8_t mv, id; bool proj; };
 
@@ -391,6 +402,7 @@ void step(State& s, uint16_t in0, uint16_t in1) {
   for (int i = 0; i < 2; i++) s.p[i].prev = in[i];
   for (int i = 0; i < 2; i++) if (act[i]) physics(s, i);
   pushApart(s);
+  limitSep(s);
   for (int i = 0; i < 2; i++) { Player& p = s.p[i]; const Player& o = s.p[1 - i]; if ((p.st == IDLE || p.st == PREJUMP || p.st == AIR || p.st == LAND || p.st == BLOCK || p.st == PARRY) && o.x != p.x) p.face = (int8_t)(o.x > p.x ? 1 : -1); }
   for (int i = 0; i < 2; i++) { Shot& sh = s.shot[i]; if (!sh.on) continue; sh.x += sh.vx; if (--sh.life <= 0 || absi(sh.x) > STAGE + 100 * F) sh.on = 0; }
   if (s.phase != PH_KO) hits(s, in[0], in[1]);

@@ -92,7 +92,7 @@ b = lerp(b, b * b * 1.25, 0.2) * 1.5 + 0.03;
 float3 lit = b * lerp(Shadow.rgb, Light.rgb, t);
 float fres = 1.0 - saturate(dot(n, normalize(Vw)));
 float rim = smoothstep(0.58, 0.66, fres) * smoothstep(-0.5, 0.2, dot(n, normalize(RimDir.xyz)));
-return lit + Rim.rgb * rim;
+return lerp(lit + Rim.rgb * rim, float3(5.0, 5.0, 5.0), saturate(Flash));
 '''
 
 
@@ -102,8 +102,8 @@ def mk_toon(base_tex):
     n = node(m, unreal.MaterialExpressionVertexNormalWS, -700, -100)
     v = node(m, unreal.MaterialExpressionCameraVectorWS, -700, -40)
     L = vparam(m, 'LightDir', C(0.62, -0.25, 0.6), 40); li = vparam(m, 'Light', C(1.5, 1.3, 1.2), 240); sh = vparam(m, 'Shadow', C(0.42, 0.22, 0.4), 440)
-    rd = vparam(m, 'RimDir', C(-1, 0, 0.25), 640); rc = vparam(m, 'Rim', C(2.4, 0.5, 0.25), 840); th = sparam(m, 'Theme', 0.0, 1040)
-    c = custom(m, TOON, [('Base', tex, 'RGB'), ('N', n, ''), ('Vw', v, ''), ('L', L, ''), ('Light', li, ''), ('Shadow', sh, ''), ('RimDir', rd, ''), ('Rim', rc, ''), ('Theme', th, '')])
+    rd = vparam(m, 'RimDir', C(-1, 0, 0.25), 640); rc = vparam(m, 'Rim', C(2.4, 0.5, 0.25), 840); th = sparam(m, 'Theme', 0.0, 1040); fl = sparam(m, 'Flash', 0.0, 1140)
+    c = custom(m, TOON, [('Base', tex, 'RGB'), ('N', n, ''), ('Vw', v, ''), ('L', L, ''), ('Light', li, ''), ('Shadow', sh, ''), ('RimDir', rd, ''), ('Rim', rc, ''), ('Theme', th, ''), ('Flash', fl, '')])
     MEL.connect_material_property(c, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     return done(m)
 
@@ -159,14 +159,103 @@ float h = saturate(normalize(WP - Cam).z); float g = pow(1.0 - h, 3.0);
 float3 top = float3(0.035, 0.012, 0.07), mid = float3(0.5, 0.04, 0.09), low = float3(1.9, 0.32, 0.1);
 float3 c = lerp(top, mid, smoothstep(0.0, 0.75, g)); c = lerp(c, low, smoothstep(0.72, 1.0, g));
 float band = sin(h * 46.0 + sin(WP.y * 0.00003) * 3.0) * 0.5 + 0.5; c *= 0.88 + 0.24 * smoothstep(0.55, 0.9, band) * smoothstep(0.02, 0.2, h) * (1.0 - smoothstep(0.2, 0.5, h));
-return c;
+float3 st = lerp(float3(0.006, 0.01, 0.022), float3(0.05, 0.075, 0.13), smoothstep(0.2, 1.0, g));
+float cl = sin(WP.y * 0.00011 + sin(WP.z * 0.0003) * 2.0 + h * 9.0) * 0.5 + 0.5; st *= 0.7 + 0.6 * smoothstep(0.35, 0.8, cl);
+c = lerp(c, st, saturate(Storm));
+c += float3(0.75, 0.85, 1.2) * Flash * (0.35 + 0.65 * g);
+return c * (1.0 - 0.92 * saturate(Dim));
 '''
 
 
 def mk_sky():
     m = mat('M_Sky'); sp(m, shading_model=unreal.MaterialShadingModel.MSM_UNLIT, two_sided=True)
     wp = node(m, unreal.MaterialExpressionWorldPosition, -700, 0); cp = node(m, unreal.MaterialExpressionCameraPositionWS, -700, 150)
-    MEL.connect_material_property(custom(m, SKY, [('WP', wp, ''), ('Cam', cp, '')]), '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    MEL.connect_material_property(custom(m, SKY, [('WP', wp, ''), ('Cam', cp, ''), ('Storm', sparam(m, 'Storm', 0.0, 300), ''), ('Flash', sparam(m, 'Flash', 0.0, 400), ''), ('Dim', sparam(m, 'Dim', 0.0, 500), '')]), '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    return done(m)
+
+
+FX = """
+float2 uv = Swap > 0.5 ? UV.yx : UV.xy;
+float2 p = (uv - 0.5) * 2.0; float r = length(p); float a = atan2(p.y, p.x);
+float m = 0.0; float c = 0.0; int s = (int)(Shape + 0.5); float t = T * Dir;
+if (s == 0) { m = saturate(1.0 - r); m = m * m; c = saturate(1.0 - r * 2.0); c = c * c; }
+else if (s == 1) {
+  float k = 0.5 + 0.5 * sin(a * 7.0 + Seed * 40.0); float k2 = 0.5 + 0.5 * sin(a * 11.0 - Seed * 23.0);
+  float rad = (0.2 + 0.8 * pow(k, 4.0) * (0.55 + 0.45 * k2)) * lerp(0.45, 1.0, saturate(P * 4.0));
+  float hole = saturate(P * 1.5 - 0.35) * rad;
+  m = step(r, rad) * step(hole, r); c = step(r, rad * 0.5);
+}
+else if (s == 2) { float w = lerp(0.085, 0.008, P); m = step(abs(r - (0.98 - w)), w); c = step(abs(r - (0.98 - w)), w * 0.4); }
+else if (s == 3) { float d = abs(p.x) + abs(p.y); m = step(d, 1.0 - P * 0.5); c = step(d, 0.45 - P * 0.3); }
+else if (s == 4) {
+  float off = lerp(0.5, 0.05, P);
+  m = step(r, 0.98) * step(0.98, length(p - float2(-off, 0.0)));
+  c = step(r, 0.98) * step(0.98, length(p - float2(-off * 0.4, 0.0)));
+}
+else if (s == 5) {
+  float2 q = p - float2(0.4, 0.0); float tail = saturate(-q.x / 1.3);
+  q.y += sin(q.x * 5.0 + t * 18.0 + Seed * 9.0) * 0.14 * tail;
+  float rad = q.x > 0.0 ? 0.5 : 0.5 * pow(1.0 - tail, 1.3); float d = q.x > 0.0 ? length(q) : abs(q.y);
+  m = step(d, rad); c = step(d, rad * 0.55) * step(-0.5, q.x);
+}
+else if (s == 6) {
+  float2 g = uv * float2(5.0, 96.0); g.y += g.x * 1.3; float id = floor(g.y); float h = frac(sin(id * 127.1 + Seed * 311.7) * 43758.5453);
+  float y = frac(g.x * (0.7 + h * 0.6) + t * (2.2 + h * 1.4) + h * 9.0);
+  m = step(abs(frac(g.y) - 0.5), 0.045) * step(y, 0.3) * step(0.35, h) * (0.4 + 0.6 * frac(h * 13.7));
+}
+else if (s == 7) {
+  float2 g = uv * float2(12.0, 21.0); float2 id = floor(g); float h = frac(sin(dot(id, float2(127.1, 311.7)) + Seed * 17.0) * 43758.5453); float h2 = frac(h * 57.31);
+  float2 f = float2(0.5 + 0.3 * sin(t * (0.5 + h) + h * 30.0), 0.5 + 0.3 * cos(t * (0.35 + h2) + h2 * 30.0));
+  float d = length((frac(g) - f) * float2(0.6, 1.0));
+  m = step(d, 0.012 + 0.022 * h) * step(0.62, h2) * (0.5 + 0.5 * sin(t * (1.0 + h * 2.0) + h * 50.0)); c = 1.0;
+}
+else if (s == 8) {
+  float n = 46.0; float an = (a + 3.14159) / 6.28318 * n; float h = frac(sin(floor(an) * 91.7 + Seed * 13.0) * 43758.5453);
+  float w = abs(frac(an) - 0.5); float inner = 0.3 + 0.45 * frac(h * 7.7) + P * 0.2;
+  m = step(0.5, h) * step(w, 0.5 * saturate((r - inner) * 1.6)) * step(inner, r) * step(r, 1.0);
+}
+float3 col = lerp(Col.rgb, Hot.rgb, saturate(c));
+return float4(col, saturate(m) * Alpha);
+"""
+
+
+def mk_fx():
+    """one material draws every flat effect shape: glow, spark burst, ring, streak, crescent, ghost fire, rain, embers, focus lines"""
+    m = mat('M_Fx'); sp(m, shading_model=unreal.MaterialShadingModel.MSM_UNLIT, blend_mode=unreal.BlendMode.BLEND_TRANSLUCENT, two_sided=True)
+    sp(m, disable_depth_test=True)
+    uv = node(m, unreal.MaterialExpressionTextureCoordinate, -700, -300); tm = node(m, unreal.MaterialExpressionTime, -700, -200)
+    ins = [('UV', uv, ''), ('T', tm, ''), ('Shape', sparam(m, 'Shape', 0.0, -100), ''), ('P', sparam(m, 'P', 0.0, 0), ''), ('Seed', sparam(m, 'Seed', 0.0, 100), ''), ('Alpha', sparam(m, 'Alpha', 1.0, 200), ''),
+           ('Swap', sparam(m, 'Swap', 0.0, 300), ''), ('Dir', sparam(m, 'Dir', 1.0, 400), ''), ('Col', vparam(m, 'Col', C(4, 1, 0.3), 500), ''), ('Hot', vparam(m, 'Hot', C(8, 7, 5), 700), '')]
+    c = custom(m, FX, ins, out=unreal.CustomMaterialOutputType.CMOT_FLOAT4)
+    rgb = node(m, unreal.MaterialExpressionComponentMask, 0, -100, r=True, g=True, b=True, a=False); MEL.connect_material_expressions(c, '', rgb, '')
+    al = node(m, unreal.MaterialExpressionComponentMask, 0, 100, r=False, g=False, b=False, a=True); MEL.connect_material_expressions(c, '', al, '')
+    MEL.connect_material_property(rgb, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR); MEL.connect_material_property(al, '', unreal.MaterialProperty.MP_OPACITY)
+    return done(m)
+
+
+GHOST = """
+float f = 1.0 - saturate(abs(dot(normalize(N), normalize(Vw))));
+return float4(Col.rgb * (0.35 + 1.4 * f * f), saturate(Alpha) * (0.3 + 0.7 * f));
+"""
+
+
+def mk_ghost():
+    """the afterimage a fighter leaves when he dashes or slips through the air"""
+    m = mat('M_Ghost'); sp(m, shading_model=unreal.MaterialShadingModel.MSM_UNLIT, blend_mode=unreal.BlendMode.BLEND_TRANSLUCENT, two_sided=False)
+    sp(m, used_with_skeletal_mesh=True)
+    n = node(m, unreal.MaterialExpressionVertexNormalWS, -700, -100); v = node(m, unreal.MaterialExpressionCameraVectorWS, -700, 0)
+    c = custom(m, GHOST, [('N', n, ''), ('Vw', v, ''), ('Col', vparam(m, 'Col', C(4, 1, 0.3), 200), ''), ('Alpha', sparam(m, 'Alpha', 0.5, 400), '')], out=unreal.CustomMaterialOutputType.CMOT_FLOAT4)
+    rgb = node(m, unreal.MaterialExpressionComponentMask, 0, -100, r=True, g=True, b=True, a=False); MEL.connect_material_expressions(c, '', rgb, '')
+    al = node(m, unreal.MaterialExpressionComponentMask, 0, 100, r=False, g=False, b=False, a=True); MEL.connect_material_expressions(c, '', al, '')
+    MEL.connect_material_property(rgb, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR); MEL.connect_material_property(al, '', unreal.MaterialProperty.MP_OPACITY)
+    return done(m)
+
+
+def mk_sun():
+    m = mat('M_SunDisc'); sp(m, shading_model=unreal.MaterialShadingModel.MSM_UNLIT)
+    col = vparam(m, 'Col', C(3.2, 0.16, 0.07), 0); gl = sparam(m, 'Glow', 1.0, 200)
+    mul = node(m, unreal.MaterialExpressionMultiply, -300, 0); MEL.connect_material_expressions(col, '', mul, 'A'); MEL.connect_material_expressions(gl, '', mul, 'B')
+    MEL.connect_material_property(mul, '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     return done(m)
 
 
@@ -180,9 +269,10 @@ def inst(name, parent, scalars=None, vectors=None):
 
 
 # ------------------------------------------------------------------ level
-def shape(name, mesh, loc, scale, m, rot=None):
+def shape(name, mesh, loc, scale, m, rot=None, tag=None):
     a = ELL.spawn_actor_from_object(unreal.load_asset('/Engine/BasicShapes/' + mesh), V(*loc), rot or R(0, 0))
     a.set_actor_scale3d(V(*scale)); a.set_actor_label(name)
+    if tag: sp(a, tags=[tag])
     c = a.static_mesh_component; c.set_material(0, m); return a
 
 
@@ -240,8 +330,8 @@ def build():
     kagu = inst('MI_Kagu', toon, {'Theme': 0.0}); shiro = inst('MI_Shiro', toon, {'Theme': 1.0}, {'Rim': C(0.6, 1.1, 2.6), 'Shadow': C(0.34, 0.36, 0.66), 'LightDir': C(0.62, 0.25, 0.6)})
     ink_k = inst('MI_Ink', ink, {'Width': 0.5 / scale})
     stone = mk_lit('M_Stone', C(0.05, 0.045, 0.055), 0.75); red = mk_lit('M_Lacquer', C(0.55, 0.035, 0.03), 0.32); dark = mk_lit('M_DarkWood', C(0.02, 0.014, 0.018), 0.5)
-    glow = mk_lit('M_Paper', C(0.8, 0.5, 0.25), 0.9, emis=C(22.0, 8.5, 2.2)); sun = mk_lit('M_Sun', C(1, 0, 0), unlit=True, emis=C(3.2, 0.16, 0.07)); mount = mk_lit('M_Mountain', C(0.03, 0.012, 0.03), 0.95)
-    floor = mk_floor(); sky = mk_sky()
+    glow = mk_lit('M_Paper', C(0.8, 0.5, 0.25), 0.9, emis=C(9.0, 3.6, 1.0)); sun = mk_lit('M_Sun', C(1, 0, 0), unlit=True, emis=C(3.2, 0.16, 0.07)); mount = mk_lit('M_Mountain', C(0.03, 0.012, 0.03), 0.95)
+    floor = mk_floor(); sky = mk_sky(); mk_fx(); mk_ghost()
 
     les = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
     if EAL.does_asset_exist('/Game/Maps/Arena'):
@@ -256,14 +346,14 @@ def build():
     sp(s.light_component, intensity=3.2, light_color=unreal.Color(255, 92, 50), atmosphere_sun_light=True, volumetric_scattering_intensity=3.0, enable_light_shaft_bloom=True, bloom_scale=0.25, bloom_tint=unreal.Color(255, 60, 40), light_source_angle=2.0, cast_shadows=True)
     k = ELL.spawn_actor_from_class(unreal.DirectionalLight, V(0, 0, 900), R(-38, 150)); k.set_actor_label('Fill')
     sp(k.light_component, intensity=0.45, light_color=unreal.Color(150, 110, 255), atmosphere_sun_light=False, cast_shadows=False, volumetric_scattering_intensity=0.0)
-    shape('SkyDome', 'Sphere', (0, 0, 0), (-2400, 2400, 2400), sky)
+    shape('SkyDome', 'Sphere', (0, 0, 0), (-2400, 2400, 2400), sky, tag='Sky')
     sl = ELL.spawn_actor_from_class(unreal.SkyLight, V(0, 0, 500), R(0, 0)); sp(sl.light_component, real_time_capture=True, intensity=0.7)
     fg = ELL.spawn_actor_from_class(unreal.ExponentialHeightFog, V(0, 0, 0), R(0, 0))
     sp(fg.component, fog_density=0.012, fog_height_falloff=0.1, fog_inscattering_luminance=C(0.22, 0.03, 0.05), enable_volumetric_fog=True, volumetric_fog_scattering_distribution=0.75, volumetric_fog_extinction_scale=0.8, volumetric_fog_albedo=unreal.Color(255, 190, 190), fog_max_opacity=0.92, start_distance=300.0)
     pp = ELL.spawn_actor_from_class(unreal.PostProcessVolume, V(0, 0, 0), R(0, 0)); sp(pp, unbound=True)
     st = pp.get_editor_property('settings')
-    for kk, vv in dict(bloom_intensity=1.35, bloom_threshold=0.2, auto_exposure_method=unreal.AutoExposureMethod.AEM_MANUAL, auto_exposure_bias=-0.2, auto_exposure_apply_physical_camera_exposure=False, vignette_intensity=0.55,
-                       scene_fringe_intensity=0.25, film_grain_intensity=0.12, color_saturation=unreal.Vector4(1.12, 1.0, 1.08, 1.0), color_contrast=unreal.Vector4(1.1, 1.08, 1.1, 1.0),
+    for kk, vv in dict(bloom_intensity=0.7, bloom_threshold=0.2, auto_exposure_method=unreal.AutoExposureMethod.AEM_MANUAL, auto_exposure_bias=-0.2, auto_exposure_apply_physical_camera_exposure=False, vignette_intensity=0.55,
+                       scene_fringe_intensity=0.06, film_grain_intensity=0.12, color_saturation=unreal.Vector4(1.12, 1.0, 1.08, 1.0), color_contrast=unreal.Vector4(1.1, 1.08, 1.1, 1.0),
                        color_gamma_shadows=unreal.Vector4(0.96, 0.9, 1.06, 1.0), lens_flare_intensity=0.35, ambient_occlusion_intensity=0.7).items():
         try: st.set_editor_property('override_' + kk, True); st.set_editor_property(kk, vv)
         except Exception as e: log('  pp', kk, str(e)[:90])
@@ -271,12 +361,12 @@ def build():
 
     # --- set: wet stone court, a great gate framing the sun, smaller gates and lanterns running back, a shrine hall, the mountain
     shape('Court', 'Plane', (-3000, 0, 0), (260, 260, 1), floor)
-    shape('SunDisc', 'Sphere', (-62000, 1500, 7600), (250, 250, 250), sun)
+    shape('SunDisc', 'Sphere', (-62000, 1500, 7600), (250, 250, 250), mk_sun(), tag='SunDisc')
     shape('Mountain', 'Cone', (-36000, 1200, 5200), (300, 300, 104), mount)
     shape('MountainL', 'Cone', (-33000, -26000, 2600), (260, 260, 52), mount); shape('MountainR', 'Cone', (-34000, 27000, 3100), (280, 280, 62), mount)
     torii('GateMain', -1750, 0, 2.3, red, dark)
     torii('GateL', -3400, -2100, 1.5, red, dark); torii('GateR', -3400, 2100, 1.5, red, dark); torii('GateFar', -6200, 0, 3.0, red, dark)
-    for i, x in enumerate((-260, -900, -1500, -2300)):
+    for i, x in enumerate((-520, -1000, -1600, -2400)):
         for sd in (-1, 1): lantern('Lantern%d%s' % (i, 'L' if sd < 0 else 'R'), x, sd * (760 + i * 150), 1.25, stone, glow)
     for sd in (-1, 1):
         y = sd * 3300
@@ -439,22 +529,6 @@ def probe():
     except Exception: log(traceback.format_exc())
 
 
-def play_test():
-    """starts the game in the editor, takes a run of screenshots while the sparring partners fight, and stops it"""
-    les = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
-    try: les.editor_request_begin_play(); log('play started')
-    except Exception: log(traceback.format_exc()); return
-    def shot(n):
-        def f():
-            try: unreal.AutomationLibrary.take_high_res_screenshot(1280, 720, 'pie_%s.png' % n); log('pie shot', n)
-            except Exception: log(traceback.format_exc())
-        return f
-    for i, t in enumerate((5, 11, 14, 17, 20, 23, 26, 29, 32, 35, 38, 41)): later(t, shot(chr(97 + i)))
-    def stop():
-        try: les.editor_request_end_play(); log('play stopped')
-        except Exception: log(traceback.format_exc())
-    later(45, stop)
 
 
 build()
-later(14, play_test)
