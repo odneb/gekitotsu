@@ -125,6 +125,7 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 		const gk::Fighter& P = S.p[i]; const FVector Head = Cv->Project(Wd(At(P.x, P.y + 100 * gk::F))); if (Head.Z <= 0.0) { continue; }
 		const TCHAR* Word = nullptr; FLinearColor Chip = Ash;
 		if (PerfectT[i] > 0) { Word = TEXT("PERFECT!"); Chip = Gold; }
+		else if (P.st == gk::ATK && P.mv >= 0 && gk::move(P.mv).di) { Word = TEXT("DRIVE IMPACT!"); Chip = FLinearColor(0.85f, 0.05f, 0.5f, 1.f); }
 		else if (P.st == gk::PARRY) { Word = TEXT("PARRY"); Chip = FLinearColor(0.f, 0.75f, 0.85f, 1.f); }
 		else if (P.st == gk::PREC) { Word = TEXT("OPEN"); Chip = FLinearColor(0.25f, 0.32f, 0.34f, 1.f); }
 		else if (P.st == gk::BLOCK) { Word = TEXT("GUARD"); Chip = FLinearColor(0.15f, 0.4f, 1.f, 1.f); }

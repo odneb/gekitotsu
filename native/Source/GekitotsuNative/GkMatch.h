@@ -78,7 +78,7 @@ public:
 	// parry gold, burnout grey, a blow landing white), with a word over his head and particles to match.
 	UPROPERTY() TArray<TObjectPtr<UMaterialInstanceDynamic>> Mids;
 	UMaterialInstanceDynamic* BodyMid[2][4] = { { nullptr, nullptr, nullptr, nullptr }, { nullptr, nullptr, nullptr, nullptr } }; UMaterialInstanceDynamic* InkMid[2] = { nullptr, nullptr }; FLinearColor BaseCol[2][4], ShadeCol[2][4];
-	int32 PerfectT[2] = { 0, 0 }; float Lean[2] = { 0.f, 0.f }, Squash[2] = { 0.f, 0.f }, Flash = 0.f, RainDue = 0.f, BoltDue = 3.f;
+	int32 PerfectT[2] = { 0, 0 }, ImpactT[2] = { 0, 0 }; float Lean[2] = { 0.f, 0.f }, Squash[2] = { 0.f, 0.f }, Flash = 0.f, RainDue = 0.f, BoltDue = 3.f;
 	void LookFighter(int32 i); void StateFx(int32 i); void Beam(const FVector& From, float Dir, float Len, float R, const FLinearColor& Col); float BeamDue = 0.f;
 	// scripted pictures (-gkscript): a list of commands in Saved/script.txt that pose the game and save screenshots
 	TArray<FString> Script; int32 ScriptAt = 0, ScriptWait = 0; bool bScript = false; FName ScriptSlot; float ScriptStorm = -1.f; FString ScriptNote; bool bLabUi = false; int32 ScriptRunLeft = 0, ScriptIn[2] = { 0, 0 }; void RunScript();
@@ -92,6 +92,7 @@ public:
 	UPROPERTY() TMap<FName, TObjectPtr<UNiagaraSystem>> Vfx;
 	UPROPERTY() TObjectPtr<class UNiagaraComponent> ShotFx[4]; int32 ShotKind[4] = { 0, 0, 0, 0 };
 	UPROPERTY() TMap<FName, TObjectPtr<USoundBase>> Sfx;
+	UPROPERTY() TObjectPtr<class UAudioComponent> RainLoop; UPROPERTY() TObjectPtr<class UAudioComponent> Music; UPROPERTY() TArray<TObjectPtr<USoundBase>> Songs; int32 LastSong = -1; float MusicVol = 0.5f; int32 StepT[2] = { 0, 0 };
 	UPROPERTY() TArray<TObjectPtr<USoundBase>> SndKeep; TMap<FName, TArray<USoundBase*>> SndSets; void Snd(const TCHAR* Set, float Volume = 1.f, float Pitch = 1.f); void EventSound(const gk::Event& E);
 	void LoadVfx(); bool PlayVfx(const TCHAR* Name, const FVector& Local, float Scale, float Dir, const TCHAR* Sound, float Volume = 1.f);
 	UPROPERTY() TObjectPtr<ACameraActor> Cam;

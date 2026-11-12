@@ -13,6 +13,7 @@
 #include "NiagaraSystem.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraComponent.h"
+#include "Components/AudioComponent.h"
 #include "Sound/SoundBase.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SceneComponent.h"
@@ -923,7 +924,7 @@ void AGkMatch::StepOnce(int32 Force0, int32 Force1)
 	if (CallHold > 0 && ++CallAge > CallHold) { CallHold = 0; }
 	for (int32 i = 0; i < 2; i++) { if (ComboTimer[i] > 0) { ComboTimer[i]--; } if (NoteTimer[i] > 0) { NoteTimer[i]--; } }
 	for (int32 k = Sparks.Num() - 1; k >= 0; k--) { if (++Sparks[k].Age > 12) { Sparks.RemoveAtSwap(k); } }
-	for (int32 i = 0; i < 2; i++) { if (PerfectT[i] > 0) { PerfectT[i]--; } Lean[i] *= 0.84f; Squash[i] *= 0.72f; StateFx(i); }
+	for (int32 i = 0; i < 2; i++) { if (ImpactT[i] > 0) { ImpactT[i]--; } if (PerfectT[i] > 0) { PerfectT[i]--; } Lean[i] *= 0.84f; Squash[i] *= 0.72f; StateFx(i); }
 	// the match is decided: any attack button, or a few seconds, starts the next
 	if (S.phase == gk::PH_OVER) { if (++OverTimer > 420 || (OverTimer > 50 && Screen == 3 && (Human & 0xFF0))) { Restart(); } } else { OverTimer = 0; }
 }
@@ -952,41 +953,42 @@ void AGkMatch::EventSound(const gk::Event& E)
 	switch (E.type)
 	{
 		case gk::E_HIT:
-			if (E.f & gk::H_KO) { Snd(TEXT("Explosion_05"), 1.f); Snd(TEXT("Melee_04"), 1.f); }
+			if (E.f & gk::H_KO) { Snd(TEXT("Explosion_05"), 1.f); Snd(TEXT("Melee_04"), 1.f); Snd(TEXT("Vanish_01"), 0.8f); Snd(TEXT("Damaged_01"), 0.5f); }
 			else if (E.f & gk::H_FINISH) { Snd(TEXT("Explosion_04"), 0.9f); Snd(TEXT("Melee_09"), 1.f); }
 			else if (E.f & gk::H_THROW) { Snd(TEXT("Melee_03"), 1.f); Snd(TEXT("Land_04"), 0.8f); }
 			else if (E.f & gk::H_IMPACT) { Snd(TEXT("Melee_01"), 1.f); Snd(TEXT("Explosion_01"), 0.5f); }
-			else if (E.e) { Snd(E.a >= 2 ? TEXT("Melee_04") : TEXT("Melee_09"), 1.f); Snd(TEXT("AbilityReady_06"), 0.45f); }   // a counter or a punish rings as well
+			else if (E.e) { Snd(E.a >= 2 ? TEXT("Melee_04") : TEXT("Melee_09"), 1.f); Snd(TEXT("ImpactBurst_01"), 0.55f); }   // a counter or a punish rings as well
 			else { static const TCHAR* Lv[3] = { TEXT("Melee_06"), TEXT("Melee_05"), TEXT("Melee_04") }; static const TCHAR* Alt[3] = { TEXT("Melee_07"), TEXT("Melee_10"), TEXT("Melee_03") };
-				const int32 L = FMath::Clamp(E.a, 0, 2); Snd((Ticks & 1) ? Lv[L] : Alt[L], 0.7f + 0.15f * L); }
+				const int32 L = FMath::Clamp(E.a, 0, 2); Snd((Ticks & 1) ? Lv[L] : Alt[L], 0.7f + 0.15f * L); if (L == 2) { Snd(TEXT("Damaged_01"), 0.3f); } }
 			break;
 		case gk::E_BLOCK: Snd((Ticks & 1) ? TEXT("Land_06") : TEXT("Land_07"), 0.6f, 1.25f); break;
 		case gk::E_PARRY: Snd(TEXT("AbilityReady_06"), 0.8f); break;
-		case gk::E_PPARRY: Snd(TEXT("AbilityReady_04"), 1.f); Snd(TEXT("Spark_02"), 0.8f); break;
+		case gk::E_PPARRY: Snd(TEXT("AbilityReady_04"), 1.f); Snd(TEXT("Spark_02"), 0.7f); Snd(TEXT("ImpactBurst_01"), 0.7f); break;
 		case gk::E_PARRYON: Snd(TEXT("AbilityReady_02"), 0.7f); break;
 		case gk::E_ARMOR: Snd(TEXT("Melee_11"), 0.9f); break;
 		case gk::E_DICLASH: case gk::E_CLASH: Snd(TEXT("Melee_01"), 1.f); Snd(TEXT("Spark_01"), 0.8f); break;
 		case gk::E_SPLAT: case gk::E_WBOUNCE: Snd(TEXT("Land_11"), 1.f); Snd(TEXT("Melee_11"), 0.8f); break;
 		case gk::E_GBOUNCE: Snd(TEXT("Land_11"), 0.9f); break;
-		case gk::E_KD: Snd((Ticks & 1) ? TEXT("Land_03") : TEXT("Land_04"), 0.85f); break;
-		case gk::E_LAND: Snd((Ticks & 1) ? TEXT("Land_08") : TEXT("Land_01"), 0.4f); break;
+		case gk::E_KD: Snd((Ticks & 1) ? TEXT("Land_03") : TEXT("Land_04"), 0.85f); Snd(TEXT("Step_01"), 0.4f, 0.8f); break;
+		case gk::E_LAND: Snd((Ticks & 1) ? TEXT("Land_08") : TEXT("Land_01"), 0.4f); Snd(TEXT("Step_01"), 0.3f); break;
 		case gk::E_JUMP: case gk::E_WALLJUMP: Snd((Ticks & 1) ? TEXT("Jump_05") : TEXT("Jump_01"), 0.55f); break;
 		case gk::E_DASH: Snd((Ticks & 1) ? TEXT("Dodge_02") : TEXT("Dodge_08"), 0.6f); break;
 		case gk::E_RUN: Snd(TEXT("Dodge_09"), 0.5f); break;
-		case gk::E_RUSH: Snd(TEXT("Fly_01"), 0.8f); break;
-		case gk::E_HOME: Snd((Ticks & 1) ? TEXT("Fly_04") : TEXT("Fly_05"), 0.8f); break;
-		case gk::E_RISE: Snd(TEXT("Jump_01"), 0.7f); break;
+		case gk::E_RUSH: Snd(TEXT("Fly_01"), 0.7f); Snd(TEXT("Zap_01"), 0.6f); break;
+		case gk::E_HOME: Snd((Ticks & 1) ? TEXT("Fly_04") : TEXT("Fly_05"), 0.7f); Snd(TEXT("Flyby_01"), 0.45f); break;
+		case gk::E_RISE: Snd(TEXT("Jump_01"), 0.6f); Snd(TEXT("Launch_01"), 0.55f); break;
 		case gk::E_TECH: Snd(TEXT("Dodge_08"), 0.7f); break;
 		case gk::E_WHIFF: { static const TCHAR* Sw[3] = { TEXT("Swing_03"), TEXT("Swing_02"), TEXT("Swing_01") }; static const TCHAR* Sw2[3] = { TEXT("Swing_04"), TEXT("Swing_05"), TEXT("Swing_01") };
 			const int32 L = FMath::Clamp(E.a, 0, 2); Snd((Ticks & 1) ? Sw[L] : Sw2[L], 0.45f + 0.12f * L); } break;
 		case gk::E_GRAB: Snd(TEXT("Throw_02"), 1.f); Snd(TEXT("Throw_04"), 0.8f); break;
-		case gk::E_FIRE: if (P.st == gk::ATK && P.mv == gk::moveByKey("HAD_OD")) { Snd(TEXT("AbilityRelease_13"), 1.f); } else { Snd((Ticks & 1) ? TEXT("AbilityRelease_06") : TEXT("AbilityRelease_03"), 0.9f); } break;
+		case gk::E_FIRE: if (P.st == gk::ATK && P.mv == gk::moveByKey("HAD_OD")) { Snd(TEXT("AbilityRelease_13"), 0.9f); Snd(TEXT("Laser_01"), 0.6f); } else { Snd((Ticks & 1) ? TEXT("AbilityRelease_06") : TEXT("AbilityRelease_03"), 0.8f); Snd(TEXT("LaserShot_01"), 0.5f); } break;
 		case gk::E_SPECIAL: Snd(TEXT("AbilityReady_05"), 0.7f); break;
 		case gk::E_EX: Snd(TEXT("AbilityReady_03"), 0.8f); break;
 		case gk::E_DI: Snd(TEXT("AbilityRelease_14"), 0.9f); break;
-		case gk::E_SUPER: Snd(TEXT("AbilityCharge_11"), 1.f); break;
-		case gk::E_BURNOUT: Snd(TEXT("Falling_01"), 0.8f); Snd(TEXT("Spark_01"), 0.6f); break;
-		case gk::E_RECOVER: Snd(TEXT("AbilityReady_02"), 0.8f); break;
+		case gk::E_SUPER: Snd(TEXT("AbilityCharge_11"), 1.f); Snd(TEXT("WindUp_01"), E.c == gk::moveByKey("SA3") ? 0.9f : 0.5f); break;
+		case gk::E_BURNOUT: Snd(TEXT("Malfunction_01"), 0.8f); Snd(TEXT("Spark_01"), 0.5f); break;
+		case gk::E_RECOVER: Snd(TEXT("Power_01"), 0.6f); break;
+		case gk::E_ROUND: Snd(TEXT("Power_01"), 0.5f); break;
 		case gk::E_FIGHT: Snd(TEXT("AbilityReady_03"), 0.9f); break;
 		case gk::E_KO: Snd(TEXT("Explosion_04"), 0.8f); break;
 		default: break;
@@ -1040,7 +1042,21 @@ void AGkMatch::OnEvent(const gk::Event& E)
 		case gk::E_JUMP: case gk::E_WALLJUMP: if (!PlayVfx(TEXT("NS_Directional_Dust_Jump_01_Once"), FVector(Feet.X - 20, Feet.Y, 2), 0.2f, 0.f, TEXT("SFX_Vefects_Jump_Dust_01_Cue"), 0.6f)) { Fx.Dust(Feet, 0.45f, 0.f); } break;
 		case gk::E_TECH: case gk::E_RISE: Fx.Dust(Feet, 0.45f, 0.f); break;
 		case gk::E_DASH: case gk::E_RUN: if (!PlayVfx(S.p[Who].face > 0 ? TEXT("NS_Directional_Dust_03_Once_Fast") : TEXT("NS_Directional_Dust_03_Once_Fast_Flip"), FVector(Feet.X - 20, Feet.Y, 2), 0.34f, 0.f, nullptr)) { Fx.Dust(Feet, 0.8f, float(S.p[Who].face)); } break;
-		case gk::E_EX: case gk::E_DI: case gk::E_HOME: if (E.type == gk::E_HOME) { CamKick(0.f, 0.f, 9.f); } Fx.Aura(Feet, Ki, 0.7f); break;
+		case gk::E_DI:
+		{   // a drive impact is announced: the screen kicks in on him, a burst of paint-bright streaks, his name for it over his head
+			const float Dr = float(S.p[Who].face); const FVector Ch = Feet + FVector(-20.0, 0.0, 95.0);
+			CamKick(Dr * 5.f, -0.2f, 16.f, Dr * 5.f); Shake = FMath::Max(Shake, 7.f); Flash = FMath::Max(Flash, 0.45f); Remark(Who, TEXT("DRIVE IMPACT")); ImpactT[Who] = 40;
+			static const FLinearColor Paint[4] = { FLinearColor(9.f, 0.6f, 5.f), FLinearColor(0.5f, 6.f, 8.f), FLinearColor(9.f, 6.f, 0.5f), FLinearColor(4.f, 0.8f, 9.f) };
+			for (int32 k = 0; k < 28; k++)
+			{
+				const float A = Fx.Rng.FRandRange(-1.2f, 1.2f), Sp = Fx.Rng.FRandRange(700.f, 1900.f);
+				FGkFx::FP& St = Fx.Add(0, Ch, FVector(0.0, -Dr * FMath::Cos(A) * Sp, FMath::Sin(A) * Sp), Fx.Rng.FRandRange(0.25f, 0.5f), Fx.Rng.FRandRange(14.f, 30.f), 4.f, Paint[k & 3]); St.Stretch = 10.f; St.Drag = 3.f;
+			}
+			Fx.Add(0, Ch, FVector::ZeroVector, 0.3f, 80.f, 520.f, FLinearColor(5.f, 0.5f, 3.5f)); Fx.Aura(Feet, FLinearColor(8.f, 0.8f, 5.f), 1.8f);
+			Snd(TEXT("ImpactBurst_01"), 0.9f); Snd(TEXT("WindUp_01"), 0.6f, 1.4f);
+			break;
+		}
+		case gk::E_EX: case gk::E_HOME: if (E.type == gk::E_HOME) { CamKick(0.f, 0.f, 9.f); } Fx.Aura(Feet, Ki, 0.7f); break;
 		case gk::E_RUSH: Fx.Aura(Feet, Ki, 0.9f); Remark(Who, TEXT("GHOST STEP")); break;
 		case gk::E_BURNOUT: Remark(Who, TEXT("BURNOUT")); Say(TEXT("BURNOUT"), 45); Shake = FMath::Max(Shake, 8.f); Fx.Aura(Feet, FLinearColor(0.5f, 0.55f, 0.5f), 1.3f); Fx.Dust(Feet, 1.6f, 0.f); break;
 		case gk::E_SPECIAL: PlayVfx(TEXT("NS_Aura2"), Feet + FVector(-10.0, 0.0, 0.0), 1.f, 0.f, nullptr); Fx.Aura(Feet, Ki, 0.9f); CamKick(0.f, -0.04f, 6.f); Shake = FMath::Max(Shake, 2.5f); break;
@@ -1323,7 +1339,7 @@ void AGkMatch::LookFighter(int32 i)
 		if (M && M->sup) { Edge = FLinearColor(9.f, 6.5f, 1.2f); Thick = 3.f + Pulse; Wash = FLinearColor(3.f, 2.2f, 0.6f); Amt = 0.3f; }
 		else if (M && M->od) { Edge = FLinearColor(7.f, 4.f, 0.5f); Thick = 2.6f; Wash = FLinearColor(2.f, 1.2f, 0.3f); Amt = 0.18f; }
 		else if (M && M->sp) { Edge = Ki; Thick = 2.f; }
-		else if (M && M->di) { Edge = FLinearColor(6.f, 1.2f, 4.f); Thick = 2.8f; }
+		else if (M && M->di) { const float Fl = (Ticks & 2) ? 1.f : 0.6f; Edge = FLinearColor(10.f, 0.8f, 6.f) * Fl; Thick = 4.5f; Wash = FLinearColor(5.f, 0.5f, 3.2f); Amt = 0.45f * Fl; }
 		if (P.arm > 0) { Edge = FLinearColor(6.f, 1.8f, 0.2f); Thick = 2.8f; }
 		if (P.st == gk::DRUSH) { Edge = FLinearColor(0.4f, 6.f, 1.4f); Thick = 2.6f; Wash = FLinearColor(0.3f, 2.4f, 0.8f); Amt = 0.3f; }
 		if (P.st == gk::BLOCK) { Edge = FLinearColor(2.f, 4.f, 9.f); Thick = 3.2f; Wash = FLinearColor(1.1f, 1.6f, 3.2f); Amt = P.hs > 0 ? 0.75f : 0.4f; }
@@ -1373,6 +1389,11 @@ void AGkMatch::StateFx(int32 i)
 {
 	const gk::Fighter& P = S.p[i]; const FVector Chest = At(P.x, P.y) + FVector(-20.0, 0.0, 95.0); const gk::Move* M = (P.st == gk::ATK && P.mv >= 0) ? &gk::move(P.mv) : nullptr;
 	const FLinearColor Ki = i ? FLinearColor(1.5f, 3.5f, 8.f) : FLinearColor(7.f, 3.6f, 0.9f);
+	// his feet: a heavy step as he walks, quicker when he runs
+	{
+		const bool bWalk = P.st == gk::IDLE && P.sub != gk::CROUCH && P.y <= 0 && FMath::Abs(P.vx) > 20, bRun = (P.st == gk::RUN || P.st == gk::DRUSH) && P.y <= 0;
+		if (bWalk || bRun) { if (++StepT[i] >= (bRun ? 13 : 24)) { StepT[i] = 0; Snd(TEXT("Step_01"), bRun ? 0.3f : 0.22f, bRun ? 1.15f : 1.f); } } else { StepT[i] = 16; }
+	}
 	if (P.st == gk::PARRY && (Ticks % 3) == 0)
 	{
 		for (int32 k = 0; k < 8; k++)
@@ -1387,6 +1408,12 @@ void AGkMatch::StateFx(int32 i)
 		FGkFx::FP& Sm = Fx.Add(1, Chest + FVector(Fx.Rng.FRandRange(-10.f, 10.f), Fx.Rng.FRandRange(-25.f, 25.f), Fx.Rng.FRandRange(-40.f, 60.f)), FVector(0.0, Fx.Rng.FRandRange(-20.f, 20.f), Fx.Rng.FRandRange(60.f, 130.f)), 0.9f, 16.f, 52.f, FLinearColor(0.05f, 0.06f, 0.055f), 0.38f);
 		Sm.Drag = 1.2f;
 	}
+	if (M && M->di)
+	{   // all the way through a drive impact he drags bright streaks behind him
+		static const FLinearColor Paint[3] = { FLinearColor(9.f, 0.6f, 5.f), FLinearColor(0.5f, 6.f, 8.f), FLinearColor(9.f, 6.f, 0.5f) };
+		for (int32 k = 0; k < 3; k++) { FGkFx::FP& St = Fx.Add(0, Chest + FVector(0.0, -P.face * 20.0, Fx.Rng.FRandRange(-80.f, 70.f)), FVector(0.0, -P.face * Fx.Rng.FRandRange(500.f, 1100.f), Fx.Rng.FRandRange(-60.f, 60.f)), 0.3f, Fx.Rng.FRandRange(12.f, 24.f), 3.f, Paint[(Ticks + k) % 3]); St.Stretch = 12.f; }
+		Fx.Add(0, Chest, FVector::ZeroVector, 0.1f, 170.f, 210.f, FLinearColor(1.6f, 0.15f, 1.f));
+	}
 	if (M && P.mv == gk::moveByKey("SA3"))
 	{   // King Tide: light gathers between the hands, then the wave runs the length of the stage
 		const int32 Fire = M->hits[0].s - 2, End = M->lastAct + 3; const FVector Hands = At(P.x + P.face * 34 * gk::F, P.y + 56 * gk::F, -10.0);
@@ -1395,7 +1422,7 @@ void AGkMatch::StateFx(int32 i)
 		else if (P.mf <= End)
 		{
 			const float Grow = FMath::Clamp((P.mf - Fire + 1) / 4.f, 0.f, 1.f), Fade = FMath::Clamp((End - P.mf + 1) / 5.f, 0.f, 1.f);
-			if (P.mf == Fire) { Snd(TEXT("AbilityRelease_05"), 1.f); Snd(TEXT("Explosion_01"), 0.8f); }
+			if (P.mf == Fire) { Snd(TEXT("AbilityRelease_05"), 0.9f); Snd(TEXT("LaserBig_01"), 1.f); Snd(TEXT("Explosion_01"), 0.6f); }
 			Beam(Hands, float(P.face), 2600.f * Grow, 150.f * FMath::Min(Grow, Fade), Ki); Shake = FMath::Max(Shake, 5.f); Flash = FMath::Max(Flash, P.mf == Fire ? 0.8f : 0.1f);
 			if ((Ticks % 5) == 0) { Fx.Dust(At(P.x + P.face * Fx.Rng.FRandRange(60.f, 500.f) * gk::F, 0), 1.2f, float(P.face)); }
 		}
@@ -1577,7 +1604,9 @@ void AGkMatch::LoadVfx()
 			FString Name = A.AssetName.ToString(); int32 Cut = INDEX_NONE; if (!Name.FindLastChar(TEXT('_'), Cut)) { continue; }
 			if (USoundBase* Wv = Cast<USoundBase>(A.GetAsset())) { SndKeep.Add(Wv); SndSets.FindOrAdd(FName(*Name.Left(Cut))).Add(Wv); }
 		}
-		UE_LOG(LogTemp, Display, TEXT("GkSfx: %d sounds in %d sets"), SndKeep.Num(), SndSets.Num());
+		TArray<FAssetData> Tunes; FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get().GetAssetsByPath(FName(TEXT("/Game/GkMusic")), Tunes, false);
+		for (const FAssetData& A : Tunes) { if (USoundBase* Wv = Cast<USoundBase>(A.GetAsset())) { Songs.Add(Wv); } }
+		UE_LOG(LogTemp, Display, TEXT("GkSfx: %d sounds in %d sets, %d songs"), SndKeep.Num(), SndSets.Num(), Songs.Num());
 	}
 	// the Special Moves kit's own energy effects: its shot, its beam, its auras
 	for (const TCHAR* N : { TEXT("NS_Beam"), TEXT("NS_EnergyShot"), TEXT("NS_Aura"), TEXT("NS_Aura2"), TEXT("NS_HandAura"), TEXT("NS_Hit"), TEXT("NS_Ground_ShockWave"), TEXT("NS_Thunder") }) { Sys(TEXT("/Game/SpecialMoves_Energy/Demo/VFX/Niagara/"), N); }
@@ -1636,10 +1665,30 @@ void AGkMatch::Present(float Real)
 				double By = CamPos.Y + Fx.Rng.FRandRange(-900.f, 900.f), Bz = 900.0;
 				for (int32 Seg = 0; Seg < 7; Seg++) { const double Ny = By + Fx.Rng.FRandRange(-90.f, 90.f); FGkFx::FP& Bt = Fx.Add(0, FVector(260.0, (By + Ny) * 0.5, Bz - 60.0), FVector(0.0, (Ny - By) * 0.02, -1.0), 0.22f, 26.f, 14.f, FLinearColor(9.f, 10.f, 14.f)); Bt.Stretch = 9.f; By = Ny; Bz -= 120.0; }
 			}
-			if (BoltDue <= 0.f && Storm > 0.55f) { Snd(TEXT("Explosion_01"), 0.3f, 0.7f); Flash = FMath::Max(Flash, 0.55f + 0.5f * Storm); Shake = FMath::Max(Shake, 2.f + 3.f * Storm); BoltDue = Fx.Rng.FRandRange(1.6f, 5.f) / Storm; }
+			if (BoltDue <= 0.f && Storm > 0.55f) { Snd(TEXT("ImpactFar_01"), 0.45f, 0.7f); Flash = FMath::Max(Flash, 0.55f + 0.5f * Storm); Shake = FMath::Max(Shake, 2.f + 3.f * Storm); BoltDue = Fx.Rng.FRandRange(1.6f, 5.f) / Storm; }
+		}
+		// the rain is heard as well as seen, and the menus have their own pulse
+		{
+			auto Loop = [this](TObjectPtr<UAudioComponent>& C, const TCHAR* Set, float Vol)
+			{
+				if (Vol > 0.01f && !C) { if (const TArray<USoundBase*>* T = SndSets.Find(FName(Set))) { if (T->Num()) { C = UGameplayStatics::SpawnSound2D(this, (*T)[0], Vol, 1.f, 0.f, nullptr, false, false); } } }
+				if (C) { if (Vol <= 0.01f) { C->Stop(); C = nullptr; } else { C->SetVolumeMultiplier(Vol); } }
+			};
+			Loop(RainLoop, TEXT("LoopRain_01"), (Place != 0 && Screen == 3 && !bScript) ? FMath::Clamp((Storm - 0.3f) * 1.6f, 0.f, 1.f) : 0.f);
+			// the songs play one after another in a random order for as long as the game is open, a little lower under a fight
+			if (!bScript && Songs.Num() > 0)
+			{
+				if (!Music || !Music->IsPlaying())
+				{
+					int32 Next = Fx.Rng.RandRange(0, Songs.Num() - 1); if (Songs.Num() > 1 && Next == LastSong) { Next = (Next + 1 + Fx.Rng.RandRange(0, Songs.Num() - 2)) % Songs.Num(); }
+					LastSong = Next; if (Music) { Music->Stop(); } Music = UGameplayStatics::SpawnSound2D(this, Songs[Next], 0.5f, 1.f, 0.f, nullptr, false, false);
+				}
+				if (Music) { MusicVol = FMath::Lerp(MusicVol, (Screen == 3 && !bMenu) ? 0.42f : 0.6f, FMath::Clamp(Real * 2.f, 0.f, 1.f)); Music->SetVolumeMultiplier(MusicVol); }
+			}
 		}
 		// a super dims the world behind the fighters for as long as it holds the screen; the weather's own light is untouched
-		Dim = FMath::Lerp(Dim, S.freeze > 0 ? 1.f : 0.f, FMath::Clamp(Real * 14.f, 0.f, 1.f));
+		const bool bImpact = ImpactT[0] > 12 || ImpactT[1] > 12;   // the world dims for the first beats of a drive impact as it does for a super
+		Dim = FMath::Lerp(Dim, S.freeze > 0 ? 1.f : bImpact ? 0.7f : 0.f, FMath::Clamp(Real * 14.f, 0.f, 1.f));
 		Flash *= FMath::Pow(0.0008f, Real);
 		if (Cam)
 		{
