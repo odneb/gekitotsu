@@ -1,9 +1,9 @@
 # GEKITOTSU: poses and move animation for the fighter. Written by tools/make_kagu.py; edit that, not this.
-pose Idle hip 0 -7 83 ln -7 ln2 2 sd 0 tw -52 pt -34 hd 6 hy 42 hl 13 46 132 hr -25 -18 80 fl 9 26 9 fr -13 -27 9 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
-pose Idle2 hip 0 -3 81 ln 2 ln2 10 sd 0 tw -48 pt -32 hd -2 hy 40 hl 15 44 124 hr -24 -14 84 fl 9 26 9 fr -13 -27 9 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose Idle hip 0 -7 77 ln -7 ln2 2 sd 0 tw -52 pt -34 hd 6 hy 42 hl 17 30 112 hr -22 -4 92 fl 9 26 9 fr -13 -27 9 el 0.7 -0.5 -1 er -0.8 -0.8 -0.2 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose Idle2 hip 0 -3 74 ln 2 ln2 10 sd 0 tw -48 pt -32 hd -2 hy 40 hl 17 30 109 hr -22 -4 89 fl 9 26 9 fr -13 -27 9 el 0.7 -0.5 -1 er -0.8 -0.8 -0.2 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
 pose Crouch hip 0 -8 50 ln 30 ln2 40 sd 0 tw -40 pt -26 hd -30 hy 30 hl 12 40 70 hr -22 -20 56 fl 11 30 9 fr -15 -34 11 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.7 1 0.3 kr -0.9 0.5 0.2 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
-pose WalkA hip 0 0 84 ln 2 ln2 6 sd 0 tw -46 pt -30 hd 2 hy 36 hl 14 44 128 hr -24 -12 84 fl 9 34 9 fr -12 -10 16 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
-pose WalkB hip 0 2 82 ln 4 ln2 8 sd 0 tw -46 pt -30 hd 0 hy 36 hl 15 42 126 hr -24 -16 82 fl 9 4 15 fr -13 -30 9 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose WalkA hip 0 0 79 ln 2 ln2 6 sd 0 tw -46 pt -30 hd 2 hy 36 hl 17 30 114 hr -22 -4 94 fl 9 34 9 fr -12 -10 16 el 0.7 -0.5 -1 er -0.8 -0.8 -0.2 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
+pose WalkB hip 0 2 77 ln 4 ln2 8 sd 0 tw -46 pt -30 hd 0 hy 36 hl 17 30 112 hr -22 -4 92 fl 9 4 15 fr -13 -30 9 el 0.7 -0.5 -1 er -0.8 -0.8 -0.2 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
 pose Jump hip 0 0 95 ln 24 ln2 34 sd 0 tw -30 pt -20 hd -20 hy 20 hl 14 26 104 hr -18 10 98 fl 10 24 58 fr -10 2 50 el 0.3 -0.2 -1 er -0.8 -0.6 0.2 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
 pose Fall hip 0 0 95 ln -12 ln2 -18 sd 0 tw -40 pt -30 hd 12 hy 30 hl 34 10 140 hr -36 -12 134 fl 10 14 24 fr -12 -16 30 el 1 0 -0.3 er -1 0 -0.3 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0
 pose Dash hip 0 10 70 ln 46 ln2 54 sd 0 tw -24 pt -14 hd -40 hy 14 hl 16 -22 96 hr -20 -34 92 fl 9 40 9 fr -12 -36 22 el 0.4 -1 0.4 er -0.4 -1 0.4 kl 0.5 1 0 kr -0.9 0.6 0 tl 0.1 1 -0.5 tr -0.8 0.5 -0.5 roll 0 spin 0

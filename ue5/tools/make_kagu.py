@@ -62,6 +62,10 @@ P['Held'] = Mk(V(0, 0, 84), -14, -22, -40, -30, -20, 20, V(22, -6, 100), V(-24, 
 P['SuperS'] = With(Mk(V(0, 20, 70), 40, 46, 40, 12, -34, -30, V(26, -30, 90), V(-2, 70, 112), V(9, 50, 9), V(-13, -40, 18)), AB, V(-0.5, -0.2, 1))
 P['Win'] = With(Mk(V(0, 0, 90), -4, -2, -90, -80, 8, 80, V(10, 10, 108), V(-12, 6, 102), V(8, 8, 9), V(-9, -8, 9)), V(0.9, 0, -0.4), V(-0.9, 0, -0.4))
 
+# the standing poses: sunk into the legs, lead hand held loose at chest height rather than thrust out
+for _k, _dz in (('Idle', 0), ('Idle2', -3), ('WalkA', 2), ('WalkB', 0)):
+    _p = dict(P[_k]); _h = _p['hip']; _p['hip'] = (_h[0], _h[1], min(_h[2], 77 + _dz)); _p['hl'] = (17, 30, 112 + _dz); _p['el'] = (0.7, -0.5, -1); _p['hr'] = (-22, -4, 92 + _dz); _p['er'] = (-0.8, -0.8, -0.2); P[_k] = _p
+
 # ---------------------------------------------------------------------------------------------- moves
 # wind-up pose, strike pose, follow-through ('-' for none), the limb steered onto the hitbox (1 left hand, 2 right hand,
 # 3 left foot, 4 right foot), then the swing trail: the angle its bulge points on screen for a fighter facing right

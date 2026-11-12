@@ -29,8 +29,7 @@ def play(steps, total=None):
         except Exception: log(traceback.format_exc())
     later(t + (total or 2.5), stop)
 
-steps = [(1.0, 'cpu 0 1; cpu 1 1; set idle 0'), (0.5, ('shot', 'intro'))]
-for k in range(5): steps += [(2.2, ('shot', 'fight%d' % k)), (0.2, 'state')]
-steps += [(0.5, 'hp 0 240; meter 1 3000; set stormrate 3'), (2.5, ('shot', 'storm0')), (2.0, ('shot', 'storm1')), (0.2, 'state')]
-steps += [(0.6, 'cpu 0 0; cpu 1 0; unset stormrate; reset'), (2.2, 'meter 0 3000; state'), (0.1, 'in 0 192 3'), (0.3, ('shot', 'super0')), (0.6, ('shot', 'super1')), (0.7, ('shot', 'super2')), (0.2, 'state')]
+steps = [(1.0, 'cpu 0 0; cpu 1 0; set idle 9999'), (2.2, 'place 0 -105 0; place 1 105 0; set camx 400; set camy 0; set camzfix 108'), (1.5, ('shot', 'close')),
+         (1.6, 'unset camx; cpu 0 1; cpu 1 1; set idle 0; reset')]
+for k in range(4): steps += [(2.6, ('shot', 'fight%d' % k)), (0.2, 'state')]
 play(steps)

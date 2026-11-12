@@ -105,7 +105,7 @@ void FGkGame::Begin(AGkMatch* InOwner)
 	SetLumen(false);
 	// the figures placed in the level are for looking at in the editor; the match brings its own
 	for (TActorIterator<ASkeletalMeshActor> It(World); It; ++It) { It->SetActorHiddenInGame(true); }
-	SkMesh = LoadObject<USkeletalMesh>(nullptr, TEXT("/Game/Kagu/Kagu_Run.Kagu_Run"));
+	SkMesh = LoadObject<USkeletalMesh>(nullptr, TEXT("/Game/Kagu2/Kagu_V2.Kagu_V2"));
 	if (SkMesh) { Rig.Init(SkMesh->GetRefSkeleton()); }
 	InkMat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Mat/MI_Ink.MI_Ink"));
 	UMaterialInterface* GhostM = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Mat/M_Ghost.M_Ghost"));

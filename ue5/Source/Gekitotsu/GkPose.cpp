@@ -186,6 +186,7 @@ void FGkRig::Solve(const FGkPose& P, TArray<FTransform>& Out) const
 		}
 		else if (Par >= 0) { Q = Out[Par].GetRotation() * RefLocal[b].GetRotation(); Pos = J.Contains(b) ? J[b] : Out[Par].GetLocation() + Out[Par].GetRotation().RotateVector(RefLocal[b].GetLocation()); }
 		else { Q = RefCS[b].GetRotation(); Pos = J.Contains(b) ? J[b] : RefCS[b].GetLocation(); }
-		Out[b] = FTransform(Q.GetNormalized(), Pos, FVector::OneVector);
+		// keep whatever scale the skeleton carries in its bind pose, so the skin stays the size it was bound at
+		Out[b] = FTransform(Q.GetNormalized(), Pos, RefCS[b].GetScale3D());
 	}
 }
