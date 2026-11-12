@@ -11,7 +11,19 @@ namespace gk {
 static const int SCALE[10] = { 100, 100, 80, 70, 60, 50, 40, 30, 20, 10 };
 static Move g_moves[M_COUNT]; static bool g_built = false;
 static inline const Move& MV(int id) { return g_moves[id]; }
-static void ready() { if (!g_built) { buildMoves(g_moves); g_built = true; } }
+// King Tide, the level three super, is a beam in this version: he plants his feet, and a wave the length of the stage
+// strikes five times and blows the other fighter away. (The browser's King Tide is a rushing combination.)
+static void beamSuper(Move& m)
+{
+	m.has_mv = 0; m.has_rise = 0; m.stopOnHit = 0; m.t = 84; m.lastAct = 58; m.landRec = 0; m.inv[1] = 21;
+	static const int at[5] = { 22, 29, 36, 43, 52 };
+	for (int k = 0; k < m.nhits && k < 5; k++)
+	{
+		Hit& h = m.hits[k]; h.s = at[k]; h.e = at[k] + (k == 4 ? 5 : 2); h.has_hb = 1; h.hb[0] = 14; h.hb[1] = 28; h.hb[2] = 900; h.hb[3] = 66; h.lk = 0; h.req = 0; h.kb = 140;
+		if (k == 4) { h.has_launch = 1; h.launch[0] = 700; h.launch[1] = 620; h.has_air = 1; h.air[0] = 700; h.air[1] = 620; }
+	}
+}
+static void ready() { if (!g_built) { buildMoves(g_moves); beamSuper(g_moves[M_SA3]); g_built = true; } }
 
 const Move& move(int id) { ready(); return g_moves[id < 0 || id >= M_COUNT ? 0 : id]; }
 const char* moveKey(int id) { return id >= 0 && id < M_COUNT ? MOVE_KEY[id] : ""; }
@@ -465,17 +477,12 @@ static void update(State& s, Fighter& p, Fighter& o, int inp, int i)
 				{
 					p.st = TECH; o.st = TECH; p.sf = 0; o.sf = 0; o.y = 0; p.pv = -p.face * 620; o.pv = p.face * 620; push(s, E_TECH, -1, (p.x + o.x) >> 1, 60 * F); break;
 				}
-				if (p.pmT > 0) { p.pmT--; }
-				if (p.sf >= 9 && p.pmT <= 0)
+				// no hold and no pummel: the grab is the throw. Forward unless a direction is given in the first frames, and the first one given sticks
+				// (back throws him behind, down slams him so he bounces up over the thrower, up launches him)
 				{
 					const int fw = inp & (p.face > 0 ? 8 : 4), bw = inp & (p.face > 0 ? 4 : 8);
-					// any attack button pummels (up to five); a direction, or running out of time, throws
-					if ((p.age[0] <= 6 || p.age[1] <= 6 || p.age[2] <= 6 || p.age[3] <= 6) && p.pmN < 5 && p.sf < 70)
-					{
-						p.age[0] = p.age[1] = p.age[2] = p.age[3] = 99; p.pmN++; p.pmT = 9; const int d = 8 * k / 10; o.hp = imax(1, o.hp - d); o.redT = 50; o.hs = 3; p.hs = 3;
-						push(s, E_HIT, i, o.x, 56 * F, 0, d, p.pmN, d * p.pmN, 0, H_THROW);
-					}
-					else if (p.sf >= 12 && (fw || bw || (inp & 3) || p.sf >= 54)) { p.tk = bw ? 2 : fw ? 1 : (inp & 1) ? 3 : (inp & 2) ? 4 : 1; p.tf = 0; p.back = p.tk == 2 ? 1 : 0; }
+					if (!p.pmN) { p.pmN = bw ? 2 : (inp & 2) ? 4 : (inp & 1) ? 3 : fw ? 1 : 0; }
+					if (p.sf >= 9) { p.tk = p.pmN ? p.pmN : 1; p.tf = 0; p.back = p.tk == 2 ? 1 : 0; }
 				}
 			}
 			else
@@ -484,7 +491,7 @@ static void update(State& s, Fighter& p, Fighter& o, int inp, int i)
 				if (o.st == THROWN) { o.x = p.x + p.face * side * 30 * F; o.y = p.tk == 4 ? 0 : imin(p.tf, 10) * 3 * F; o.vx = 0; o.vy = 0; }
 				if (p.tf == 10 && o.st == THROWN)
 				{
-					static const int V[5][2] = { { 0, 0 }, { 430, 720 }, { 430, 720 }, { 40, 1480 }, { 150, 1080 } };
+					static const int V[5][2] = { { 0, 0 }, { 430, 720 }, { 430, 720 }, { 40, 1480 }, { -70, 1260 } };
 					const int d = 120 * k / 10;
 					o.hp = imax(s.cfg.training ? 1 : 0, o.hp - d); o.st = AHIT; o.sf = 0; o.y = p.tk == 4 ? 1 : 30 * F; o.vx = p.face * side * V[p.tk][0]; o.vy = V[p.tk][1]; o.combo = 1; o.comboDmg = d;
 					o.jug = p.tk >= 3 ? 0 : 3; o.hard = p.tk >= 3 ? 0 : 1; o.hs = 8; p.hs = 8; o.redT = 50; o.gbUsed = 0; o.wbUsed = 0;

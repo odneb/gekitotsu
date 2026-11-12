@@ -72,14 +72,14 @@ public:
 	// when it changes. An attack's clip is timed so its furthest reach falls on the move's first active frame.
 	TArray<FTransform> PoseShown[2], PoseFrom[2], RefCS[2]; TArray<int32> SkelIdx[2], Twin[2]; const void* PoseMesh[2] = { nullptr, nullptr }; const void* SkelFor[2] = { nullptr, nullptr };
 	const void* ShownAnim[2] = { nullptr, nullptr }; FName ShownClip[2]; int32 BlendAt[2] = { 0, 0 }, BlendLen[2] = { 0, 0 }, LastT[2] = { 0, 0 }, AnimClock = 0, KeyBone[2][5];
-	TMap<const UAnimSequence*, float> HitAt; TSet<FString> Picked;
-	void EvalClip(int32 i, UAnimSequence* A, float Time, TArray<FTransform>& Out); float ImpactOf(int32 i, const FGkClip& C);
+	TMap<const UAnimSequence*, float> HitAt, ThrustAt; TSet<FString> Picked;
+	void EvalClip(int32 i, UAnimSequence* A, float Time, TArray<FTransform>& Out); float ImpactOf(int32 i, const FGkClip& C, bool bThrust = false);
 	// How a fighter's state is told at a glance: his colours and outline change with it (guard blue, parry cyan, a perfect
 	// parry gold, burnout grey, a blow landing white), with a word over his head and particles to match.
 	UPROPERTY() TArray<TObjectPtr<UMaterialInstanceDynamic>> Mids;
 	UMaterialInstanceDynamic* BodyMid[2][4] = { { nullptr, nullptr, nullptr, nullptr }, { nullptr, nullptr, nullptr, nullptr } }; UMaterialInstanceDynamic* InkMid[2] = { nullptr, nullptr }; FLinearColor BaseCol[2][4], ShadeCol[2][4];
 	int32 PerfectT[2] = { 0, 0 }; float Lean[2] = { 0.f, 0.f }, Squash[2] = { 0.f, 0.f }, Flash = 0.f, RainDue = 0.f, BoltDue = 3.f;
-	void LookFighter(int32 i); void StateFx(int32 i);
+	void LookFighter(int32 i); void StateFx(int32 i); void Beam(const FVector& From, float Dir, float Len, float R, const FLinearColor& Col); float BeamDue = 0.f;
 	// scripted pictures (-gkscript): a list of commands in Saved/script.txt that pose the game and save screenshots
 	TArray<FString> Script; int32 ScriptAt = 0, ScriptWait = 0; bool bScript = false; FName ScriptSlot; float ScriptStorm = -1.f; FString ScriptNote; bool bLabUi = false; int32 ScriptRunLeft = 0, ScriptIn[2] = { 0, 0 }; void RunScript();
 	// The animation lab (Screen 4): one fighter alone, every move and state in turn, and every clip he has to try on it.

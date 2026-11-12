@@ -444,7 +444,7 @@ void AGkMatch::LabOpen()
 		{ TEXT("blockS"), TEXT("Standing block"), 1 }, { TEXT("blockC"), TEXT("Crouching block"), 1 }, { TEXT("parry"), TEXT("Parry"), 1 }, { TEXT("prec"), TEXT("Perfect parry"), 1 },
 		{ TEXT("hitL"), TEXT("Hit: light"), 2 }, { TEXT("hitM"), TEXT("Hit: medium"), 2 }, { TEXT("hitH"), TEXT("Hit: heavy"), 2 }, { TEXT("hitLow"), TEXT("Hit: legs"), 2 }, { TEXT("hitCr"), TEXT("Hit: crouching"), 2 }, { TEXT("crumple"), TEXT("Crumple"), 2 },
 		{ TEXT("splat"), TEXT("Wall splat"), 2 }, { TEXT("ahit"), TEXT("Hit in the air"), 2 }, { TEXT("kd"), TEXT("Knocked down"), 2 }, { TEXT("getup"), TEXT("Get up"), 2 }, { TEXT("thrown"), TEXT("Being thrown"), 2 },
-		{ TEXT("grab"), TEXT("Grab"), 8 }, { TEXT("bite"), TEXT("Grab hit"), 8 }, { TEXT("throw1"), TEXT("Throw 1"), 8 }, { TEXT("throw2"), TEXT("Throw 2"), 8 }, { TEXT("throw3"), TEXT("Throw 3"), 8 }, { TEXT("throw4"), TEXT("Throw 4"), 8 } };
+		{ TEXT("grab"), TEXT("Grab"), 8 }, { TEXT("throw1"), TEXT("Throw forward"), 8 }, { TEXT("throw2"), TEXT("Throw back"), 8 }, { TEXT("throw3"), TEXT("Throw up"), 8 }, { TEXT("throw4"), TEXT("Throw down (slam)"), 8 } };
 	LabSlots.Reset();
 	for (const FState& St : States) { FLabSlot L; L.Slot = FName(St.Slot); L.Label = St.Label; L.Cat = St.Cat; LabSlots.Add(L); }
 	for (int32 k = 0; k < MoveClip.Num(); k++) { const FString Key = UTF8_TO_TCHAR(gk::moveKey(k)); FLabSlot L; L.Slot = MoveClip[k]; L.Label = FString::Printf(TEXT("%s   %s"), UTF8_TO_TCHAR(gk::moveName(k)), *Key); L.Cat = GkMoveCat(Key); LabSlots.Add(L); }
@@ -958,11 +958,10 @@ void AGkMatch::OnEvent(const gk::Event& E)
 			  CamKick(Dr * (bKo ? 8.f : bFin ? 9.f : E.a >= 2 ? 3.f : 1.2f), bKo ? -0.14f : bFin ? -0.16f : E.a >= 2 ? -0.05f : -0.02f, bKo ? 12.f : bFin ? 14.f : E.a >= 2 ? 4.f : 0.f, bKo ? Dr * 8.f : bFin ? Dr * 6.f : 0.f); }
 			Combo[Who] = E.c; ComboDmg[Who] = E.d; ComboTimer[Who] = 80;
 			Lean[1 - Who] = (E.f & gk::H_KO) ? 22.f : 6.f + 5.f * FMath::Clamp(E.a, 0, 2); Flash = FMath::Max(Flash, (E.f & gk::H_KO) ? 1.f : E.a >= 2 ? 0.22f : 0.f);
-			if (E.f & gk::H_SPECIAL) { Shake = FMath::Max(Shake, 7.f); Flash = FMath::Max(Flash, 0.3f); PlayVfx(TEXT("NS_Hit"), At(E.x, E.y, -30.0), 1.f, 0.f, nullptr); }
+			if (E.f & gk::H_SPECIAL) { Shake = FMath::Max(Shake, 7.f); Flash = FMath::Max(Flash, 0.3f); }
 			if ((E.f & gk::H_FINISH) && S.p[Who].st == gk::ATK && S.p[Who].mv >= 0 && gk::move(S.p[Who].mv).sup)
 			{   // a super ends on the kit's beam, fired from the chest through the other fighter, and a shockwave under him
-				const gk::Fighter& Wp = S.p[Who]; const gk::Fighter& Lp = S.p[1 - Who];
-				PlayVfx(TEXT("NS_Beam"), At(Wp.x + Wp.face * 30 * gk::F, Wp.y, -10.0) + FVector(0.0, 0.0, 115.0), 2.6f, float(Wp.face), nullptr);
+				const gk::Fighter& Lp = S.p[1 - Who];
 				PlayVfx(TEXT("NS_Ground_ShockWave"), At(Lp.x, 0, -10.0), 1.6f, 0.f, nullptr); PlayVfx(TEXT("NS_Thunder"), At(Lp.x, Lp.y, -10.0), 1.4f, 0.f, nullptr);
 			}
 			if (E.f & gk::H_IMPACT) { Remark(Who, (E.f & gk::H_CRUMPLE) ? TEXT("CRUMPLE!") : TEXT("BREACH!")); }
@@ -982,8 +981,8 @@ void AGkMatch::OnEvent(const gk::Event& E)
 		case gk::E_SPLAT: CamKick(Feet.Y > 0 ? 6.f : -6.f, -0.1f, 8.f, Feet.Y > 0 ? 8.f : -8.f); Fx.Hit(Feet + FVector(0, 0, 100), 2, float(-S.p[Who].face)); Fx.Dust(Feet, 1.4f, 0.f); Remark(Who, E.a ? TEXT("STUN!") : TEXT("WALL SPLAT")); Shake = FMath::Max(Shake, 12.f); break;
 		case gk::E_GBOUNCE: case gk::E_WBOUNCE: if (E.type == gk::E_WBOUNCE) { CamKick(Feet.Y > 0 ? 5.f : -5.f, -0.1f, 8.f, Feet.Y > 0 ? 7.f : -7.f); } else { CamKick((Ticks & 1) ? 4.f : -4.f, -0.08f, 7.f); } Fx.Dust(Feet, 1.6f, 0.f); Fx.Hit(FVector(Feet.X, Feet.Y, E.type == gk::E_GBOUNCE ? 10.0 : Feet.Z + 90.0), 1, 0.f); Shake = FMath::Max(Shake, 10.f); break;
 		case gk::E_KD: Fx.Dust(Feet, 1.3f, 0.f); Shake = FMath::Max(Shake, 3.f); break;
-		case gk::E_LAND: Squash[Who] = 1.f; if (!PlayVfx(TEXT("NS_Directional_Dust_01_Once"), Feet + FVector(-20, 0, 2), 0.26f, 0.f, TEXT("SFX_Vefects_Directional_Dust_01_Cue"), 0.5f)) { Fx.Dust(Feet, 0.55f, 0.f); } break;
-		case gk::E_JUMP: case gk::E_WALLJUMP: if (!PlayVfx(TEXT("NS_Directional_Dust_Jump_01_Once"), FVector(Feet.X - 20, Feet.Y, 2), 0.32f, 0.f, TEXT("SFX_Vefects_Jump_Dust_01_Cue"), 0.6f)) { Fx.Dust(Feet, 0.45f, 0.f); } break;
+		case gk::E_LAND: Squash[Who] = 1.f; if (!PlayVfx(TEXT("NS_Directional_Dust_01_Once"), Feet + FVector(-20, 0, 2), 0.2f, 0.f, TEXT("SFX_Vefects_Directional_Dust_01_Cue"), 0.5f)) { Fx.Dust(Feet, 0.55f, 0.f); } break;
+		case gk::E_JUMP: case gk::E_WALLJUMP: if (!PlayVfx(TEXT("NS_Directional_Dust_Jump_01_Once"), FVector(Feet.X - 20, Feet.Y, 2), 0.2f, 0.f, TEXT("SFX_Vefects_Jump_Dust_01_Cue"), 0.6f)) { Fx.Dust(Feet, 0.45f, 0.f); } break;
 		case gk::E_TECH: case gk::E_RISE: Fx.Dust(Feet, 0.45f, 0.f); break;
 		case gk::E_DASH: case gk::E_RUN: if (!PlayVfx(S.p[Who].face > 0 ? TEXT("NS_Directional_Dust_03_Once_Fast") : TEXT("NS_Directional_Dust_03_Once_Fast_Flip"), FVector(Feet.X - 20, Feet.Y, 2), 0.34f, 0.f, nullptr)) { Fx.Dust(Feet, 0.8f, float(S.p[Who].face)); } break;
 		case gk::E_EX: case gk::E_DI: case gk::E_HOME: if (E.type == gk::E_HOME) { CamKick(0.f, 0.f, 9.f); } Fx.Aura(Feet, Ki, 0.7f); break;
@@ -1004,6 +1003,85 @@ void AGkMatch::OnEvent(const gk::Event& E)
 }
 
 // ------------------------------------------------------------------------------------------------ the picture
+namespace
+{
+	/** Poses made by hand for what no bought clip covers: the win, the wall splat, the grab and the four throws, landing, the jump's start, the crouching guard.
+	    Each is a few key poses (frame, then the solver's 25 numbers) eased from one to the next. */
+	struct FOwnKey { float At; float V[25]; };
+	const float* GkOwnPose(FName Clip, float T)
+	{
+		static TMap<FName, TArray<FOwnKey>> All; static float Out[25];
+		if (All.Num() == 0)
+		{
+			auto K = [](const TCHAR* Name, float At, float hx, float hy, float lean, float up, float tw, float pt, float head, float eL, float eR, float kL, float kR,
+				float lx, float ly, float lz, float rx, float ry, float rz, float flx, float fly, float flz, float frx, float fry, float frz)
+			{ FOwnKey Key = { At, { hx, hy, lean, up, tw, pt, head, eL, eR, kL, kR, 0.f, 0.f, lx, ly, lz, rx, ry, rz, flx, fly, flz, frx, fry, frz } }; All.FindOrAdd(FName(Name)).Add(Key); };
+#define GK_IDLE -5.1f, 45.7f, -13.f, -6.6f, -68.f, -42.f, 9.5f, -0.7f, -0.5f, 0.1f, 0.6f, 14.6f, 73.6f, 0.f, -15.6f, 35.2f, 0.f, 9.7f, 7.4f, 0.f, -12.1f, 4.f, 0.f
+#define GK_CLINCH 4.f, 43.f, 12.f, 18.f, -46.f, -42.f, -8.f, -0.2f, -0.2f, 0.2f, 0.5f, 28.f, 68.f, -5.f, 25.f, 58.f, 5.f, 18.f, 4.f, 0.f, -15.f, 4.f, 0.f
+			// the win: he drops his weight, then throws a fist at the sky and holds it
+			K(TEXT("win"), 0, GK_IDLE);
+			K(TEXT("win"), 12, -2.f, 36.f, 12.f, 20.f, -60.f, -42.f, -12.f, -0.6f, -0.6f, 0.6f, 0.8f, 8.f, 42.f, 2.f, -8.f, 34.f, -2.f, 11.f, 4.f, 3.f, -13.f, 4.f, -3.f);
+			K(TEXT("win"), 22, 0.f, 48.f, -6.f, -12.f, -84.f, -64.f, 18.f, 0.4f, -0.8f, 0.3f, 0.6f, 4.f, 113.f, 4.f, -10.f, 46.f, -4.f, 10.f, 4.f, 7.f, -12.f, 4.f, -7.f);
+			K(TEXT("win"), 40, 0.f, 47.f, -4.f, -9.f, -84.f, -64.f, 14.f, 0.4f, -0.8f, 0.3f, 0.6f, 5.f, 110.f, 4.f, -10.f, 45.f, -4.f, 10.f, 4.f, 7.f, -12.f, 4.f, -7.f);
+			// against the wall: flat, arms flung up and wide, head snapped back, then sagging
+			K(TEXT("splat"), 0, -6.f, 48.f, -10.f, -16.f, -90.f, -88.f, -30.f, 1.2f, 1.2f, 0.2f, 0.2f, 32.f, 100.f, -6.f, -42.f, 96.f, -6.f, 14.f, 12.f, 0.f, -24.f, 9.f, 0.f);
+			K(TEXT("splat"), 26, -6.f, 40.f, -4.f, -6.f, -90.f, -88.f, 18.f, 0.4f, 0.4f, 0.4f, 0.4f, 26.f, 70.f, -6.f, -36.f, 66.f, -6.f, 12.f, 4.f, 0.f, -22.f, 4.f, 0.f);
+			// the grab: a lunge with both hands, into a clinch
+			K(TEXT("grab"), 0, GK_IDLE);
+			K(TEXT("grab"), 5, 8.f, 41.f, 18.f, 24.f, -38.f, -42.f, -12.f, -0.1f, -0.1f, 0.2f, 0.5f, 36.f, 66.f, -7.f, 33.f, 57.f, 7.f, 23.f, 4.f, 0.f, -17.f, 4.f, 0.f);
+			K(TEXT("grab"), 10, GK_CLINCH);
+			// held: a knee driven up into him
+			K(TEXT("bite"), 0, GK_CLINCH);
+			K(TEXT("bite"), 4, 6.f, 46.f, -6.f, 4.f, -40.f, -20.f, -4.f, -0.2f, -0.2f, 0.2f, 0.2f, 24.f, 58.f, -5.f, 22.f, 50.f, 5.f, 16.f, 4.f, 0.f, 20.f, 36.f, 0.f);
+			K(TEXT("bite"), 9, GK_CLINCH);
+			// forward: he hauls him in, turns his hip under and heaves him out past his front foot
+			K(TEXT("throw1"), 0, GK_CLINCH);
+			K(TEXT("throw1"), 6, -2.f, 38.f, 4.f, 6.f, -8.f, -20.f, 0.f, -0.5f, -0.5f, 0.5f, 0.7f, 14.f, 60.f, -4.f, 12.f, 52.f, 4.f, 14.f, 4.f, 0.f, -14.f, 4.f, 0.f);
+			K(TEXT("throw1"), 13, 10.f, 40.f, 30.f, 38.f, -30.f, -42.f, -18.f, 0.f, 0.f, 0.2f, 0.5f, 44.f, 50.f, -6.f, 42.f, 42.f, 6.f, 25.f, 4.f, 0.f, -19.f, 7.f, 0.f);
+			K(TEXT("throw1"), 21, 8.f, 41.f, 24.f, 30.f, -36.f, -42.f, -10.f, 0.f, 0.f, 0.2f, 0.5f, 38.f, 36.f, -6.f, 34.f, 30.f, 6.f, 24.f, 4.f, 0.f, -18.f, 5.f, 0.f);
+			K(TEXT("throw1"), 30, GK_IDLE);
+			// back: he falls away, turning, and slings him over the shoulder behind
+			K(TEXT("throw2"), 0, GK_CLINCH);
+			K(TEXT("throw2"), 6, -2.f, 38.f, -4.f, -2.f, -30.f, -30.f, 0.f, -0.5f, -0.5f, 0.5f, 0.7f, 14.f, 62.f, -4.f, 12.f, 54.f, 4.f, 14.f, 4.f, 0.f, -14.f, 4.f, 0.f);
+			K(TEXT("throw2"), 14, -8.f, 40.f, -26.f, -34.f, -150.f, -110.f, -22.f, 0.5f, 0.5f, 0.3f, 0.5f, -30.f, 72.f, -6.f, -34.f, 64.f, 6.f, 12.f, 4.f, 0.f, -20.f, 4.f, 0.f);
+			K(TEXT("throw2"), 22, -6.f, 42.f, -16.f, -22.f, -150.f, -110.f, -10.f, 0.f, 0.f, 0.3f, 0.5f, -38.f, 44.f, -6.f, -40.f, 38.f, 6.f, 12.f, 4.f, 0.f, -19.f, 4.f, 0.f);
+			K(TEXT("throw2"), 30, GK_IDLE);
+			// up: he dips under and launches him overhead with both arms
+			K(TEXT("throw3"), 0, GK_CLINCH);
+			K(TEXT("throw3"), 6, 4.f, 30.f, 14.f, 20.f, -50.f, -42.f, -10.f, -0.6f, -0.6f, 0.8f, 0.9f, 22.f, 40.f, -5.f, 20.f, 34.f, 5.f, 16.f, 4.f, 3.f, -14.f, 4.f, -3.f);
+			K(TEXT("throw3"), 12, 3.f, 49.f, -8.f, -16.f, -70.f, -50.f, 22.f, 0.5f, 0.5f, 0.2f, 0.5f, 16.f, 112.f, -6.f, 10.f, 110.f, 6.f, 13.f, 4.f, 0.f, -13.f, 6.f, 0.f);
+			K(TEXT("throw3"), 22, 2.f, 47.f, -6.f, -12.f, -70.f, -50.f, 18.f, 0.5f, 0.5f, 0.2f, 0.5f, 14.f, 106.f, -6.f, 9.f, 102.f, 6.f, 13.f, 4.f, 0.f, -13.f, 4.f, 0.f);
+			K(TEXT("throw3"), 30, GK_IDLE);
+			// down: he lifts him and drives him into the floor
+			K(TEXT("throw4"), 0, GK_CLINCH);
+			K(TEXT("throw4"), 6, 2.f, 47.f, -8.f, -10.f, -50.f, -42.f, 6.f, 0.4f, 0.4f, 0.2f, 0.5f, 22.f, 94.f, -5.f, 19.f, 90.f, 5.f, 15.f, 4.f, 0.f, -14.f, 4.f, 0.f);
+			K(TEXT("throw4"), 12, 8.f, 28.f, 34.f, 44.f, -44.f, -42.f, -20.f, -0.3f, -0.3f, 0.8f, 0.9f, 32.f, 12.f, -5.f, 30.f, 8.f, 5.f, 22.f, 4.f, 3.f, -18.f, 4.f, -3.f);
+			K(TEXT("throw4"), 22, 8.f, 29.f, 32.f, 40.f, -44.f, -42.f, -16.f, -0.3f, -0.3f, 0.8f, 0.9f, 31.f, 13.f, -5.f, 29.f, 9.f, 5.f, 22.f, 4.f, 3.f, -18.f, 4.f, -3.f);
+			K(TEXT("throw4"), 30, GK_IDLE);
+			// caught: bent backward off his feet, arms flailing; limp once he is thrown
+			K(TEXT("thrown"), 0, 0.f, 46.f, -14.f, -22.f, -66.f, -42.f, -26.f, 0.3f, 0.3f, 0.2f, 0.5f, -4.f, 88.f, -14.f, -14.f, 82.f, 14.f, 9.f, 8.f, 0.f, -6.f, 6.f, 0.f);
+			K(TEXT("thrown"), 8, 0.f, 46.f, -28.f, -40.f, -70.f, -42.f, -34.f, 0.6f, 0.6f, 0.4f, 0.6f, -22.f, 92.f, -18.f, -30.f, 84.f, 18.f, 18.f, 26.f, -4.f, 6.f, 16.f, 4.f);
+			// landing: the knees take it, hands low for balance, then up
+			K(TEXT("land"), 0, 0.f, 29.f, 18.f, 26.f, -60.f, -42.f, -14.f, -0.6f, -0.6f, 0.9f, 1.0f, 16.f, 34.f, -8.f, -10.f, 30.f, 8.f, 13.f, 4.f, 4.f, -13.f, 4.f, -4.f);
+			K(TEXT("land"), 6, -3.f, 42.f, -6.f, 0.f, -66.f, -42.f, 4.f, -0.7f, -0.5f, 0.2f, 0.6f, 14.f, 66.f, 0.f, -14.f, 36.f, 0.f, 10.f, 4.f, 0.f, -12.f, 4.f, 0.f);
+			// the jump's start: he coils, arms swung back
+			K(TEXT("prejump"), 0, GK_IDLE);
+			K(TEXT("prejump"), 4, -1.f, 32.f, 14.f, 20.f, -62.f, -42.f, -10.f, -0.6f, -0.6f, 0.7f, 0.8f, -8.f, 34.f, -8.f, -18.f, 30.f, 8.f, 11.f, 4.f, 2.f, -12.f, 4.f, -2.f);
+			// the crouching guard: low, both forearms up in front of the face
+			K(TEXT("blockC"), 0, -3.f, 20.f, 10.f, 20.f, -56.f, -45.f, -12.f, 0.5f, 0.5f, 1.2f, 1.2f, 13.f, 53.f, 6.f, 12.f, 45.f, -5.f, 8.f, 9.f, 7.f, 0.f, 10.f, -7.f);
+#undef GK_IDLE
+#undef GK_CLINCH
+		}
+		const TArray<FOwnKey>* Ks = All.Find(Clip); if (!Ks || Ks->Num() == 0) { return nullptr; }
+		const TArray<FOwnKey>& A = *Ks; int32 n = 0; while (n + 1 < A.Num() && T >= A[n + 1].At) { n++; }
+		if (n + 1 >= A.Num() || T <= A[n].At) { FMemory::Memcpy(Out, A[T <= A[0].At ? 0 : n].V, sizeof(Out)); return Out; }
+		float u = (T - A[n].At) / FMath::Max(0.01f, A[n + 1].At - A[n].At); u = u * u * (3.f - 2.f * u);
+		for (int32 k = 0; k < 25; k++) { Out[k] = FMath::Lerp(A[n].V[k], A[n + 1].V[k], u); }
+		return Out;
+	}
+}
+
+
 /**
  * Shows one fighter on the frame the rules are on: picks the browser game's pose for his state or move at that frame
  * (the same choices the browser's fighterPose makes) and solves it onto the skeleton. Nothing plays by itself.
@@ -1108,11 +1186,11 @@ void AGkMatch::ShowFighter(int32 i)
 		const FString Cn = Clip.ToString();
 		if (bTry || (bLab && (!bScript || bLabUi) && (Use->bLoop || Poses.Length(Clip) <= 2))) { const float Span = A1 - A0; Sec = A0 + FMath::Min(Span, FMath::Fmod(LabClock, Span + 0.4f)); }
 		else if (Use->bLoop) { const float Span = FMath::Max(0.05f, A1 - A0); Sec = A0 + FMath::Fmod((bLab ? LabFrame * 4 : S.frame + i * 17) / 60.f, Span); }
-		else if (MoveId >= 0 && gk::move(MoveId).nhits <= 1 && !gk::move(MoveId).sup)
+		else if (MoveId >= 0 && (!gk::move(MoveId).sup || MoveId == gk::moveByKey("SA3")))
 		{
 			// one blow: wind up to the clip's furthest reach on the first active frame, hold through the active frames, then recover
-			const gk::Move& M = gk::move(MoveId); const int32 Su = FMath::Max(1, M.has_proj ? M.pf : M.su), Ac = FMath::Max(1, M.ac), Tot = M.t < 900 ? M.t : Su + Ac + M.rc, Rc = FMath::Max(1, Tot - Su - Ac);
-			const float Th = FMath::Clamp(ImpactOf(i, *Use) * Len, A0, A1), T0 = FMath::Max(A0, Th - Su / 60.f * 2.5f), Hold = Ac / 60.f * 0.4f, T1 = FMath::Max(Th + Hold + 0.01f, FMath::Min(A1, Th + Hold + Rc / 60.f * 1.8f));
+			const gk::Move& M = gk::move(MoveId); const bool bMany = M.nhits > 1; const int32 Su = FMath::Max(1, M.has_proj ? M.pf : bMany ? M.hits[0].s : M.su), Ac = FMath::Max(1, bMany ? M.hits[M.nhits - 1].e - M.hits[0].s + 1 : M.ac), Tot = M.t < 900 ? FMath::Max(M.t, Su + Ac + 1) : Su + Ac + FMath::Max(M.rc, 20), Rc = FMath::Max(1, Tot - Su - Ac);
+			const float Th = FMath::Clamp(ImpactOf(i, *Use, M.has_proj || M.sup) * Len, A0, A1), T0 = FMath::Max(A0, Th - Su / 60.f * 2.5f), Hold = Ac / 60.f * 0.4f, T1 = FMath::Max(Th + Hold + 0.01f, FMath::Min(A1, Th + Hold + Rc / 60.f * 1.8f));
 			// (the blow is fully out a frame before the first active one, so the frame it lands on, and is held on, shows it at full reach)
 			if (T < Su - 1) { Sec = T0 + (Th - T0) * FMath::Pow(float(T) / float(FMath::Max(1, Su - 1)), 1.5f); }
 			else if (T < Su + Ac) { Sec = Th + FMath::Max(0, T - Su) / 60.f * 0.4f; }
@@ -1152,7 +1230,8 @@ void AGkMatch::ShowFighter(int32 i)
 	else
 	{
 		C->BoneSpaceTransforms = RefLocal;
-		const float* Pose = Poses.Frame(Clip, T); if (!Pose) { Pose = Poses.Frame(TEXT("idle"), 0); }
+		const float OwnT = Clip == FName(TEXT("thrown")) ? (bLab ? float(LabFrame % 20) : float(S.p[1 - i].tk ? 8 : FMath::Min(P.sf, 4))) : Clip == FName(TEXT("splat")) ? float(bLab ? LabFrame : Raw) : float(T);
+		const float* Pose = GkOwnPose(Clip, OwnT); if (!Pose) { Pose = Poses.Frame(Clip, T); } if (!Pose) { Pose = Poses.Frame(TEXT("idle"), 0); }
 		Rig[i].Apply(Pose, !bLab && P.y > 0, bLeft, Roll, Turn); Tg = C->BoneSpaceTransforms;
 	}
 	// the change from one clip to the next is a short cross-fade from whatever was showing: quick into a blow or a reel, easy back to standing
@@ -1210,6 +1289,30 @@ void AGkMatch::LookFighter(int32 i)
 	}
 }
 
+/** A beam of light along the stage from a point (in the fight's own space): a white-hot core inside a glow of its owner's colour. */
+void AGkMatch::Beam(const FVector& From, float Dir, float Len, float R, const FLinearColor& Col)
+{
+	if (Len < 8.f) { return; }
+	const int32 Count = FMath::Clamp(int32(Len / (R * 0.6f)) + 1, 2, 26); const float Step = Len / float(Count - 1), Wob = 1.f + 0.12f * FMath::Sin(Ticks * 1.3f);
+	for (int32 k = 0; k < Count; k++)
+	{
+		const FVector At2 = From + FVector(0.0, Dir * Step * k, Fx.Rng.FRandRange(-0.05f, 0.05f) * R);
+		Fx.Add(0, At2, FVector::ZeroVector, 0.04f, R * 2.3f * Wob, R * 2.f, Col * 0.3f); Fx.Add(0, At2 + FVector(-4.0, 0.0, 0.0), FVector::ZeroVector, 0.04f, R * 1.05f * Wob, R * 0.9f, FLinearColor(5.f, 5.f, 4.6f));
+	}
+	// long streaks laid end over end make it one unbroken shaft
+	const float Seg = FMath::Max(260.f, R * 4.f); const int32 Segs = FMath::Clamp(int32(Len / (Seg * 0.5f)), 1, 14);
+	for (int32 k = 0; k < Segs; k++)
+	{
+		const float Mid = FMath::Min(Len - Seg * 0.5f, Seg * 0.5f + k * (Len - Seg) / float(FMath::Max(1, Segs - 1))); if (Len < Seg) { break; }
+		const FVector At2 = From + FVector(0.0, Dir * Mid, 0.0);
+		FGkFx::FP& Sh = Fx.Add(0, At2 + FVector(2.0, 0.0, 0.0), FVector(0.0, Dir * 600.0, 0.0), 0.04f, R * 3.2f * Wob, R * 3.f, Col * 0.45f); Sh.Stretch = Seg / (R * 3.2f);
+		FGkFx::FP& Co = Fx.Add(0, At2 + FVector(-6.0, 0.0, 0.0), FVector(0.0, Dir * 600.0, 0.0), 0.04f, R * 1.7f * Wob, R * 1.6f, FLinearColor(6.f, 6.f, 5.6f)); Co.Stretch = Seg / (R * 1.7f);
+	}
+	// the mouth of it flares, and sparks tear off along its length
+	Fx.Add(0, From, FVector::ZeroVector, 0.05f, R * 3.4f * Wob, R * 3.f, Col * 0.4f); Fx.Add(0, From, FVector::ZeroVector, 0.05f, R * 1.7f, R * 1.4f, FLinearColor(6.f, 6.f, 5.5f));
+	for (int32 k = 0; k < 2; k++) { FGkFx::FP& Sp = Fx.Add(0, From + FVector(0.0, Dir * Fx.Rng.FRandRange(0.f, Len), Fx.Rng.FRandRange(-R, R)), FVector(0.0, Dir * Fx.Rng.FRandRange(500.f, 1400.f), Fx.Rng.FRandRange(-260.f, 260.f)), 0.25f, R * 0.14f, 2.f, Col * 1.4f); Sp.Stretch = 9.f; }
+}
+
 /** Particles that go with a state, once a step: the parry's ring, burnout's smoke, the charge of a special, the wake of a rush. */
 void AGkMatch::StateFx(int32 i)
 {
@@ -1228,6 +1331,18 @@ void AGkMatch::StateFx(int32 i)
 	{
 		FGkFx::FP& Sm = Fx.Add(1, Chest + FVector(Fx.Rng.FRandRange(-10.f, 10.f), Fx.Rng.FRandRange(-25.f, 25.f), Fx.Rng.FRandRange(-40.f, 60.f)), FVector(0.0, Fx.Rng.FRandRange(-20.f, 20.f), Fx.Rng.FRandRange(60.f, 130.f)), 0.9f, 16.f, 52.f, FLinearColor(0.05f, 0.06f, 0.055f), 0.38f);
 		Sm.Drag = 1.2f;
+	}
+	if (M && P.mv == gk::moveByKey("SA3"))
+	{   // King Tide: light gathers between the hands, then the wave runs the length of the stage
+		const int32 Fire = M->hits[0].s - 2, End = M->lastAct + 3; const FVector Hands = At(P.x + P.face * 34 * gk::F, P.y + 56 * gk::F, -10.0);
+		if (P.mf < Fire) { const float Ch = FMath::Clamp(P.mf / float(FMath::Max(1, Fire)), 0.f, 1.f); Fx.Add(0, Hands, FVector::ZeroVector, 0.05f, 60.f + 150.f * Ch, 50.f + 130.f * Ch, Ki * 0.5f); Fx.Add(0, Hands, FVector::ZeroVector, 0.05f, 24.f + 70.f * Ch, 20.f + 60.f * Ch, FLinearColor(6.f, 6.f, 5.5f));
+			for (int32 k = 0; k < 2; k++) { const float A = Fx.Rng.FRandRange(0.f, 2.f * PI); const FVector Out(0.0, FMath::Cos(A), FMath::Sin(A)); FGkFx::FP& In = Fx.Add(0, Hands + Out * 170.0, Out * -520.0, 0.3f, 9.f, 2.f, Ki); In.Stretch = 7.f; } }
+		else if (P.mf <= End)
+		{
+			const float Grow = FMath::Clamp((P.mf - Fire + 1) / 4.f, 0.f, 1.f), Fade = FMath::Clamp((End - P.mf + 1) / 5.f, 0.f, 1.f);
+			Beam(Hands, float(P.face), 2600.f * Grow, 150.f * FMath::Min(Grow, Fade), Ki); Shake = FMath::Max(Shake, 5.f); Flash = FMath::Max(Flash, P.mf == Fire ? 0.8f : 0.1f);
+			if ((Ticks % 5) == 0) { Fx.Dust(At(P.x + P.face * Fx.Rng.FRandRange(60.f, 500.f) * gk::F, 0), 1.2f, float(P.face)); }
+		}
 	}
 	if (M && (M->sup || M->sp) && (Ticks % 2) == 0)
 	{
@@ -1257,9 +1372,9 @@ void AGkMatch::EvalClip(int32 i, UAnimSequence* A, float Time, TArray<FTransform
 }
 
 /** Where in a clip the blow lands, as a part of its length: the moment a hand or a foot is furthest out in front (or highest, for an uppercut). */
-float AGkMatch::ImpactOf(int32 i, const FGkClip& C)
+float AGkMatch::ImpactOf(int32 i, const FGkClip& C, bool bThrust)
 {
-	if (const float* H = HitAt.Find(C.Anim.Get())) { return FMath::Clamp(*H, C.From, C.To); }
+	if (const float* H = (bThrust ? ThrustAt : HitAt).Find(C.Anim.Get())) { return FMath::Clamp(*H, C.From, C.To); }
 	UPoseableMeshComponent* Mesh = Body[i]; USkinnedAsset* SA = Mesh ? Mesh->GetSkinnedAsset() : nullptr; if (!SA || !C.Anim) { return 0.5f; }
 	const FReferenceSkeleton& RS = SA->GetRefSkeleton(); const int32 N = RS.GetNum(); const float Len = C.Anim->GetPlayLength();
 	TArray<FTransform> Lo, Cs; Cs.SetNum(N); float Best = -1e9f, BestU = 0.5f;
@@ -1268,11 +1383,13 @@ float AGkMatch::ImpactOf(int32 i, const FGkClip& C)
 		EvalClip(i, C.Anim, U * Len, Lo); if (Lo.Num() != N) { return 0.f; }
 		for (int32 b = 0; b < N; b++) { const int32 Pa = RS.GetParentIndex(b); Cs[b] = Pa >= 0 ? Lo[b] * Cs[Pa] : Lo[b]; }
 		const FVector Pv = KeyBone[i][0] >= 0 ? Cs[KeyBone[i][0]].GetTranslation() : FVector(0.0, 0.0, 95.0); float R = -1e9f;
+		// a shot or a beam leaves when both hands are thrust furthest forward together
+		if (bThrust && KeyBone[i][1] >= 0 && KeyBone[i][2] >= 0) { return float(FMath::Min(Cs[KeyBone[i][1]].GetTranslation().Y, Cs[KeyBone[i][2]].GetTranslation().Y) - Pv.Y); }
 		for (int32 k = 1; k <= 4; k++) { if (KeyBone[i][k] < 0) { continue; } const FVector L = Cs[KeyBone[i][k]].GetTranslation() - Pv; R = FMath::Max(R, float(k <= 2 ? L.Y + FMath::Max(0.0, L.Z - 55.0) : L.Y + (L.Z + 90.0) * 0.5)); }
 		return R;
 	};
 	for (int32 k = 2; k <= 46; k++) { const float U = k / 48.f, R = Reach(U); if (R > Best) { Best = R; BestU = U; } }
-	HitAt.Add(C.Anim.Get(), BestU);
+	(bThrust ? ThrustAt : HitAt).Add(C.Anim.Get(), BestU);
 	return FMath::Clamp(BestU, C.From, C.To);
 }
 
@@ -1366,8 +1483,8 @@ void AGkMatch::LoadClips()
 		{ "mv_JIN_M", GK_FA "Kick/A_FrontKick_Havy", false, 0.00f, 1.00f }, { "mv_JIN_H", GK_FA "Kick/A_FrontKick_Havy", false, 0.00f, 1.00f }, { "mv_JIN_OD", GK_FA "Kick/A_FrontKick_Havy", false, 0.00f, 1.00f },
 		{ "mv_KAZE", GK_FA "Kick/A_LowKick_R_Round", false, 0.00f, 1.00f }, { "mv_KAZE_OD", GK_FA "Kick/A_LowKick_R_Round", false, 0.00f, 1.00f }, { "mv_GORAI", GK_FA "Kick/A_AxeKick", false, 0.00f, 1.00f },
 		{ "mv_GORAI_OD", GK_FA "Kick/A_AxeKick", false, 0.00f, 1.00f }, { "mv_SENKA", GK_FA "Kick/A_Round_SideKick_Hight", false, 0.00f, 1.00f }, { "mv_SENKA_OD", GK_FA "Kick/A_Round_SideKick_Hight", false, 0.00f, 1.00f },
-		{ "mv_KASAI", GK_FA "Kick/A_SideKick_Havy", false, 0.00f, 1.00f }, { "mv_SA1", GK_SP "008_00_All_IP", false, 0.00f, 1.00f }, { "mv_SA2", GK_SP "005_00_All_IP", false, 0.00f, 1.00f },
-		{ "mv_SA3", GK_SP "000_00_All_IP", false, 0.00f, 1.00f }, { "mv_CA", GK_SP "006_00_All_IP", false, 0.00f, 1.00f } };
+		{ "mv_KASAI", GK_FA "Kick/A_SideKick_Havy", false, 0.00f, 1.00f }, { "mv_SA1", GK_SP "000_00_All_IP", false, 0.00f, 1.00f }, { "crumple", GK_FA "Fall/A_FallFront", false, 0.00f, 1.00f }, { "mv_SA2", GK_SP "005_00_All_IP", false, 0.00f, 1.00f },
+		{ "mv_SA3", GK_SP "008_00_All_IP", false, 0.00f, 1.00f }, { "mv_CA", GK_SP "006_00_All_IP", false, 0.00f, 1.00f } };
 	for (int32 Set = 0; Set < 3; Set++)
 	{
 		Clips[Set].Reset(); int32 Missing = 0;
@@ -1472,7 +1589,7 @@ void AGkMatch::Present(float Real)
 	for (int32 k = 0; k < 4; k++)
 	{
 		if (ShotMesh[k]) { ShotMesh[k]->SetVisibility(false); }
-		const bool bOn = k < S.nshots && !bMenu; const int32 Want = !bOn ? 0 : S.shot[k].mod ? 2 : 1;
+		const bool bOn = k < S.nshots && !bMenu; const int32 Want = !bOn ? 0 : S.shot[k].k == gk::moveByKey("HAD_OD") ? 2 : 1;
 		if (ShotKind[k] != Want)
 		{
 			if (ShotFx[k]) { ShotFx[k]->Deactivate(); ShotFx[k]->DestroyComponent(); ShotFx[k] = nullptr; }
@@ -1480,12 +1597,18 @@ void AGkMatch::Present(float Real)
 			// the kit's energy shot; the overdrive one is the kit's beam
 			if (TObjectPtr<UNiagaraSystem>* Sy = Want ? Vfx.Find(FName(Want == 2 ? TEXT("NS_Beam") : TEXT("NS_EnergyShot"))) : nullptr)
 			{
-				ShotFx[k] = UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, *Sy, Wd(At(S.shot[k].x, S.shot[k].y, -10.0)), FRotator::ZeroRotator, FVector(Want == 2 ? 1.5f : 1.2f), false, true, ENCPoolMethod::None);
+				ShotFx[k] = UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, *Sy, Wd(At(S.shot[k].x, S.shot[k].y, -10.0)), FRotator::ZeroRotator, FVector(Want == 2 ? 0.55f : 1.2f), false, true, ENCPoolMethod::None);
 			}
 		}
 		if (bOn)
 		{
 			const FVector Sp = At(S.shot[k].x, S.shot[k].y, -10.0); const FLinearColor Kc = (S.shot[k].o & 1) ? FLinearColor(1.5f, 3.5f, 8.f) : FLinearColor(7.f, 3.6f, 0.9f);
+			if (Want == 2)
+			{   // the overdrive shot is a beam: it runs from his hands for as long as he holds the pose, then trails its head
+				const gk::Shot& Q = S.shot[k]; const gk::Fighter& Ow = S.p[Q.o & 1]; const bool bHeld = Ow.st == gk::ATK && Ow.mv == Q.k;
+				const int32 X0 = bHeld ? Ow.x + Ow.face * 34 * gk::F : Q.x - Q.dir * 230 * gk::F; const FVector A0 = At(X0, Q.y, -10.0);
+				BeamDue -= Real; if (BeamDue <= 0.f) { BeamDue = 1.f / 60.f; Beam(A0, float(Q.dir), FMath::Abs(float(Sp.Y - A0.Y)), 46.f, Kc); }
+			}
 			if (ShotFx[k]) { ShotFx[k]->SetWorldLocationAndRotation(Wd(Sp), Anchor.GetRotation() * FRotator(0.0, S.shot[k].dir > 0 ? 90.0 : -90.0, 0.0).Quaternion()); }
 			else { Fx.Add(0, Sp, FVector::ZeroVector, 0.04f, 54.f, 46.f, FLinearColor(3.6f, 3.4f, 3.f)); Fx.Add(0, Sp, FVector::ZeroVector, 0.05f, 120.f, 104.f, Kc * 0.22f); }
 			{ FGkFx::FP& Tr = Fx.Add(0, Sp, FVector(0.0, Fx.Rng.FRandRange(-160.f, 160.f), Fx.Rng.FRandRange(-160.f, 160.f)), 0.3f, 7.f, 2.f, Kc * 1.2f); Tr.Drag = 2.f; }
@@ -1494,7 +1617,7 @@ void AGkMatch::Present(float Real)
 	// the camera frames both fighters the way the browser does: wide enough for the two of them and for the higher one's head
 	const bool bLabCam = Screen == 4;
 	const double Ax = bLabCam ? -60.0 : S.p[0].x / double(gk::F), Bx = bLabCam ? 60.0 : S.p[1].x / double(gk::F), Hy = bLabCam ? 0.0 : FMath::Max(S.p[0].y, S.p[1].y) / double(gk::F);
-	const double Tw = FMath::Max3(236.0, FMath::Min(480.0, FMath::Abs(Ax - Bx) + 150.0), FMath::Min(600.0, (Hy + 106.0) * 1.92)), Ty = Tw * 9.0 / 32.0 - 17.0, Unit = Cm * gk::F;
+	const double Tw = FMath::Max3(236.0, FMath::Min(480.0, FMath::Abs(Ax - Bx) + 150.0), FMath::Min(600.0, (Hy + 150.0) * 2.0)), Ty = Tw * 9.0 / 32.0 - 17.0, Unit = Cm * gk::F;
 	const double HalfFov = FMath::DegreesToRadians(15.0), Dist = (Tw * 0.5 * Unit) / FMath::Tan(HalfFov);
 	const double Edge = FMath::Max(0.0, (gk::STAGE / double(gk::F) + 30.0) - Tw * 0.5), Tx = FMath::Clamp((Ax + Bx) * 0.5, -Edge, Edge);
 	const FVector Want(-Dist, Tx * Unit, Ty * Unit);
