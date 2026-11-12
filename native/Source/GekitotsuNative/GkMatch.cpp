@@ -3,6 +3,10 @@
 #include "Components/PoseableMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/Skeleton.h"
+#include "ReferenceSkeleton.h"
+#include "UnrealClient.h"
+#include "Misc/FileHelper.h"
 #include "Animation/AnimSingleNodeInstance.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
@@ -97,6 +101,10 @@ void AGkMatch::BeginPlay()
 		Setup.Stage = Is; StageAt = Is; Mode = Setup.Mode; Level = Setup.Level; Dummy = Setup.Dummy;
 		Screen = Setup.bGo ? 3 : 0; Setup.bGo = false; bMenu = false; Anchor = GetActorTransform(); bPlaced = Kind != 2;
 		if (FParse::Param(FCommandLine::Get(), TEXT("gkfight"))) { Screen = 3; }
+		if (FParse::Param(FCommandLine::Get(), TEXT("gkscript")))
+		{
+			FFileHelper::LoadFileToStringArray(Script, TEXT("/Users/Shared/Epic Games/GekitotsuNative/Saved/script.txt")); bScript = Script.Num() > 0; if (bScript) { Screen = 3; Mode = 1; }
+		}
 	}
 	Restart();
 	// -gkstatus=<file>: keep a short note of how the game is running in that file (the path may contain spaces)
@@ -248,6 +256,7 @@ void AGkMatch::BeginPlay()
 void AGkMatch::DressFighter(int32 i)
 {
 	UPoseableMeshComponent* C = Body[i]; if (!C) { return; }
+	InkMid[i] = nullptr; for (int32 k = 0; k < 4; k++) { BodyMid[i][k] = nullptr; }
 	// Noa, the MeshBites character, as she is shipped: her own mesh, toon materials and outline, taken from her lit Blueprint
 	if (Setup.Char[i] % 4 == 0)
 	{
@@ -327,14 +336,22 @@ void AGkMatch::DressFighter(int32 i)
 			for (int32 k = 0; k < C->GetNumMaterials(); k++)
 			{
 				const FString Path = FString::Printf(TEXT("/Game/GkMat/MI_Gk_%s_%s.MI_Gk_%s_%s"), Side, k == 0 ? TEXT("A") : TEXT("B"), Side, k == 0 ? TEXT("A") : TEXT("B"));
-				if (UMaterialInterface* Cel = LoadObject<UMaterialInterface>(nullptr, *Path)) { C->SetMaterial(k, Cel); }
+				if (UMaterialInterface* Cel = LoadObject<UMaterialInterface>(nullptr, *Path))
+				{
+					UMaterialInstanceDynamic* Dy = UMaterialInstanceDynamic::Create(Cel, this); C->SetMaterial(k, Dy ? static_cast<UMaterialInterface*>(Dy) : Cel);
+					if (Dy && k < 4)
+					{
+						Mids.Add(Dy); BodyMid[i][k] = Dy; BaseCol[i][k] = FLinearColor(0.8f, 0.8f, 0.8f); ShadeCol[i][k] = FLinearColor(0.4f, 0.4f, 0.4f);
+						Cel->GetVectorParameterValue(FHashedMaterialParameterInfo(TEXT("Base  color")), BaseCol[i][k]); Cel->GetVectorParameterValue(FHashedMaterialParameterInfo(TEXT("Shadow_Base")), ShadeCol[i][k]);
+					}
+				}
 				else
 				{
 					bAnime = false; UE_LOG(LogTemp, Warning, TEXT("Gekitotsu: the anime material %s did not load"), *Path);
 					if (UMaterialInstanceDynamic* Tint = C->CreateDynamicMaterialInstance(k)) { Tint->SetVectorParameterValue(TEXT("Paint Tint"), i ? FLinearColor(0.05f, 0.22f, 0.95f) : FLinearColor(0.9f, 0.07f, 0.04f)); }
 				}
 			}
-			if (bAnime) { if (UMaterialInterface* Ink = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/GkMat/MI_Gk_Outline.MI_Gk_Outline"))) { C->SetOverlayMaterial(Ink); } }
+			if (bAnime) { if (UMaterialInterface* Ink = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/GkMat/MI_Gk_Outline.MI_Gk_Outline"))) { InkMid[i] = UMaterialInstanceDynamic::Create(Ink, this); if (InkMid[i]) { Mids.Add(InkMid[i]); C->SetOverlayMaterial(InkMid[i]); } else { C->SetOverlayMaterial(Ink); } } }
 			if (USkeletalMeshComponent* A = Anim[i])
 			{
 				if (USkeletalMesh* SM = Cast<USkeletalMesh>(C->GetSkinnedAsset()))
@@ -367,7 +384,7 @@ void AGkMatch::LoadPicks()
 		FGkClip C; C.From = FCString::Atof(*T[3]); C.To = FCString::Atof(*T[4]); C.bLoop = FCString::Atoi(*T[5]) != 0;
 		const FString Path = T[2].TrimStartAndEnd();
 		if (Path != TEXT("none")) { C.Anim = LoadObject<UAnimSequence>(nullptr, *Path); if (!C.Anim) { continue; } C.Anim->bForceRootLock = true; ClipKeep.Add(C.Anim); }
-		Clips[Set].Add(FName(*T[1].TrimStartAndEnd()), C); N++;
+		Clips[Set].Add(FName(*T[1].TrimStartAndEnd()), C); N++; Picked.Add(FString::Printf(TEXT("%d|%s"), Set, *T[1].TrimStartAndEnd()));
 	}
 	UE_LOG(LogTemp, Display, TEXT("GkClip: %d chosen in the lab"), N);
 }
@@ -377,6 +394,7 @@ void AGkMatch::LabSave()
 	FString Out = TEXT("# set (0 Kagu, 1 Noa, 2 the robot) | move or state | clip, or none for the hand pose | from | to | loop\n");
 	for (int32 Set = 0; Set < 3; Set++) { for (const auto& It : Clips[Set])
 	{
+		if (!Picked.Contains(FString::Printf(TEXT("%d|%s"), Set, *It.Key.ToString()))) { continue; }   // only what was chosen by hand: the rest follows the game's own table
 		Out += FString::Printf(TEXT("%d|%s|%s|%.3f|%.3f|%d\n"), Set, *It.Key.ToString(), It.Value.Anim ? *It.Value.Anim->GetPathName() : TEXT("none"), It.Value.From, It.Value.To, It.Value.bLoop ? 1 : 0);
 	} }
 	const bool bA = FFileHelper::SaveStringToFile(Out, *PicksFile(false)), bB = FFileHelper::SaveStringToFile(Out, *PicksFile(true));
@@ -389,6 +407,7 @@ namespace
 	int32 GkClipCat(const FString& N)
 	{
 		auto Has = [&N](const TCHAR* W) { return N.Contains(W); };
+		if (Has(TEXT("Anim_SC_"))) { return 8; }
 		if (Has(TEXT("SpecialMove")) || Has(TEXT("Shoryuken"))) { return 7; }
 		if (Has(TEXT("Combo"))) { return 6; }
 		if (Has(TEXT("Block")) || Has(TEXT("Defense"))) { return 1; }
@@ -403,7 +422,7 @@ namespace
 	{
 		if (K == TEXT("SA1") || K == TEXT("SA2") || K == TEXT("SA3") || K == TEXT("CA")) { return 7; }
 		if (K == TEXT("throw")) { return 8; }
-		if (K.StartsWith(TEXT("j")) || K.StartsWith(TEXT("nj")) || K == TEXT("AUP") || K == TEXT("ABK") || K == TEXT("ASPK") || K.StartsWith(TEXT("ATAT")) || K.StartsWith(TEXT("AHOME"))) { return 5; }
+		if (K.StartsWith(TEXT("j")) || K.StartsWith(TEXT("nj")) || K == TEXT("AUP") || K == TEXT("ABK") || K == TEXT("ASPK") || K.StartsWith(TEXT("ATAT")) || K.StartsWith(TEXT("AHOME")) || K.StartsWith(TEXT("HOME"))) { return 5; }
 		if (K == TEXT("TFK2") || K == TEXT("TFK3")) { return 4; }
 		if (K == TEXT("CB2")) { return 3; }
 		if (K.Len() == 3 && (K[0] == '5' || K[0] == '2')) { return K.EndsWith(TEXT("K")) ? 4 : 3; }
@@ -469,7 +488,7 @@ void AGkMatch::LabPick(int32 ClipIndex)
 	FGkClip C; C.From = 0.f; C.To = 1.f; C.bLoop = Sn == TEXT("idle") || Sn == TEXT("walkf") || Sn == TEXT("walkb") || Sn == TEXT("run") || Sn == TEXT("drush") || Sn == TEXT("blockS") || Sn == TEXT("blockC");
 	C.Anim = LabList.IsValidIndex(ClipIndex) ? LoadObject<UAnimSequence>(nullptr, *LabList[ClipIndex].Path) : nullptr;
 	if (C.Anim) { C.Anim->bForceRootLock = true; ClipKeep.Add(C.Anim); }
-	Clips[LabSet].Add(Slot, C); bLabDrop = false; LabTryAt = -2; LabFrame = 0; LabClock = 0.f; LabSave();
+	Picked.Add(FString::Printf(TEXT("%d|%s"), LabSet, *Sn)); Clips[LabSet].Add(Slot, C); bLabDrop = false; LabTryAt = -2; LabFrame = 0; LabClock = 0.f; LabSave();
 }
 
 /** A click in the lab, on whatever the pointer was over when the screen was last drawn. */
@@ -486,6 +505,7 @@ void AGkMatch::LabClick(int32 Id)
 			if (Id == 2) { C->From = FMath::Clamp(C->From - 0.05f, 0.f, C->To - 0.05f); } if (Id == 3) { C->From = FMath::Clamp(C->From + 0.05f, 0.f, C->To - 0.05f); }
 			if (Id == 4) { C->To = FMath::Clamp(C->To - 0.05f, C->From + 0.05f, 1.f); } if (Id == 5) { C->To = FMath::Clamp(C->To + 0.05f, C->From + 0.05f, 1.f); }
 			if (Id == 6) { C->bLoop = !C->bLoop; }
+			Picked.Add(FString::Printf(TEXT("%d|%s"), LabSet, *LabSlots[LabSlot].Slot.ToString()));
 			LabFrame = 0; LabClock = 0.f; LabSave();
 		}
 		return;
@@ -497,7 +517,7 @@ void AGkMatch::LabClick(int32 Id)
 		const int32 To = Id - 1000; if (!LabSlots.IsValidIndex(To)) { return; }
 		if (bLabDrop && To == LabSlot) { bLabDrop = false; return; }
 		LabSlot = To; bLabDrop = true; LabScroll = 0; LabFrame = 0; LabClock = 0.f;
-		static const int32 Want[9] = { 0, 1, 2, 4, 5, 5, 7, 7, 6 }; LabDropCat = Want[FMath::Clamp(LabSlots[To].Cat, 0, 8)];
+		static const int32 Want[9] = { 0, 1, 2, 4, 5, 8, 7, 7, 6 }; LabDropCat = Want[FMath::Clamp(LabSlots[To].Cat, 0, 8)];
 		const FString Sn = LabSlots[To].Slot.ToString(); if (Sn == TEXT("kd") || Sn == TEXT("getup") || Sn == TEXT("crumple")) { LabDropCat = 3; }
 		if (const FGkClip* C = Clips[LabSet].Find(LabSlots[To].Slot)) { if (C->Anim) { LabDropCat = GkClipCat(C->Anim->GetName()); } }
 		return;
@@ -848,6 +868,7 @@ void AGkMatch::Tick(float DeltaSeconds)
 	const double Now = FPlatformTime::Seconds(); const double Real = LastReal > 0.0 ? FMath::Clamp(Now - LastReal, 0.0, 0.25) : double(DeltaSeconds); LastReal = Now;
 	Acc += Real; FrameMs = FrameMs * 0.9f + float(Real) * 100.f;
 	PadPrev = PadNow; PadDirPrev = PadDirs; PadNames.Reset(); PadCount = Pads ? Pads->Read(PadNow, PadDirs, &PadNames) : 0;
+	if (bScript) { Acc = 0.0; Ticks++; RunScript(); Present(float(Real)); return; }
 	InputNow = ReadPlayer();
 	MenuInput();
 	const double Step = 1.0 / 60.0, T0 = FPlatformTime::Seconds(); int32 Steps = 0;
@@ -859,6 +880,7 @@ void AGkMatch::Tick(float DeltaSeconds)
 		Acc -= Step; Steps++; Ticks++;
 		if (Screen == 4) { const int32 Count = LabSlots.IsValidIndex(LabSlot) ? FMath::Max(1, Poses.Length(LabSlots[LabSlot].Slot)) : 1; LabFrame = (LabFrame + 1) % (Count + 25); LabClock += 1.f / 60.f; if (LabNoteTimer > 0) { LabNoteTimer--; } }
 		else if (!bMenu && bPlaced) { StepOnce(); }
+		AnimClock++;
 	}
 	if (Acc > Step) { Acc = 0.0; }
 	StepMs = StepMs * 0.9f + float(FPlatformTime::Seconds() - T0) * 100.f;
@@ -869,10 +891,11 @@ void AGkMatch::Tick(float DeltaSeconds)
 	}
 }
 
-void AGkMatch::StepOnce()
+void AGkMatch::StepOnce(int32 Force0, int32 Force1)
 {
 	const int32 Human = InputNow; int32 I0 = Human, I1 = 0;
-	if (Mode == 2 || Screen != 3) { I0 = gk::aiThink(Cpu[0], S, 0); I1 = gk::aiThink(Cpu[1], S, 1); }   // behind the menus the CPU fights itself
+	if (Force0 >= 0) { I0 = Force0; I1 = FMath::Max(0, Force1); }
+	else if (Mode == 2 || Screen != 3) { I0 = gk::aiThink(Cpu[0], S, 0); I1 = gk::aiThink(Cpu[1], S, 1); }   // behind the menus the CPU fights itself
 	else if (Mode == 1) { I1 = DummyInput(); }
 	else { I1 = gk::aiThink(Cpu[1], S, 1); }
 	gk::step(S, I0, I1);
@@ -881,6 +904,7 @@ void AGkMatch::StepOnce()
 	if (CallHold > 0 && ++CallAge > CallHold) { CallHold = 0; }
 	for (int32 i = 0; i < 2; i++) { if (ComboTimer[i] > 0) { ComboTimer[i]--; } if (NoteTimer[i] > 0) { NoteTimer[i]--; } }
 	for (int32 k = Sparks.Num() - 1; k >= 0; k--) { if (++Sparks[k].Age > 12) { Sparks.RemoveAtSwap(k); } }
+	for (int32 i = 0; i < 2; i++) { if (PerfectT[i] > 0) { PerfectT[i]--; } Lean[i] *= 0.84f; Squash[i] *= 0.72f; StateFx(i); }
 	// the match is decided: any attack button, or a few seconds, starts the next
 	if (S.phase == gk::PH_OVER) { if (++OverTimer > 420 || (OverTimer > 50 && Screen == 3 && (Human & 0xFF0))) { Restart(); } } else { OverTimer = 0; }
 }
@@ -914,6 +938,8 @@ void AGkMatch::OnEvent(const gk::Event& E)
 			{ const float Dr = float(S.p[Who].face); const bool bKo = (E.f & gk::H_KO) != 0, bFin = (E.f & gk::H_FINISH) != 0;
 			  CamKick(Dr * (bKo ? 8.f : bFin ? 9.f : E.a >= 2 ? 3.f : 1.2f), bKo ? -0.14f : bFin ? -0.16f : E.a >= 2 ? -0.05f : -0.02f, bKo ? 12.f : bFin ? 14.f : E.a >= 2 ? 4.f : 0.f, bKo ? Dr * 8.f : bFin ? Dr * 6.f : 0.f); }
 			Combo[Who] = E.c; ComboDmg[Who] = E.d; ComboTimer[Who] = 80;
+			Lean[1 - Who] = (E.f & gk::H_KO) ? 22.f : 6.f + 5.f * FMath::Clamp(E.a, 0, 2); Flash = FMath::Max(Flash, (E.f & gk::H_KO) ? 1.f : E.a >= 2 ? 0.22f : 0.f);
+			if (E.f & gk::H_SPECIAL) { Fx.Hit(At(E.x, E.y), 1, float(S.p[Who].face)); Shake = FMath::Max(Shake, 7.f); Flash = FMath::Max(Flash, 0.3f); }
 			if (E.f & gk::H_IMPACT) { Remark(Who, (E.f & gk::H_CRUMPLE) ? TEXT("CRUMPLE!") : TEXT("BREACH!")); }
 			else if (E.f & gk::H_FREE) { Remark(Who, TEXT("CHASE")); }
 			else if (E.f & gk::H_LOW) { Remark(Who, TEXT("LOW!")); }
@@ -921,22 +947,25 @@ void AGkMatch::OnEvent(const gk::Event& E)
 			else if (E.e == 2 && E.c <= 1) { Remark(Who, TEXT("PUNISH")); }
 			else if (E.e == 1 && E.c <= 1) { Remark(Who, TEXT("COUNTER")); }
 			break;
-		case gk::E_BLOCK: CamKick(float(S.p[Who].face) * 0.8f, -0.012f, 0.f); if (!PlayVfx(TEXT("NS_Block_Radial_01_Once"), At(E.x, E.y, -30.0), 0.8f, 0.f, TEXT("SFX_Vefects_Block_01_Cue"))) { Fx.Guard(At(E.x, E.y), float(S.p[Who].face)); } Shake = FMath::Max(Shake, 1.5f); break;
+		case gk::E_BLOCK: CamKick(float(S.p[Who].face) * 0.8f, -0.012f, 0.f); if (!PlayVfx(TEXT("NS_Block_Radial_01_Once"), At(E.x, E.y, -30.0), 0.8f, 0.f, TEXT("SFX_Vefects_Block_01_Cue"))) { Fx.Guard(At(E.x, E.y), float(S.p[Who].face)); } Shake = FMath::Max(Shake, 1.5f);
+			Fx.Add(0, At(E.x, E.y, -30.0), FVector::ZeroVector, 0.2f, 90.f, 260.f, FLinearColor(0.6f, 1.6f, 6.f)); break;
 		case gk::E_PARRY: Fx.Parry(At(E.x, E.y), false); break;
-		case gk::E_PPARRY: Fx.Parry(At(E.x, E.y), true); Shake = FMath::Max(Shake, 5.f); Remark(Who, TEXT("PERFECT PARRY")); break;
+		case gk::E_PPARRY: Fx.Parry(At(E.x, E.y), true); Shake = FMath::Max(Shake, 6.f); Remark(Who, TEXT("PERFECT PARRY")); PerfectT[Who] = 50; Flash = FMath::Max(Flash, 0.7f);
+			Fx.Add(0, At(E.x, E.y, -30.0), FVector::ZeroVector, 0.35f, 120.f, 620.f, FLinearColor(8.f, 6.f, 1.5f)); Fx.Aura(Feet, FLinearColor(8.f, 6.f, 1.5f), 1.2f); break;
 		case gk::E_ARMOR: Fx.Guard(At(E.x, E.y), float(S.p[Who].face)); Remark(Who, TEXT("ARMOR")); break;
 		case gk::E_DICLASH: CamKick(7.f, -0.14f, 12.f); Say(TEXT("CLASH!"), 50); Shake = FMath::Max(Shake, 12.f); break;
 		case gk::E_SPLAT: CamKick(Feet.Y > 0 ? 6.f : -6.f, -0.1f, 8.f, Feet.Y > 0 ? 8.f : -8.f); Fx.Hit(Feet + FVector(0, 0, 100), 2, float(-S.p[Who].face)); Fx.Dust(Feet, 1.4f, 0.f); Remark(Who, E.a ? TEXT("STUN!") : TEXT("WALL SPLAT")); Shake = FMath::Max(Shake, 12.f); break;
 		case gk::E_GBOUNCE: case gk::E_WBOUNCE: if (E.type == gk::E_WBOUNCE) { CamKick(Feet.Y > 0 ? 5.f : -5.f, -0.1f, 8.f, Feet.Y > 0 ? 7.f : -7.f); } else { CamKick((Ticks & 1) ? 4.f : -4.f, -0.08f, 7.f); } Fx.Dust(Feet, 1.6f, 0.f); Fx.Hit(FVector(Feet.X, Feet.Y, E.type == gk::E_GBOUNCE ? 10.0 : Feet.Z + 90.0), 1, 0.f); Shake = FMath::Max(Shake, 10.f); break;
 		case gk::E_KD: Fx.Dust(Feet, 1.3f, 0.f); Shake = FMath::Max(Shake, 3.f); break;
-		case gk::E_LAND: if (!PlayVfx(TEXT("NS_Directional_Dust_01_Once"), Feet + FVector(-20, 0, 2), 0.7f, 0.f, TEXT("SFX_Vefects_Directional_Dust_01_Cue"), 0.5f)) { Fx.Dust(Feet, 0.55f, 0.f); } break;
-		case gk::E_JUMP: case gk::E_WALLJUMP: if (!PlayVfx(TEXT("NS_Directional_Dust_Jump_01_Once"), FVector(Feet.X - 20, Feet.Y, 2), 0.8f, 0.f, TEXT("SFX_Vefects_Jump_Dust_01_Cue"), 0.6f)) { Fx.Dust(Feet, 0.45f, 0.f); } break;
+		case gk::E_LAND: Squash[Who] = 1.f; if (!PlayVfx(TEXT("NS_Directional_Dust_01_Once"), Feet + FVector(-20, 0, 2), 0.45f, 0.f, TEXT("SFX_Vefects_Directional_Dust_01_Cue"), 0.5f)) { Fx.Dust(Feet, 0.55f, 0.f); } break;
+		case gk::E_JUMP: case gk::E_WALLJUMP: if (!PlayVfx(TEXT("NS_Directional_Dust_Jump_01_Once"), FVector(Feet.X - 20, Feet.Y, 2), 0.5f, 0.f, TEXT("SFX_Vefects_Jump_Dust_01_Cue"), 0.6f)) { Fx.Dust(Feet, 0.45f, 0.f); } break;
 		case gk::E_TECH: case gk::E_RISE: Fx.Dust(Feet, 0.45f, 0.f); break;
-		case gk::E_DASH: case gk::E_RUN: if (!PlayVfx(S.p[Who].face > 0 ? TEXT("NS_Directional_Dust_03_Once_Fast") : TEXT("NS_Directional_Dust_03_Once_Fast_Flip"), FVector(Feet.X - 20, Feet.Y, 2), 0.8f, 0.f, nullptr)) { Fx.Dust(Feet, 0.8f, float(S.p[Who].face)); } break;
+		case gk::E_DASH: case gk::E_RUN: if (!PlayVfx(S.p[Who].face > 0 ? TEXT("NS_Directional_Dust_03_Once_Fast") : TEXT("NS_Directional_Dust_03_Once_Fast_Flip"), FVector(Feet.X - 20, Feet.Y, 2), 0.5f, 0.f, nullptr)) { Fx.Dust(Feet, 0.8f, float(S.p[Who].face)); } break;
 		case gk::E_EX: case gk::E_DI: case gk::E_HOME: if (E.type == gk::E_HOME) { CamKick(0.f, 0.f, 9.f); } Fx.Aura(Feet, Ki, 0.7f); break;
 		case gk::E_RUSH: Fx.Aura(Feet, Ki, 0.9f); Remark(Who, TEXT("GHOST STEP")); break;
-		case gk::E_BURNOUT: Remark(Who, TEXT("BURNOUT")); break;
-		case gk::E_SUPER: Fx.Aura(Feet, Ki, 1.8f); Say(*FString(UTF8_TO_TCHAR(gk::moveName(E.c))).ToUpper(), 70); Shake = FMath::Max(Shake, 6.f); break;
+		case gk::E_BURNOUT: Remark(Who, TEXT("BURNOUT")); Say(TEXT("BURNOUT"), 45); Shake = FMath::Max(Shake, 8.f); Fx.Aura(Feet, FLinearColor(0.5f, 0.55f, 0.5f), 1.3f); Fx.Dust(Feet, 1.6f, 0.f); break;
+		case gk::E_SPECIAL: Fx.Aura(Feet, Ki, 0.9f); CamKick(0.f, -0.04f, 6.f); Shake = FMath::Max(Shake, 2.5f); break;
+		case gk::E_SUPER: Fx.Aura(Feet, Ki, 2.6f); Flash = FMath::Max(Flash, 0.9f); BoltDue = 0.35f; Say(*FString(UTF8_TO_TCHAR(gk::moveName(E.c))).ToUpper(), 70); Shake = FMath::Max(Shake, 6.f); break;
 		case gk::E_ROUND:
 		{
 			const bool bFinal = E.a > 1 && E.a >= S.cfg.rounds * 2 - 1 && S.p[0].wins == S.p[1].wins;
@@ -959,17 +988,18 @@ void AGkMatch::ShowFighter(int32 i)
 	UPoseableMeshComponent* C = Body[i]; if (!C) { return; }
 	const gk::Fighter& P = S.p[i]; const gk::Fighter& O = S.p[1 - i];
 	FName Clip(TEXT("idle")); int32 T = (S.frame + i * 44) % 262; float Roll = 0.f, Turn = 0.f;
-	const bool bLab = Screen == 4; int32 LabMove = -1;
+	const bool bLab = Screen == 4; int32 LabMove = -1, MoveId = -1, Raw = P.sf;
 	if (bLab)
 	{
 		if (i == 1) { C->SetVisibility(false); if (Anim[1]) { Anim[1]->SetVisibility(false); } return; }
-		if (LabSlots.IsValidIndex(LabSlot)) { Clip = LabSlots[LabSlot].Slot; T = LabFrame; LabMove = MoveClip.Find(Clip); }
+		if (bScript) { Clip = ScriptSlot; } else if (LabSlots.IsValidIndex(LabSlot)) { Clip = LabSlots[LabSlot].Slot; }
+		T = LabFrame; Raw = LabFrame; LabMove = MoveClip.Find(Clip); MoveId = LabMove;
 	}
 	auto Ease = [](float K) { K = FMath::Clamp(K, 0.f, 1.f); return K * K * (3.f - 2.f * K); };
 	if (!bLab) switch (P.st)
 	{
 		case gk::IDLE:
-			if (P.sub == gk::CROUCH) { Clip = TEXT("crouch"); T = FMath::Min(P.subf, 16); }
+			if (P.sub == gk::CROUCH) { Clip = TEXT("crouch"); T = FMath::Min(P.subf, 16); Raw = P.subf; }
 			else if (P.sub == gk::WALKF) { Clip = TEXT("walkf"); T = P.subf < 65 ? P.subf : 5 + ((P.subf - 5) % 60); }
 			else if (P.sub == gk::WALKB) { Clip = TEXT("walkb"); T = P.subf < 71 ? P.subf : 5 + ((P.subf - 5) % 66); }
 			break;
@@ -1012,38 +1042,253 @@ void AGkMatch::ShowFighter(int32 i)
 		case gk::ATK:
 		{
 			const gk::Move& M = gk::move(P.mv);
-			if (MoveClip.IsValidIndex(P.mv)) { Clip = MoveClip[P.mv]; T = P.mf; }
+			if (MoveClip.IsValidIndex(P.mv)) { Clip = MoveClip[P.mv]; T = P.mf; MoveId = P.mv; }
 			// a Slipstream that did not land cleanly loses its shape and tumbles
-			if (M.has_home && P.mf >= M.home[0] && ((P.contact && !P.fr) || P.hmE)) { Clip = TEXT("ahit"); T = 0; Roll = -60.f - 30.f * FMath::Sin(P.mf * 0.5f); }
+			if (M.has_home && P.mf >= M.home[0] && ((P.contact && !P.fr) || P.hmE)) { Clip = TEXT("ahit"); T = 0; Roll = -60.f - 30.f * FMath::Sin(P.mf * 0.5f); MoveId = -1; }
 			break;
 		}
 		default: break;
 	}
-	const float* Pose = Poses.Frame(Clip, T); if (!Pose) { Pose = Poses.Frame(TEXT("idle"), 0); }
 	const bool bLeft = !bLab && P.face < 0;
-	Rig[i].Apply(Pose, !bLab && P.y > 0, bLeft, Roll, Turn);
 	FVector Jit = FVector::ZeroVector;
 	if (P.hs > 0 && (P.st == gk::HIT || P.st == gk::AHIT || P.st == gk::BLOCK)) { Jit.Y = ((Ticks & 1) ? 1.0 : -1.0) * FMath::Min(4.0, P.hs * 0.6); }
 	// The skeleton faces its own +Y, which is the rules' "right"; the camera looks along +X. Facing left he is the mirrored
 	// pose turned about, which shows the camera his chest exactly as the browser's mirror image does.
-	const FVector Where = bLab ? Wd(FVector(0.0, 62.0 * Cm * gk::F, 0.0)) : Wd(At(P.x, P.y, i ? 8.0 : -8.0) + Jit); const FQuat Facing = Anchor.GetRotation() * FRotator(0.0, bLeft ? 180.0 : 0.0, 0.0).Quaternion();
-	C->SetWorldLocationAndRotation(Where, Facing);
-	// Noa: an animation clip where there is one for this, shown at the time the rules are on
+	const FVector Where = bLab ? Wd(FVector(0.0, bScript ? 0.0 : 62.0 * Cm * gk::F, 0.0)) : Wd(At(P.x, P.y, i ? 8.0 : -8.0) + Jit); const FQuat Facing = Anchor.GetRotation() * FRotator(0.0, bLeft ? 180.0 : 0.0, 0.0).Quaternion();
 	const bool bTry = bLab && bLabDrop && LabTryAt >= -1;
-	const FGkClip* Use = bTry ? (LabTry.Anim && Anim[i] ? &LabTry : nullptr) : ((ClipSet[i] >= 0 && Anim[i]) ? ClipFor(ClipSet[i], Clip, bLab ? LabMove : (P.st == gk::ATK ? P.mv : -1)) : nullptr);
-	if (Anim[i]) { Anim[i]->SetVisibility(Use != nullptr); } C->SetVisibility(Use == nullptr);
+	const FGkClip* Use = bTry ? (LabTry.Anim ? &LabTry : nullptr) : (ClipSet[i] >= 0 ? ClipFor(ClipSet[i], Clip, MoveId) : nullptr);
+	if (Anim[i]) { Anim[i]->SetVisibility(false); } C->SetVisibility(true);
+	USkinnedAsset* SA = C->GetSkinnedAsset(); if (!SA) { return; }
+	const FReferenceSkeleton& RS = SA->GetRefSkeleton(); const int32 N = RS.GetNum(); const TArray<FTransform>& RefLocal = RS.GetRefBonePose();
+	if (C->BoneSpaceTransforms.Num() != N || N < 2) { const float* Pose0 = Poses.Frame(Clip, T); Rig[i].Apply(Pose0 ? Pose0 : Poses.Frame(TEXT("idle"), 0), !bLab && P.y > 0, bLeft, Roll, Turn); C->SetWorldLocationAndRotation(Where, Facing); return; }
+	if (PoseMesh[i] != SA)
+	{
+		// a new body: its standing pose in the mesh's own space, which bone is whose opposite number, and the bones the timing reads
+		PoseMesh[i] = SA; PoseShown[i].Reset(); ShownAnim[i] = nullptr; ShownClip[i] = NAME_None; SkelFor[i] = nullptr;
+		RefCS[i].SetNum(N); Twin[i].SetNum(N);
+		for (int32 b = 0; b < N; b++)
+		{
+			const int32 Pa = RS.GetParentIndex(b); RefCS[i][b] = Pa >= 0 ? RefLocal[b] * RefCS[i][Pa] : RefLocal[b];
+			FString Nm = RS.GetBoneName(b).ToString(); Twin[i][b] = b;
+			if (Nm.EndsWith(TEXT("_l"))) { const int32 O2 = RS.FindBoneIndex(FName(*(Nm.LeftChop(2) + TEXT("_r")))); if (O2 != INDEX_NONE) { Twin[i][b] = O2; } }
+			else if (Nm.EndsWith(TEXT("_r"))) { const int32 O2 = RS.FindBoneIndex(FName(*(Nm.LeftChop(2) + TEXT("_l")))); if (O2 != INDEX_NONE) { Twin[i][b] = O2; } }
+		}
+		static const TCHAR* Keys[5] = { TEXT("pelvis"), TEXT("hand_l"), TEXT("hand_r"), TEXT("foot_l"), TEXT("foot_r") };
+		for (int32 k = 0; k < 5; k++) { KeyBone[i][k] = RS.FindBoneIndex(FName(Keys[k])); }
+	}
+	static TArray<FTransform> Tg, Cs, Ms; FVector Wh = Where; FQuat Fq = Facing;
 	if (Use)
 	{
-		USkeletalMeshComponent* A = Anim[i]; const float Len = Use->Anim->GetPlayLength();
-		if (Playing[i] != Use->Anim) { Playing[i] = Use->Anim; A->SetAnimation(Use->Anim); A->SetPlayRate(0.f); }
-		float At01;
-		if (Use->bLoop && !bLab) { At01 = FMath::Fmod((S.frame + i * 17) / 60.f, FMath::Max(0.05f, Len * (Use->To - Use->From))) / FMath::Max(0.05f, Len * (Use->To - Use->From)); }
-		else if (bLab && (bTry || Use->bLoop || Poses.Length(Clip) <= 2)) { const float Span = FMath::Max(0.05f, Len * (Use->To - Use->From)); At01 = FMath::Fmod(LabClock, Span + 0.4f) / Span; At01 = FMath::Min(At01, 1.f); }
-		else { const int32 Count = FMath::Max(2, Poses.Length(Clip)); At01 = FMath::Clamp(float(T) / float(Count - 1), 0.f, 1.f); }
-		A->SetPosition(Len * FMath::Lerp(Use->From, Use->To, At01), false);
-		// her clips already carry their own rise and fall; a jump's height comes from the rules alone
-		A->SetWorldLocationAndRotation(Where, Facing);
+		const float Len = Use->Anim->GetPlayLength(), A0 = Use->From * Len, A1 = FMath::Max(Use->To * Len, A0 + 0.01f); float Sec = A0; const int32 Count = FMath::Max(2, Poses.Length(Clip));
+		const FString Cn = Clip.ToString();
+		if (bTry || (bLab && !bScript && (Use->bLoop || Poses.Length(Clip) <= 2))) { const float Span = A1 - A0; Sec = A0 + FMath::Min(Span, FMath::Fmod(LabClock, Span + 0.4f)); }
+		else if (Use->bLoop) { const float Span = FMath::Max(0.05f, A1 - A0); Sec = A0 + FMath::Fmod((bLab ? LabFrame * 4 : S.frame + i * 17) / 60.f, Span); }
+		else if (MoveId >= 0 && gk::move(MoveId).nhits <= 1 && !gk::move(MoveId).sup)
+		{
+			// one blow: wind up to the clip's furthest reach on the first active frame, hold through the active frames, then recover
+			const gk::Move& M = gk::move(MoveId); const int32 Su = FMath::Max(1, M.has_proj ? M.pf : M.su), Ac = FMath::Max(1, M.ac), Tot = M.t < 900 ? M.t : Su + Ac + M.rc, Rc = FMath::Max(1, Tot - Su - Ac);
+			const float Th = FMath::Clamp(ImpactOf(i, *Use) * Len, A0, A1), T0 = FMath::Max(A0, Th - Su / 60.f * 2.5f), Hold = Ac / 60.f * 0.4f, T1 = FMath::Max(Th + Hold + 0.01f, FMath::Min(A1, Th + Hold + Rc / 60.f * 1.8f));
+			if (T < Su) { Sec = T0 + (Th - T0) * FMath::Pow(float(T) / float(Su), 1.5f); }
+			else if (T < Su + Ac) { Sec = Th + (T - Su) / 60.f * 0.4f; }
+			else { const float u = FMath::Clamp(float(T - Su - Ac) / float(Rc), 0.f, 1.f); Sec = FMath::Lerp(Th + Hold, T1, u * (2.f - u)); }
+		}
+		else if (MoveId >= 0) { const gk::Move& M = gk::move(MoveId); const int32 Tot = M.t < 900 ? FMath::Max(2, M.t) : Count; Sec = FMath::Lerp(A0, A1, FMath::Clamp(float(T) / float(Tot), 0.f, 1.f)); }
+		else if (Cn.StartsWith(TEXT("hit")) || Cn == TEXT("crumple") || Cn == TEXT("crouch") || Cn == TEXT("blockS") || Cn == TEXT("ahit") || Cn == TEXT("kd")) { Sec = FMath::Min(A1, A0 + Raw / 60.f * 1.25f); }
+		else { Sec = FMath::Lerp(A0, A1, FMath::Clamp(float(T) / float(Count - 1), 0.f, 1.f)); }
+		EvalClip(i, Use->Anim, FMath::Clamp(Sec, 0.f, Len), Tg);
+		// the rules own where he stands: the hips may shift their weight but not walk off
+		if (KeyBone[i][0] > 0)
+		{
+			const FVector R0 = RefLocal[KeyBone[i][0]].GetTranslation(); FVector Dl = Tg[KeyBone[i][0]].GetTranslation() - R0;
+			Dl.X = 18.0 * FMath::Tanh(Dl.X / 18.0); Dl.Y = 35.0 * FMath::Tanh(Dl.Y / 35.0); if (Dl.Z > 0.0) { Dl.Z = 14.0 * FMath::Tanh(Dl.Z / 14.0); } Tg[KeyBone[i][0]].SetTranslation(R0 + Dl);
+		}
+		if (bLeft)
+		{
+			// the mirror image: every bone takes its opposite number's place, reflected through the body's own middle
+			Cs.SetNum(N); Ms.SetNum(N);
+			for (int32 b = 0; b < N; b++) { const int32 Pa = RS.GetParentIndex(b); Cs[b] = Pa >= 0 ? Tg[b] * Cs[Pa] : Tg[b]; }
+			auto MirQ = [](const FQuat& Q) { return FQuat(Q.X, -Q.Y, -Q.Z, Q.W); };
+			for (int32 b = 0; b < N; b++)
+			{
+				const int32 Tw = Twin[i][b]; const FVector L = Cs[Tw].GetTranslation();
+				FQuat Q = MirQ(Cs[Tw].GetRotation()) * MirQ(RefCS[i][Tw].GetRotation()).Inverse() * RefCS[i][b].GetRotation(); Q.Normalize();
+				Ms[b] = FTransform(Q, FVector(-L.X, L.Y, L.Z), Cs[Tw].GetScale3D());
+			}
+			for (int32 b = 0; b < N; b++) { const int32 Pa = RS.GetParentIndex(b); Tg[b] = Pa >= 0 ? Ms[b].GetRelativeTransform(Ms[Pa]) : Ms[b]; }
+		}
+		if ((Roll != 0.f || Turn != 0.f) && (bLab || P.st != gk::JUMP) && Cn != TEXT("ahit"))
+		{
+			// a tumble turns the whole body about its hips
+			const FQuat Tm = FQuat(FVector(0, 0, 1), FMath::DegreesToRadians(Turn)) * FQuat(FVector(1, 0, 0), FMath::DegreesToRadians(-Roll)); const FVector Piv(0.0, 0.0, 95.0);
+			Fq = Facing * Tm; Wh = Where + Facing.RotateVector(Piv) - Fq.RotateVector(Piv);
+		}
 	}
+	else
+	{
+		C->BoneSpaceTransforms = RefLocal;
+		const float* Pose = Poses.Frame(Clip, T); if (!Pose) { Pose = Poses.Frame(TEXT("idle"), 0); }
+		Rig[i].Apply(Pose, !bLab && P.y > 0, bLeft, Roll, Turn); Tg = C->BoneSpaceTransforms;
+	}
+	// the change from one clip to the next is a short cross-fade from whatever was showing: quick into a blow or a reel, easy back to standing
+	const void* NowAnim = Use ? (const void*)Use->Anim.Get() : nullptr;
+	const bool bAgain = MoveId >= 0 && T < LastT[i] - 1; LastT[i] = T;
+	if (NowAnim != ShownAnim[i] || (!Use && ShownClip[i] != Clip) || bAgain || PoseShown[i].Num() != N)
+	{
+		const bool bFirst = PoseShown[i].Num() != N; PoseFrom[i] = bFirst ? Tg : PoseShown[i]; BlendAt[i] = AnimClock; ShownAnim[i] = NowAnim; ShownClip[i] = Clip;
+		const FString Cn = Clip.ToString(); const bool bSharp = !bLab && (P.st == gk::HIT || P.st == gk::AHIT || P.st == gk::BLOCK || P.st == gk::PARRY || P.st == gk::PREC || P.st == gk::THROWN || P.st == gk::KDOWN);
+		BlendLen[i] = (bLab || bFirst) ? 0 : bSharp ? 2 : MoveId >= 0 ? 3 : (Cn == TEXT("idle") ? 9 : Cn.StartsWith(TEXT("walk")) ? 7 : 5);
+	}
+	float Al = BlendLen[i] > 0 ? FMath::Clamp(float(AnimClock - BlendAt[i] + 1) / float(BlendLen[i]), 0.f, 1.f) : 1.f; Al = Al * Al * (3.f - 2.f * Al);
+	PoseShown[i].SetNum(N);
+	if (Al >= 1.f || PoseFrom[i].Num() != N) { PoseShown[i] = Tg; }
+	else { for (int32 b = 0; b < N; b++) { FTransform Bl; Bl.Blend(PoseFrom[i][b], Tg[b], Al); PoseShown[i][b] = Bl; } }
+	C->BoneSpaceTransforms = PoseShown[i]; C->MarkRefreshTransformDirty();
+	// a blow rocks him back on his heels; a landing squashes him for an instant
+	if (!bLab && FMath::Abs(Lean[i]) > 0.3f) { Fq = Fq * FQuat(FVector(1, 0, 0), FMath::DegreesToRadians(Lean[i])); }
+	const float Sq = bLab ? 0.f : Squash[i]; C->SetWorldScale3D(FVector(1.0 + 0.07 * Sq, 1.0 + 0.07 * Sq, 1.0 - 0.12 * Sq));
+	C->SetWorldLocationAndRotation(Wh, Fq);
+	LookFighter(i);
+}
+
+/** The fighter's colours and outline for the state he is in. */
+void AGkMatch::LookFighter(int32 i)
+{
+	if (!InkMid[i]) { return; }
+	const gk::Fighter& P = S.p[i]; const bool bLab = Screen == 4; const gk::Move* M = (!bLab && P.st == gk::ATK && P.mv >= 0) ? &gk::move(P.mv) : nullptr;
+	FLinearColor Edge(0.01f, 0.01f, 0.015f), Wash(0.f, 0.f, 0.f); float Thick = 1.f, Amt = 0.f; const float Pulse = 0.5f + 0.5f * FMath::Sin(Ticks * 0.55f);
+	const FLinearColor Ki = i ? FLinearColor(0.5f, 1.6f, 5.f) : FLinearColor(5.f, 2.2f, 0.4f);
+	if (!bLab)
+	{
+		if (P.bo) { Wash = FLinearColor(0.3f, 0.33f, 0.31f); Amt = 0.62f + 0.12f * Pulse; Edge = FLinearColor(0.2f, 0.26f, 0.22f); Thick = 1.5f; }
+		if (M && M->sup) { Edge = FLinearColor(9.f, 6.5f, 1.2f); Thick = 3.f + Pulse; Wash = FLinearColor(3.f, 2.2f, 0.6f); Amt = 0.3f; }
+		else if (M && M->od) { Edge = FLinearColor(7.f, 4.f, 0.5f); Thick = 2.6f; Wash = FLinearColor(2.f, 1.2f, 0.3f); Amt = 0.18f; }
+		else if (M && M->sp) { Edge = Ki; Thick = 2.f; }
+		else if (M && M->di) { Edge = FLinearColor(6.f, 1.2f, 4.f); Thick = 2.8f; }
+		if (P.arm > 0) { Edge = FLinearColor(6.f, 1.8f, 0.2f); Thick = 2.8f; }
+		if (P.st == gk::DRUSH) { Edge = FLinearColor(0.4f, 6.f, 1.4f); Thick = 2.6f; Wash = FLinearColor(0.3f, 2.4f, 0.8f); Amt = 0.3f; }
+		if (P.st == gk::BLOCK) { Edge = FLinearColor(2.f, 4.f, 9.f); Thick = 3.2f; Wash = FLinearColor(1.1f, 1.6f, 3.2f); Amt = P.hs > 0 ? 0.75f : 0.4f; }
+		if (P.st == gk::PARRY) { Edge = FLinearColor(0.2f, 6.f, 7.f) * (0.7f + 0.6f * Pulse); Thick = 3.f + 1.5f * Pulse; Wash = FLinearColor(0.3f, 2.4f, 2.8f); Amt = 0.45f; }
+		if (P.st == gk::PREC) { Edge = FLinearColor(0.2f, 0.45f, 0.5f); Thick = 1.3f; Wash = FLinearColor(0.16f, 0.3f, 0.34f); Amt = 0.5f; }
+		if (PerfectT[i] > 0) { const float K = PerfectT[i] / 50.f; Edge = FMath::Lerp(Edge, FLinearColor(10.f, 7.f, 1.5f), K); Thick = FMath::Max(Thick, 4.f * K); Wash = FMath::Lerp(Wash, FLinearColor(6.f, 4.5f, 1.5f), K); Amt = FMath::Max(Amt, 0.8f * K); }
+		if (P.st == gk::HIT || P.st == gk::AHIT || P.st == gk::THROWN)
+		{
+			if (P.hs > 0) { Wash = FLinearColor(4.f, 4.f, 4.f); Amt = 0.85f; Edge = FLinearColor(7.f, 1.f, 0.5f); Thick = 2.6f; }
+			else { Wash = FMath::Lerp(Wash, FLinearColor(1.8f, 0.12f, 0.08f), 0.5f); Amt = FMath::Max(Amt, 0.24f); Edge = FLinearColor(1.6f, 0.1f, 0.05f); Thick = 1.6f; }
+		}
+	}
+	InkMid[i]->SetVectorParameterValue(TEXT("Outlines Color"), Edge); InkMid[i]->SetScalarParameterValue(TEXT("Outlines_Thickness"), Thick);
+	for (int32 k = 0; k < 4; k++)
+	{
+		if (!BodyMid[i][k]) { continue; }
+		BodyMid[i][k]->SetVectorParameterValue(TEXT("Base  color"), FMath::Lerp(BaseCol[i][k], Wash, Amt)); BodyMid[i][k]->SetVectorParameterValue(TEXT("Shadow_Base"), FMath::Lerp(ShadeCol[i][k], Wash * 0.55f, Amt));
+	}
+}
+
+/** Particles that go with a state, once a step: the parry's ring, burnout's smoke, the charge of a special, the wake of a rush. */
+void AGkMatch::StateFx(int32 i)
+{
+	const gk::Fighter& P = S.p[i]; const FVector Chest = At(P.x, P.y) + FVector(-20.0, 0.0, 95.0); const gk::Move* M = (P.st == gk::ATK && P.mv >= 0) ? &gk::move(P.mv) : nullptr;
+	const FLinearColor Ki = i ? FLinearColor(1.5f, 3.5f, 8.f) : FLinearColor(7.f, 3.6f, 0.9f);
+	if (P.st == gk::PARRY && (Ticks % 3) == 0)
+	{
+		for (int32 k = 0; k < 8; k++)
+		{
+			const float A = (k + (Ticks % 6) * 0.17f) * 2.f * PI / 8.f; const FVector Out(0.0, FMath::Cos(A), FMath::Sin(A));
+			FGkFx::FP& R = Fx.Add(0, Chest + Out * 95.0, Out * -160.0, 0.22f, 11.f, 3.f, FLinearColor(0.6f, 6.f, 7.f)); R.Stretch = 5.f;
+		}
+		Fx.Add(0, Chest, FVector::ZeroVector, 0.1f, 210.f, 240.f, FLinearColor(0.1f, 1.1f, 1.3f));
+	}
+	if (P.bo && (Ticks % 7) == i * 3)
+	{
+		FGkFx::FP& Sm = Fx.Add(1, Chest + FVector(Fx.Rng.FRandRange(-10.f, 10.f), Fx.Rng.FRandRange(-25.f, 25.f), Fx.Rng.FRandRange(-40.f, 60.f)), FVector(0.0, Fx.Rng.FRandRange(-20.f, 20.f), Fx.Rng.FRandRange(60.f, 130.f)), 1.0f, 26.f, 95.f, FLinearColor(0.05f, 0.06f, 0.055f), 0.55f);
+		Sm.Drag = 1.2f;
+	}
+	if (M && (M->sup || M->sp) && (Ticks % 2) == 0)
+	{
+		Fx.Add(0, Chest, FVector::ZeroVector, 0.12f, M->sup ? 120.f : 80.f, M->sup ? 200.f : 130.f, Ki * (M->sup ? 0.1f : 0.05f));
+		FGkFx::FP& Sp = Fx.Add(0, At(P.x, P.y) + FVector(-20.0, Fx.Rng.FRandRange(-50.f, 50.f), Fx.Rng.FRandRange(0.f, 60.f)), FVector(0.0, Fx.Rng.FRandRange(-30.f, 30.f), Fx.Rng.FRandRange(300.f, 700.f)), 0.4f, 9.f, 2.f, Ki); Sp.Stretch = 6.f;
+	}
+	if ((P.st == gk::DRUSH || P.st == gk::RUN || P.st == gk::DASHF) && (Ticks % 2) == 0)
+	{
+		const FLinearColor Cg = P.st == gk::DRUSH ? FLinearColor(0.4f, 5.f, 1.4f) : FLinearColor(1.6f, 1.6f, 1.8f);
+		for (int32 k = 0; k < 2; k++) { FGkFx::FP& St = Fx.Add(0, Chest + FVector(0.0, -P.face * 30.0, Fx.Rng.FRandRange(-70.f, 60.f)), FVector(0.0, -P.face * 500.0, 0.0), 0.16f, P.st == gk::DRUSH ? 12.f : 6.f, 2.f, Cg); St.Stretch = 12.f; }
+	}
+}
+
+/** One clip's pose at a time, bone by bone in the mesh's own order; the root stays where the mesh has it. */
+void AGkMatch::EvalClip(int32 i, UAnimSequence* A, float Time, TArray<FTransform>& Out)
+{
+	UPoseableMeshComponent* C = Body[i]; USkinnedAsset* SA = C ? C->GetSkinnedAsset() : nullptr; if (!SA || !A) { return; }
+	const FReferenceSkeleton& RS = SA->GetRefSkeleton(); const int32 N = RS.GetNum(); Out = RS.GetRefBonePose();
+	USkeleton* Sk = A->GetSkeleton(); if (!Sk) { return; }
+	if (SkelFor[i] != Sk || SkelIdx[i].Num() != N)
+	{
+		SkelFor[i] = Sk; SkelIdx[i].SetNum(N); const FReferenceSkeleton& KS = Sk->GetReferenceSkeleton();
+		for (int32 b = 0; b < N; b++) { SkelIdx[i][b] = KS.FindBoneIndex(RS.GetBoneName(b)); }
+	}
+	const FAnimExtractContext Ctx(double(Time), false);
+	for (int32 b = 1; b < N; b++) { const int32 Si = SkelIdx[i][b]; if (Si != INDEX_NONE) { FTransform T; A->GetBoneTransform(T, FSkeletonPoseBoneIndex(Si), Ctx, false); Out[b] = T; } }
+}
+
+/** Where in a clip the blow lands, as a part of its length: the moment a hand or a foot is furthest out in front (or highest, for an uppercut). */
+float AGkMatch::ImpactOf(int32 i, const FGkClip& C)
+{
+	if (const float* H = HitAt.Find(C.Anim.Get())) { return FMath::Clamp(*H, C.From, C.To); }
+	UPoseableMeshComponent* Mesh = Body[i]; USkinnedAsset* SA = Mesh ? Mesh->GetSkinnedAsset() : nullptr; if (!SA || !C.Anim) { return 0.5f; }
+	const FReferenceSkeleton& RS = SA->GetRefSkeleton(); const int32 N = RS.GetNum(); const float Len = C.Anim->GetPlayLength();
+	TArray<FTransform> Lo, Cs; Cs.SetNum(N); float Best = -1e9f, BestU = 0.5f;
+	auto Reach = [&](float U)
+	{
+		EvalClip(i, C.Anim, U * Len, Lo); if (Lo.Num() != N) { return 0.f; }
+		for (int32 b = 0; b < N; b++) { const int32 Pa = RS.GetParentIndex(b); Cs[b] = Pa >= 0 ? Lo[b] * Cs[Pa] : Lo[b]; }
+		const FVector Pv = KeyBone[i][0] >= 0 ? Cs[KeyBone[i][0]].GetTranslation() : FVector(0.0, 0.0, 95.0); float R = -1e9f;
+		for (int32 k = 1; k <= 4; k++) { if (KeyBone[i][k] < 0) { continue; } const FVector L = Cs[KeyBone[i][k]].GetTranslation() - Pv; R = FMath::Max(R, float(k <= 2 ? L.Y + FMath::Max(0.0, L.Z - 55.0) : L.Y + (L.Z + 90.0) * 0.5)); }
+		return R;
+	};
+	for (int32 k = 2; k <= 46; k++) { const float U = k / 48.f, R = Reach(U); if (R > Best) { Best = R; BestU = U; } }
+	HitAt.Add(C.Anim.Get(), BestU);
+	return FMath::Clamp(BestU, C.From, C.To);
+}
+
+/** -gkscript: poses the game as Saved/script.txt says and saves pictures of it, then quits. One command a line, parts split by |. */
+void AGkMatch::RunScript()
+{
+	static const TCHAR* Root = TEXT("/Users/Shared/Epic Games/GekitotsuNative/Saved/shots/");
+	if (ScriptWait > 0) { ScriptWait--; return; }
+	if (!bPlaced) { return; }
+	if (ScriptRunLeft > 0) { ScriptRunLeft--; StepOnce(ScriptIn[0], ScriptIn[1]); AnimClock++; return; }
+	while (ScriptAt < Script.Num())
+	{
+		TArray<FString> A; Script[ScriptAt++].ParseIntoArray(A, TEXT("|")); if (A.Num() == 0 || A[0].StartsWith(TEXT("#"))) { continue; }
+		auto Num = [&A](int32 k, int32 Def = 0) { return A.IsValidIndex(k) ? FCString::Atoi(*A[k]) : Def; };
+		const FString& Op = A[0];
+		if (Op == TEXT("lab"))
+		{
+			Screen = 4; bMenu = false; ScriptSlot = FName(*A[1]); LabFrame = Num(2); LabClock = LabFrame / 60.f; bLabDrop = false; LabTryAt = -2; LabTry = FGkClip();
+			if (A.IsValidIndex(3) && A[3] == TEXT("none")) { bLabDrop = true; LabTryAt = -1; }
+			else if (A.IsValidIndex(3))
+			{
+				LabTry.Anim = LoadObject<UAnimSequence>(nullptr, *A[3]); if (LabTry.Anim) { ClipKeep.Add(LabTry.Anim); bLabDrop = true; LabTryAt = 0; }
+				// a fifth part: the frame number is a hundredth of the clip's length instead
+				if (LabTry.Anim && A.IsValidIndex(4)) { LabClock = LabTry.Anim->GetPlayLength() * 0.995f * LabFrame / 100.f; ScriptNote = FString::Printf(TEXT("%.1fs of %.1fs"), LabClock, LabTry.Anim->GetPlayLength()); }
+			}
+			ScriptNote = FString::Printf(TEXT("%s  f%d"), *A[1], LabFrame);
+		}
+		else if (Op == TEXT("fight")) { Screen = 3; bMenu = false; Mode = 1; Restart(); for (int32 k = 0; k < 400 && S.phase != gk::PH_FIGHT; k++) { gk::step(S, 0, 0); } ScriptNote.Reset(); CamD.bSnap = true; bBoxes = false; }
+		else if (Op == TEXT("run")) { ScriptRunLeft = Num(1); ScriptIn[0] = Num(2); ScriptIn[1] = Num(3); if (ScriptRunLeft > 0) { return; } }
+		else if (Op == TEXT("mv")) { const int32 Id = gk::moveByKey(TCHAR_TO_UTF8(*A[2])); if (Id >= 0) { gk::debugStart(S, Num(1), Id); } }
+		else if (Op == TEXT("set"))
+		{
+			gk::Fighter& P = S.p[Num(1) & 1]; const int32 V = Num(3);
+			if (A[2] == TEXT("bo")) { P.bo = V; if (V) { P.dr = 0; } } else if (A[2] == TEXT("hp")) { P.hp = V; } else if (A[2] == TEXT("dr")) { P.dr = V; } else if (A[2] == TEXT("sa")) { P.sa = V; } else if (A[2] == TEXT("x")) { P.x = V * gk::F; } else if (A[2] == TEXT("face")) { P.face = V; }
+		}
+		else if (Op == TEXT("dummy")) { Dummy = Num(1); }
+		else if (Op == TEXT("storm")) { ScriptStorm = Num(1) / 100.f; }
+		else if (Op == TEXT("wait")) { ScriptWait = Num(1, 1); return; }
+		else if (Op == TEXT("shot")) { FScreenshotRequest::RequestScreenshot(FString(Root) + A[1] + TEXT(".png"), false, false); ScriptWait = 3; return; }
+		else if (Op == TEXT("quit")) { break; }
+	}
+	FFileHelper::SaveStringToFile(TEXT("done\n"), *(FString(Root) + TEXT("done.txt"))); bScript = false; FPlatformMisc::RequestExit(false);
 }
 
 /** The clip each state and move starts with, for every character (the lab changes them; its choices are read last). */
@@ -1063,32 +1308,38 @@ void AGkMatch::LoadClips()
 #define GK_TAT GK_FA "Kick/A_HightKick_Round_R", false, 0.f, 1.f
 #define GK_HOME GK_FA "Punch/Special/A_SuperMan_Punch_R", false, 0.f, 1.f
 #define GK_JIN GK_FA "Punch/Special/A_BackFist_SuperMan_R", false, 0.f, 1.f
+#define GK_S1 "/Game/Superhero_Combat/Animations/Style_One/"
+#define GK_S2 "/Game/Superhero_Combat/Animations/Style_Two/"
 	static const FPick Picks[] = {
-		{ "idle", GK_FA "Base/A_Idle_Active", true, 0.f, 1.f }, { "walkf", GK_V4 "Move_Fw_IP", true, 0.f, 1.f }, { "walkb", GK_V4 "Move_Bw_IP", true, 0.f, 1.f }, { "crouch", GK_V4 "Squat_IP", false, 0.f, 1.f },
-		{ "jump", GK_V4 "Jump_IP", false, 0.15f, 0.85f }, { "dashf", GK_FA "Base/Dodge/A_Dodge_F", false, 0.f, 1.f }, { "dashb", GK_FA "Base/Dodge/A_Dodge_B", false, 0.f, 1.f },
-		{ "run", GK_V3 "Run_Fw_IP", true, 0.f, 1.f }, { "drush", GK_V2 "Run_FW_IP", true, 0.f, 1.f },
-		{ "blockS", GK_FA "Block/A_Block_Idle", true, 0.f, 1.f }, { "parry", GK_V4 "Defense1_IP", false, 0.f, 1.f },
-		{ "hitL", GK_FA "Hit/InPlace/A_HitHead_F_IP", false, 0.f, 1.f }, { "hitM", GK_FA "Hit/InPlace/A_HitBody_F_IP", false, 0.f, 1.f }, { "hitH", GK_FA "Hit/InPlace/A_HitHead_Up_IP", false, 0.f, 1.f },
-		{ "hitLow", GK_FA "Hit/InPlace/A_HitLeg_L_IP", false, 0.f, 1.f }, { "hitCr", GK_FA "Crouch/Hit/A_Crourch_Hit_F", false, 0.f, 1.f }, { "crumple", GK_FA "Fall/A_FallFront", false, 0.f, 1.f },
-		{ "kd", GK_FA "Fall/A_FallBack", false, 0.9f, 1.f }, { "getup", GK_FA "Fall/StandUp/A_StandUp_Back", false, 0.f, 1.f },
-		{ "mv_5LP", GK_FA "Punch/InPlace/Head/A_JabHead_L_IP", false, 0.f, 1.f }, { "mv_5MP", GK_FA "Punch/InPlace/Head/A_PunchHead_R_IP", false, 0.f, 1.f }, { "mv_5HP", GK_FA "Punch/InPlace/Head/A_HookHead_R_IP", false, 0.f, 1.f },
-		{ "mv_2LP", GK_FA "Crouch/Punch/A_Crourch_Jab_L", false, 0.f, 1.f }, { "mv_2HP", GK_FA "Crouch/Punch/A_Crourch_Uppercut_R", false, 0.f, 1.f }, { "mv_CB2", GK_FA "Punch/Special/A_OverHand_R", false, 0.f, 1.f },
-		{ "mv_5LK", GK_FA "Kick/A_LowKick_L", false, 0.f, 1.f }, { "mv_5MK", GK_FA "Kick/A_MiddleKick_R", false, 0.f, 1.f }, { "mv_5HK", GK_FA "Kick/A_HightKick_R", false, 0.f, 1.f },
-		{ "mv_2LK", GK_FA "Crouch/Kick/A_Crourch_Kick_L", false, 0.f, 1.f }, { "mv_2MK", GK_FA "Crouch/Kick/A_Crourch_Kick_R", false, 0.f, 1.f }, { "mv_2HK", GK_FA "Crouch/Kick/A_Crourch_Kick_Round", false, 0.f, 1.f },
-		{ "mv_TFK2", GK_FA "Kick/A_FrontKick_L", false, 0.f, 1.f }, { "mv_TFK3", GK_FA "Kick/A_SideKick", false, 0.f, 1.f },
-		{ "mv_jLP", GK_JP }, { "mv_jMP", GK_JP }, { "mv_jHP", GK_V4 "Jump_Punch2_IP", false, 0.25f, 0.8f }, { "mv_jLK", GK_JK }, { "mv_jMK", GK_JK }, { "mv_jHK", GK_JK }, { "mv_njHK", GK_JK },
-		{ "mv_jUP", GK_FA "Kick/A_KneeKick_Jump", false, 0.f, 1.f }, { "mv_AUP", GK_FA "Kick/A_KneeKick_Jump", false, 0.f, 1.f }, { "mv_jDN", GK_FA "Kick/A_AxeKick", false, 0.f, 1.f }, { "mv_jBK", GK_FA "Kick/A_BackKick_Round_L", false, 0.f, 1.f },
-		{ "mv_ABK", GK_FA "Kick/A_BackKick_Round_L", false, 0.f, 1.f }, { "mv_ASPK", GK_JK }, { "mv_ATAT", GK_TAT }, { "mv_ATAT_OD", GK_TAT }, { "mv_AHOME", GK_HOME }, { "mv_AHOME_OD", GK_HOME },
-		{ "mv_HOME", GK_HOME }, { "mv_HOME_OD", GK_HOME }, { "mv_DI", GK_FA "Kick/A_SideKick_Havy", false, 0.f, 1.f }, { "mv_DREV", GK_FA "Kick/A_FrontKick_Havy", false, 0.f, 1.f },
-		{ "mv_TK", GK_FA "Kick/A_AxeKick", false, 0.f, 1.f }, { "mv_FSK", GK_FA "Kick/A_Round_SideKick_Mid", false, 0.f, 1.f },
-		{ "mv_HAD_H", GK_SP "003_00_All_IP", false, 0.f, 1.f }, { "mv_HAD_OD", GK_SP "004_00_All_IP", false, 0.f, 1.f },
-		{ "mv_SRK_L", GK_SRK }, { "mv_SRK_M", GK_SRK }, { "mv_SRK_H", GK_SRK }, { "mv_SRK_OD", GK_SRK }, { "mv_QSRK", GK_SRK },
-		{ "mv_TAT_L", GK_TAT }, { "mv_TAT_M", GK_TAT }, { "mv_TAT_H", GK_TAT }, { "mv_TAT_OD", GK_TAT }, { "mv_QTAT", GK_TAT },
-		{ "mv_DL_H", GK_FA "Punch/Special/A_SuperMan_Elbow_R", false, 0.f, 1.f }, { "mv_DL_OD", GK_FA "Punch/Special/A_SuperMan_Elbow_R", false, 0.f, 1.f }, { "mv_QDL", GK_FA "Punch/Special/A_SuperMan_Elbow_R", false, 0.f, 1.f },
-		{ "mv_JIN_L", GK_JIN }, { "mv_JIN_M", GK_JIN }, { "mv_JIN_H", GK_JIN }, { "mv_JIN_OD", GK_JIN },
-		{ "mv_KAZE", GK_FA "Kick/A_LowKick_R_Round", false, 0.f, 1.f }, { "mv_KAZE_OD", GK_FA "Kick/A_LowKick_R_Round", false, 0.f, 1.f }, { "mv_GORAI", GK_FA "Kick/A_HightKick_Round_R_v2", false, 0.f, 1.f }, { "mv_GORAI_OD", GK_FA "Kick/A_HightKick_Round_R_v2", false, 0.f, 1.f },
-		{ "mv_SENKA", GK_FA "Kick/A_Round_SideKick_Hight", false, 0.f, 1.f }, { "mv_SENKA_OD", GK_FA "Kick/A_Round_SideKick_Hight", false, 0.f, 1.f }, { "mv_KASAI", "/Game/Superhero_Combat/Animations/Style_One/Anim_SC_Kick_Up", false, 0.f, 1.f },
-		{ "mv_SA1", GK_SP "000_00_All_IP", false, 0.f, 1.f }, { "mv_SA2", GK_SP "001_00_All_IP", false, 0.f, 1.f }, { "mv_SA3", GK_SP "005_00_All_IP", false, 0.f, 1.f }, { "mv_CA", GK_SP "007_00_All_IP", false, 0.f, 1.f } };
+		{ "idle", GK_FA "Base/A_Idle_Active", true, 0.00f, 1.00f }, { "walkf", GK_FA "Base/Walk/A_Move_F", true, 0.00f, 1.00f }, { "walkb", GK_FA "Base/Walk/A_Move_B", true, 0.00f, 1.00f },
+		{ "crouch", GK_V4 "Squat_IP", false, 0.00f, 1.00f }, { "jump", GK_V4 "Jump_IP", false, 0.15f, 0.85f }, { "dashf", GK_FA "Base/Dodge/A_Dodge_F", false, 0.00f, 1.00f },
+		{ "dashb", GK_FA "Base/Dodge/A_Dodge_B", false, 0.00f, 1.00f }, { "run", GK_V3 "Run_Fw_IP", true, 0.00f, 1.00f }, { "drush", GK_S2 "Anim_SC_Move_Forward_V2", true, 0.00f, 1.00f },
+		{ "blockS", GK_FA "Block/InPlace/A_BlockHit_F_IP", false, 0.00f, 1.00f }, { "parry", GK_V3 "Block2_IP", true, 0.00f, 1.00f }, { "hitL", GK_FA "Hit/InPlace/A_HitHead_F_IP", false, 0.00f, 1.00f },
+		{ "hitM", GK_FA "Hit/InPlace/A_HitBody_F_IP", false, 0.00f, 1.00f }, { "hitH", GK_FA "Hit/InPlace/A_HitHead_Up_IP", false, 0.00f, 1.00f }, { "hitLow", GK_FA "Hit/InPlace/A_HitLeg_L_IP", false, 0.00f, 1.00f },
+		{ "hitCr", GK_FA "Crouch/Hit/A_Crourch_Hit_F", false, 0.00f, 1.00f }, { "ahit", GK_FA "Fall/A_FallBack", false, 0.08f, 0.42f }, { "kd", GK_FA "Fall/A_FallBack", false, 0.70f, 1.00f },
+		{ "getup", GK_FA "Fall/StandUp/A_StandUp_Back", false, 0.00f, 1.00f }, { "mv_5LP", GK_FA "Punch/InPlace/Head/A_JabHead_L_IP", false, 0.00f, 1.00f }, { "mv_5MP", GK_FA "Punch/InPlace/Head/A_PunchHead_R_IP", false, 0.00f, 1.00f },
+		{ "mv_5HP", GK_FA "Punch/InPlace/Head/A_HookHead_R_IP", false, 0.00f, 1.00f }, { "mv_2LP", GK_FA "Crouch/Punch/A_Crourch_Jab_L", false, 0.00f, 1.00f }, { "mv_2HP", GK_FA "Crouch/Punch/A_Crourch_Uppercut_R", false, 0.00f, 1.00f },
+		{ "mv_CB2", GK_FA "Punch/Special/A_OverHand_R", false, 0.00f, 1.00f }, { "mv_5LK", GK_FA "Kick/A_LowKick_L", false, 0.00f, 1.00f }, { "mv_5MK", GK_FA "Kick/A_MiddleKick_R", false, 0.00f, 1.00f },
+		{ "mv_5HK", GK_FA "Kick/A_HightKick_R", false, 0.00f, 1.00f }, { "mv_2LK", GK_FA "Crouch/Kick/A_Crourch_Kick_L", false, 0.00f, 1.00f }, { "mv_2MK", GK_FA "Crouch/Kick/A_Crourch_Kick_R", false, 0.00f, 1.00f },
+		{ "mv_2HK", GK_FA "Crouch/Kick/A_Crourch_Kick_Round", false, 0.00f, 1.00f }, { "mv_TFK2", GK_FA "Kick/A_FrontKick_L", false, 0.00f, 1.00f }, { "mv_TFK3", GK_FA "Kick/A_SideKick", false, 0.00f, 1.00f },
+		{ "mv_jLP", GK_S1 "Anim_SC_Punch", false, 0.00f, 1.00f }, { "mv_jMP", GK_S2 "Anim_SC_Punch", false, 0.00f, 1.00f }, { "mv_jHP", GK_S1 "Anim_SC_Punch_Down", false, 0.00f, 1.00f },
+		{ "mv_jLK", GK_S2 "Anim_SC_Kick_v2", false, 0.00f, 1.00f }, { "mv_jMK", GK_S1 "Anim_SC_Kick", false, 0.00f, 1.00f }, { "mv_jHK", GK_V4 "Jump_Kick_IP", false, 0.25f, 0.80f },
+		{ "mv_njHK", GK_V4 "Jump_Kick_IP", false, 0.25f, 0.80f }, { "mv_jUP", GK_S1 "Anim_SC_Kick_Up", false, 0.00f, 1.00f }, { "mv_AUP", GK_S2 "Anim_SC_Punch_up", false, 0.00f, 1.00f },
+		{ "mv_ABK", GK_S2 "Anim_SC_Kick_v2", false, 0.00f, 1.00f }, { "mv_jDN", GK_S2 "Anim_SC_Kick_down_v2", false, 0.00f, 1.00f }, { "mv_jBK", GK_S1 "Anim_SC_Kick", false, 0.00f, 1.00f },
+		{ "mv_ASPK", GK_S2 "Anim_SC_Kick_down_v2", false, 0.00f, 1.00f }, { "mv_ATAT", GK_S2 "Anim_SC_Kick_Double", false, 0.00f, 1.00f }, { "mv_ATAT_OD", GK_S2 "Anim_SC_Kick_Double", false, 0.00f, 1.00f },
+		{ "mv_HOME", GK_S1 "Anim_SC_Move_Forward", true, 0.00f, 1.00f }, { "mv_HOME_OD", GK_S1 "Anim_SC_Move_Forward", true, 0.00f, 1.00f }, { "mv_AHOME", GK_S1 "Anim_SC_Move_Forward", true, 0.00f, 1.00f },
+		{ "mv_AHOME_OD", GK_S1 "Anim_SC_Move_Forward", true, 0.00f, 1.00f }, { "mv_DI", GK_FA "Punch/Special/A_SuperMan_Punch_R", false, 0.00f, 1.00f }, { "mv_DREV", GK_FA "Punch/Special/A_SuperMan_Elbow_R", false, 0.00f, 1.00f },
+		{ "mv_TK", GK_FA "Kick/A_HightKick_L", false, 0.00f, 1.00f }, { "mv_FSK", GK_FA "Kick/A_Round_SideKick_Mid", false, 0.00f, 1.00f }, { "mv_HAD_H", GK_SP "004_00_All_IP", false, 0.00f, 1.00f },
+		{ "mv_HAD_OD", GK_SP "004_00_All_IP", false, 0.00f, 1.00f }, { "mv_SRK_L", GK_V4 "Shoryuken_IP", false, 0.00f, 1.00f }, { "mv_SRK_M", GK_V4 "Shoryuken_IP", false, 0.00f, 1.00f },
+		{ "mv_SRK_H", GK_V4 "Shoryuken_IP", false, 0.00f, 1.00f }, { "mv_SRK_OD", GK_V4 "Shoryuken_IP", false, 0.00f, 1.00f }, { "mv_QSRK", GK_V4 "Shoryuken_IP", false, 0.00f, 1.00f },
+		{ "mv_TAT_L", GK_FA "Kick/A_HightKick_Round_R", false, 0.00f, 1.00f }, { "mv_TAT_M", GK_FA "Kick/A_HightKick_Round_R", false, 0.00f, 1.00f }, { "mv_TAT_H", GK_FA "Kick/A_HightKick_Round_R", false, 0.00f, 1.00f },
+		{ "mv_TAT_OD", GK_FA "Kick/A_HightKick_Round_R", false, 0.00f, 1.00f }, { "mv_QTAT", GK_FA "Kick/A_HightKick_Round_R", false, 0.00f, 1.00f }, { "mv_DL_H", GK_FA "Kick/A_LowKick_R_Round_v2", false, 0.00f, 1.00f },
+		{ "mv_DL_OD", GK_FA "Kick/A_LowKick_R_Round_v2", false, 0.00f, 1.00f }, { "mv_QDL", GK_FA "Kick/A_LowKick_R_Round_v2", false, 0.00f, 1.00f }, { "mv_JIN_L", GK_FA "Kick/A_FrontKick_Havy", false, 0.00f, 1.00f },
+		{ "mv_JIN_M", GK_FA "Kick/A_FrontKick_Havy", false, 0.00f, 1.00f }, { "mv_JIN_H", GK_FA "Kick/A_FrontKick_Havy", false, 0.00f, 1.00f }, { "mv_JIN_OD", GK_FA "Kick/A_FrontKick_Havy", false, 0.00f, 1.00f },
+		{ "mv_KAZE", GK_FA "Kick/A_LowKick_R_Round", false, 0.00f, 1.00f }, { "mv_KAZE_OD", GK_FA "Kick/A_LowKick_R_Round", false, 0.00f, 1.00f }, { "mv_GORAI", GK_FA "Kick/A_AxeKick", false, 0.00f, 1.00f },
+		{ "mv_GORAI_OD", GK_FA "Kick/A_AxeKick", false, 0.00f, 1.00f }, { "mv_SENKA", GK_FA "Kick/A_Round_SideKick_Hight", false, 0.00f, 1.00f }, { "mv_SENKA_OD", GK_FA "Kick/A_Round_SideKick_Hight", false, 0.00f, 1.00f },
+		{ "mv_KASAI", GK_FA "Kick/A_SideKick_Havy", false, 0.00f, 1.00f }, { "mv_SA1", GK_SP "008_00_All_IP", false, 0.00f, 1.00f }, { "mv_SA2", GK_SP "005_00_All_IP", false, 0.00f, 1.00f },
+		{ "mv_SA3", GK_SP "000_00_All_IP", false, 0.00f, 1.00f }, { "mv_CA", GK_SP "006_00_All_IP", false, 0.00f, 1.00f } };
 	for (int32 Set = 0; Set < 3; Set++)
 	{
 		Clips[Set].Reset(); int32 Missing = 0;
@@ -1152,19 +1403,38 @@ void AGkMatch::Present(float Real)
 	// to build when either drops below 60% health, is at full strength at 25%, and never falls under 65% from round three.
 	{
 		const float HpMin = FMath::Min(S.p[0].hp, S.p[1].hp) / 1000.f;
-		float Want = FMath::Clamp((0.6f - HpMin) / 0.35f, 0.f, 1.f);
-		if (S.round >= 3) { Want = FMath::Max(Want, 0.65f); }
-		if (S.phase == gk::PH_INTRO && S.round < 3) { Want = 0.f; }
+		float Want = FMath::Clamp((0.85f - HpMin) / 0.55f, 0.f, 1.f);
+		if (S.round == 2) { Want = FMath::Max(Want, 0.3f); } if (S.round >= 3) { Want = FMath::Max(Want, 0.8f); }
 		if (Place == 0 || Screen != 3) { Want = 0.f; }
-		Storm = FMath::Lerp(Storm, Want, FMath::Clamp(Real * 0.8f, 0.f, 1.f));
-		const int32 Stage = Want < 0.04f ? 0 : Want < 0.35f ? 1 : Want < 0.8f ? 2 : 3;
-		SetWeather(Stage, Stage == 0 ? 2.0 : 5.0);
+		if (ScriptStorm >= 0.f) { Want = ScriptStorm; }
+		Storm = FMath::Lerp(Storm, Want, FMath::Clamp(Real * 1.2f, 0.f, 1.f));
+		const int32 Stage = Want < 0.05f ? 0 : Want < 0.3f ? 1 : Want < 0.6f ? 2 : 3;
+		SetWeather(Stage, Stage == 0 ? 2.0 : 3.0);
+		// the storm's own rain and lightning, heavier as it builds
+		if (Place != 0 && Storm > 0.35f)
+		{
+			RainDue -= Real; int32 Guard = 0;
+			while (RainDue <= 0.f && Guard++ < 12)
+			{
+				RainDue += 0.006f / Storm;
+				FGkFx::FP& Dr = Fx.Add(0, FVector(Fx.Rng.FRandRange(-420.f, 120.f), CamPos.Y + Fx.Rng.FRandRange(-1200.f, 1200.f), Fx.Rng.FRandRange(300.f, 700.f)), FVector(0.0, -700.0 * Storm, -2300.0), 0.32f, 9.f, 7.f, FLinearColor(2.2f, 2.8f, 4.f), 0.8f); Dr.Stretch = 22.f;
+			}
+			BoltDue -= Real;
+			if (BoltDue <= 0.f && Storm > 0.55f)
+			{   // a bolt: a jagged line of light down the sky behind the fight
+				double By = CamPos.Y + Fx.Rng.FRandRange(-900.f, 900.f), Bz = 900.0;
+				for (int32 Seg = 0; Seg < 7; Seg++) { const double Ny = By + Fx.Rng.FRandRange(-90.f, 90.f); FGkFx::FP& Bt = Fx.Add(0, FVector(260.0, (By + Ny) * 0.5, Bz - 60.0), FVector(0.0, (Ny - By) * 0.02, -1.0), 0.22f, 26.f, 14.f, FLinearColor(9.f, 10.f, 14.f)); Bt.Stretch = 9.f; By = Ny; Bz -= 120.0; }
+			}
+			if (BoltDue <= 0.f && Storm > 0.55f) { Flash = FMath::Max(Flash, 0.55f + 0.5f * Storm); Shake = FMath::Max(Shake, 2.f + 3.f * Storm); BoltDue = Fx.Rng.FRandRange(1.6f, 5.f) / Storm; }
+		}
 		// a super dims the world behind the fighters for as long as it holds the screen; the weather's own light is untouched
 		Dim = FMath::Lerp(Dim, S.freeze > 0 ? 1.f : 0.f, FMath::Clamp(Real * 14.f, 0.f, 1.f));
+		Flash *= FMath::Pow(0.0008f, Real);
 		if (Cam)
 		{
-			FPostProcessSettings& PP = Cam->GetCameraComponent()->PostProcessSettings; const double G = 1.0 - 0.55 * Dim;
-			PP.bOverride_ColorGain = true; PP.ColorGain = FVector4(G, G, G * (1.0 + 0.08 * Dim), 1.0);
+			FPostProcessSettings& PP = Cam->GetCameraComponent()->PostProcessSettings; const double G = (1.0 - 0.55 * Dim) * (1.0 - 0.2 * Storm) + 1.5 * Flash;
+			PP.bOverride_ColorGain = true; PP.ColorGain = FVector4(G * (1.0 - 0.1 * Storm), G, G * (1.0 + 0.08 * Dim + 0.1 * Storm), 1.0);
+			PP.bOverride_ColorSaturation = true; const double Sat = 1.0 - 0.3 * Storm; PP.ColorSaturation = FVector4(Sat, Sat, Sat, 1.0);
 		}
 		Fx.DustCol = Place != 0 ? FMath::Lerp(FLinearColor(0.62f, 0.47f, 0.33f), FLinearColor(0.36f, 0.38f, 0.48f), Storm) : FLinearColor(0.45f, 0.47f, 0.52f);
 	}
@@ -1172,16 +1442,22 @@ void AGkMatch::Present(float Real)
 	for (int32 k = 0; k < 4; k++)
 	{
 		if (!ShotMesh[k]) { continue; }
-		const bool bOn = k < S.nshots; ShotMesh[k]->SetVisibility(bOn); if (bOn) { ShotMesh[k]->SetRelativeLocation(At(S.shot[k].x, S.shot[k].y)); if (!bMenu) { Fx.Trail(At(S.shot[k].x, S.shot[k].y), (S.shot[k].o & 1) ? FLinearColor(1.5f, 3.5f, 8.f) : FLinearColor(7.f, 3.6f, 0.9f)); } }
+		const bool bOn = k < S.nshots; ShotMesh[k]->SetVisibility(false);
+		if (bOn && !bMenu)
+		{   // a shot is a ball of light: a white-hot heart, a wide glow in its owner's colour, and sparks trailing off it
+			const FVector Sp = At(S.shot[k].x, S.shot[k].y, -10.0); const FLinearColor Kc = (S.shot[k].o & 1) ? FLinearColor(1.5f, 3.5f, 8.f) : FLinearColor(7.f, 3.6f, 0.9f); const float Beat = 1.f + 0.15f * FMath::Sin(Ticks * 0.9f);
+			Fx.Add(0, Sp, FVector::ZeroVector, 0.04f, 44.f * Beat, 36.f, FLinearColor(5.f, 5.f, 4.5f)); Fx.Add(0, Sp, FVector::ZeroVector, 0.05f, 100.f * Beat, 90.f, Kc * 0.3f); Fx.Add(0, Sp, FVector::ZeroVector, 0.06f, 190.f, 180.f, Kc * 0.04f);
+			Fx.Trail(Sp, Kc); Fx.Trail(Sp + FVector(0.0, 0.0, Fx.Rng.FRandRange(-20.f, 20.f)), Kc);
+		}
 	}
 	// the camera frames both fighters the way the browser does: wide enough for the two of them and for the higher one's head
 	const bool bLabCam = Screen == 4;
 	const double Ax = bLabCam ? -60.0 : S.p[0].x / double(gk::F), Bx = bLabCam ? 60.0 : S.p[1].x / double(gk::F), Hy = bLabCam ? 0.0 : FMath::Max(S.p[0].y, S.p[1].y) / double(gk::F);
-	const double Tw = FMath::Max3(236.0, FMath::Min(480.0, FMath::Abs(Ax - Bx) + 150.0), FMath::Min(600.0, (Hy + 108.0) * 2.09)), Ty = Tw * 9.0 / 32.0 - 17.0, Unit = Cm * gk::F;
+	const double Tw = FMath::Max3(236.0, FMath::Min(480.0, FMath::Abs(Ax - Bx) + 150.0), FMath::Min(600.0, (Hy + 124.0) * 2.09)), Ty = Tw * 9.0 / 32.0 - 17.0, Unit = Cm * gk::F;
 	const double HalfFov = FMath::DegreesToRadians(15.0), Dist = (Tw * 0.5 * Unit) / FMath::Tan(HalfFov);
 	const double Edge = FMath::Max(0.0, (gk::STAGE / double(gk::F) + 30.0) - Tw * 0.5), Tx = FMath::Clamp((Ax + Bx) * 0.5, -Edge, Edge);
 	const FVector Want(-Dist, Tx * Unit, Ty * Unit);
-	CamPos = FMath::Lerp(CamPos, Want, FMath::Clamp(double(Real) * 9.0, 0.0, 1.0));
+	CamPos = FMath::Lerp(CamPos, Want, FMath::Clamp(double(Real) * 9.0, 0.0, 1.0)); CamPos.Z = FMath::Lerp(CamPos.Z, Want.Z, FMath::Clamp(double(Real) * 8.0, 0.0, 1.0));
 	Shake *= FMath::Pow(0.85f, FMath::Clamp(Real * 60.f, 0.f, 4.f));
 
 	// ---- the director (the browser game's camDirect): what the moment asks of the camera

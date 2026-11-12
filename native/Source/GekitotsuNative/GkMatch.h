@@ -10,7 +10,7 @@
 #include "GkFx.h"
 #include "GkMatch.generated.h"
 
-class UPoseableMeshComponent; class USkeletalMeshComponent; class UAnimSequence; class UNiagaraSystem; class USoundBase; class UStaticMeshComponent; class USceneComponent; class ACameraActor; class AExponentialHeightFog; class UCanvas; class FGkPads;
+class UPoseableMeshComponent; class USkeletalMeshComponent; class UAnimSequence; class UNiagaraSystem; class USoundBase; class UStaticMeshComponent; class USceneComponent; class ACameraActor; class AExponentialHeightFog; class UCanvas; class FGkPads; class UMaterialInstanceDynamic;
 
 /** A place to fight. Kind 0 is the measured training room and 1 the canyon, both built by the game on its own bare map; 2 is a dressed map from an environment pack, opened as it was shipped, with the fight set down in it. */
 struct FGkStage { FString Name, Map, Sky; int32 Kind = 2; double Time = 500.0; bool bFixed = false; FVector At = FVector::ZeroVector; double Yaw = 0.0; };
@@ -68,6 +68,20 @@ public:
 	UPROPERTY() TArray<TObjectPtr<UAnimSequence>> ClipKeep;
 	TMap<FName, FGkClip> Clips[3]; int32 ClipSet[2] = { -1, -1 }; TObjectPtr<UAnimSequence> Playing[2];   // clip sets: 0 Kagu's, 1 Noa's
 	void LoadClips(); const FGkClip* ClipFor(int32 Set, FName Pose, int32 MoveId) const;
+	// What is shown: one pose per fighter, built each frame from the clip (or the hand pose) and cross-faded from the last
+	// when it changes. An attack's clip is timed so its furthest reach falls on the move's first active frame.
+	TArray<FTransform> PoseShown[2], PoseFrom[2], RefCS[2]; TArray<int32> SkelIdx[2], Twin[2]; const void* PoseMesh[2] = { nullptr, nullptr }; const void* SkelFor[2] = { nullptr, nullptr };
+	const void* ShownAnim[2] = { nullptr, nullptr }; FName ShownClip[2]; int32 BlendAt[2] = { 0, 0 }, BlendLen[2] = { 0, 0 }, LastT[2] = { 0, 0 }, AnimClock = 0, KeyBone[2][5];
+	TMap<const UAnimSequence*, float> HitAt; TSet<FString> Picked;
+	void EvalClip(int32 i, UAnimSequence* A, float Time, TArray<FTransform>& Out); float ImpactOf(int32 i, const FGkClip& C);
+	// How a fighter's state is told at a glance: his colours and outline change with it (guard blue, parry cyan, a perfect
+	// parry gold, burnout grey, a blow landing white), with a word over his head and particles to match.
+	UPROPERTY() TArray<TObjectPtr<UMaterialInstanceDynamic>> Mids;
+	UMaterialInstanceDynamic* BodyMid[2][4] = { { nullptr, nullptr, nullptr, nullptr }, { nullptr, nullptr, nullptr, nullptr } }; UMaterialInstanceDynamic* InkMid[2] = { nullptr, nullptr }; FLinearColor BaseCol[2][4], ShadeCol[2][4];
+	int32 PerfectT[2] = { 0, 0 }; float Lean[2] = { 0.f, 0.f }, Squash[2] = { 0.f, 0.f }, Flash = 0.f, RainDue = 0.f, BoltDue = 3.f;
+	void LookFighter(int32 i); void StateFx(int32 i);
+	// scripted pictures (-gkscript): a list of commands in Saved/script.txt that pose the game and save screenshots
+	TArray<FString> Script; int32 ScriptAt = 0, ScriptWait = 0; bool bScript = false; FName ScriptSlot; float ScriptStorm = -1.f; FString ScriptNote; int32 ScriptRunLeft = 0, ScriptIn[2] = { 0, 0 }; void RunScript();
 	// The animation lab (Screen 4): one fighter alone, every move and state in turn, and every clip he has to try on it.
 	// What is chosen is kept in Content/Gk/anims.txt (set | slot | clip | from | to | loop) and used by the game from then on.
 	struct FLabSlot { FName Slot; FString Label; int32 Cat = 0; };
@@ -119,6 +133,6 @@ public:
 
 	static constexpr double Cm = (100.0 / 51.0) / 100.0;   // centimetres in one of the rules' sub-units: the fighter is 89 units, about 1.75 m
 	FVector At(int32 X, int32 Y, double Depth = 0.0) const { return FVector(Depth, double(X) * Cm, double(Y) * Cm); }
-	void Restart(); int32 ReadPlayer() const; int32 DummyInput(); void MenuInput(); void StepOnce(); void OnEvent(const gk::Event& E); void Track(int32 In);
+	void Restart(); int32 ReadPlayer() const; int32 DummyInput(); void MenuInput(); void StepOnce(int32 Force0 = -1, int32 Force1 = -1); void OnEvent(const gk::Event& E); void Track(int32 In);
 	void Present(float Real); void ShowFighter(int32 i); void SaveBinds() const; void LoadBinds(); void Say(const TCHAR* Word, int32 Hold); void Remark(int32 Who, const TCHAR* Text);
 };

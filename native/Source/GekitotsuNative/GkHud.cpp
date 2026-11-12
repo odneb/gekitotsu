@@ -49,13 +49,22 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 			for (int32 k = 0; k < Nu; k++) { Draw(Hu[k], Jade); } for (int32 k = 0; k < Nh; k++) { Draw(Hi[k], Red); }
 		}
 	}
-	// what each fighter is doing, over his head: the state, and the move with its frame
-	for (int32 i = 0; i < 2; i++)
+	// what each fighter is doing, over his head: a coloured word for the states that matter (and in training the move with its frame)
+	for (int32 i = 0; i < 2 && Screen == 3; i++)
 	{
-		static const TCHAR* StName[] = { TEXT(""), TEXT("PREJUMP"), TEXT("JUMP"), TEXT("LAND"), TEXT("DASH"), TEXT("BACKDASH"), TEXT("RUN"), TEXT("GHOST STEP"), TEXT(""), TEXT("BLOCK"), TEXT("HIT"), TEXT("LAUNCHED"), TEXT("DOWN"), TEXT("GET UP"), TEXT("THROWN"), TEXT("GRAB"), TEXT("WIN"), TEXT("PARRY"), TEXT("PARRY RECOVERY"), TEXT("TECH") };
-		const gk::Fighter& P = S.p[i]; const FVector Head = Cv->Project(Wd(At(P.x, P.y + 100 * gk::F)));
-		const FString Label = P.st == gk::ATK ? FString::Printf(TEXT("%s  %d"), UTF8_TO_TCHAR(gk::moveName(P.mv)), P.mf) : FString(StName[FMath::Clamp<int32>(P.st, 0, 19)]);
-		GkText(Cv, Label, Head.X, Head.Y - 26.f * U, 16.f * U, P.st == gk::ATK ? Gold : Bone, true);
+		const gk::Fighter& P = S.p[i]; const FVector Head = Cv->Project(Wd(At(P.x, P.y + 100 * gk::F))); if (Head.Z <= 0.0) { continue; }
+		const TCHAR* Word = nullptr; FLinearColor Chip = Ash;
+		if (PerfectT[i] > 0) { Word = TEXT("PERFECT!"); Chip = Gold; }
+		else if (P.st == gk::PARRY) { Word = TEXT("PARRY"); Chip = FLinearColor(0.f, 0.75f, 0.85f, 1.f); }
+		else if (P.st == gk::PREC) { Word = TEXT("OPEN"); Chip = FLinearColor(0.25f, 0.32f, 0.34f, 1.f); }
+		else if (P.st == gk::BLOCK) { Word = TEXT("GUARD"); Chip = FLinearColor(0.15f, 0.4f, 1.f, 1.f); }
+		else if (P.st == gk::KDOWN) { Word = TEXT("DOWN"); Chip = FLinearColor(0.5f, 0.1f, 0.08f, 1.f); }
+		else if (P.arm > 0) { Word = TEXT("ARMOR"); Chip = FLinearColor(0.95f, 0.45f, 0.05f, 1.f); }
+		else if (P.st == gk::DRUSH) { Word = TEXT("RUSH"); Chip = FLinearColor(0.1f, 0.7f, 0.25f, 1.f); }
+		float Yy = Head.Y - 64.f * U;
+		if (Word) { const float Ww = (FCString::Strlen(Word) * 15.f + 26.f) * U; GkRect(Cv, Head.X - Ww * 0.5f, Yy, Ww, 30.f * U, Chip); GkText(Cv, Word, Head.X, Yy + 2.f * U, 19.f * U, Bone, true, 2); Yy -= 34.f * U; }
+		if (P.bo) { const float Ww = 136.f * U, Bl = 0.65f + 0.35f * FMath::Sin(Ticks * 0.3f); GkRect(Cv, Head.X - Ww * 0.5f, Yy, Ww, 30.f * U, FLinearColor(0.3f, 0.32f, 0.3f, Bl)); GkText(Cv, TEXT("BURNOUT"), Head.X, Yy + 2.f * U, 19.f * U, Bone, true, 2); }
+		if (Mode == 1 && P.st == gk::ATK) { GkText(Cv, FString::Printf(TEXT("%s  %d"), UTF8_TO_TCHAR(gk::moveName(P.mv)), P.mf), Head.X, Head.Y + 6.f * U, 15.f * U, Gold, true); }
 	}
 	for (const FSpark& Sp : Sparks)
 	{
@@ -90,7 +99,7 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 			const float Part = FMath::Clamp((P.dr - b * 1000) / 1000.f, 0.f, 1.f), Dw = 56.f * U, Dh = 12.f * U, Dx = i ? Mid + Gap + b * (Dw + 6.f * U) : Mid - Gap - (b + 1) * (Dw + 6.f * U) + 6.f * U, Dy = Top + BarH + 10.f * U;
 			GkRect(Cv, Dx, Dy, Dw, Dh, Ash); if (i) { GkRect(Cv, Dx, Dy, Dw * Part, Dh, P.bo ? Slate : Jade); } else { GkRect(Cv, Dx + Dw * (1.f - Part), Dy, Dw * Part, Dh, P.bo ? Slate : Jade); }
 		}
-		if (P.bo) { GkText(Cv, TEXT("BURNOUT"), i ? Mid + Gap + 390.f * U : Mid - Gap - 480.f * U, Top + BarH + 6.f * U, 16.f * U, Slate); }
+		if (P.bo) { const float Bx = i ? Mid + Gap : Mid - Gap - 6.f * 62.f * U + 6.f * U, Bl = 0.5f + 0.5f * FMath::Sin(Ticks * 0.3f); GkRect(Cv, Bx - 3.f * U, Top + BarH + 7.f * U, 6.f * 62.f * U, 18.f * U, FLinearColor(0.75f, 0.1f, 0.08f, 0.35f + 0.4f * Bl)); GkText(Cv, TEXT("BURNOUT"), Bx + 130.f * U, Top + BarH + 5.f * U, 17.f * U, Bone, false, 2); }
 		for (int32 r = 0; r < FMath::Clamp(S.cfg.rounds, 1, 3); r++) { GkRect(Cv, i ? Mid + Gap + r * 30.f * U : Mid - Gap - (r + 1) * 30.f * U + 8.f * U, Top - 26.f * U, 22.f * U, 12.f * U, r < P.wins ? Gold : Ash); }
 		// the super gauge: three levels
 		for (int32 b = 0; b < 3; b++)
@@ -143,6 +152,7 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 	// exactly what is arriving from the stick, so a controller that is seen but not heard can be told apart from one that is mapped wrongly
 	if (Pads && Mode == 1 && bBoxes) { GkText(Cv, FString::Printf(TEXT("%s   buttons %08x  dirs %d"), *Pads->Debug(), PadNow, PadDirs), Mid, H - 48.f * U, 12.f * U, Gold, true); }
 
+	if (bScript) { if (!ScriptNote.IsEmpty()) { GkText(Cv, ScriptNote, 20.f * U, H - 60.f * U, 30.f * U, Gold); } if (Screen == 4) { return; } }
 	if (Screen == 4)
 	{
 		// the animation lab: tabs by kind of move, a grid of the moves, and a drop-down of clips on the one that is clicked
@@ -161,8 +171,8 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 			const FString Path = Has->Anim->GetPathName(); for (const FLabClip& L : LabList) { if (L.Path == Path) { return L.Label; } } return Has->Anim->GetName();
 		};
 		static const TCHAR* Who[3] = { TEXT("KAGU"), TEXT("NOA"), TEXT("ROBOT") };
-		static const TCHAR* Tabs[9] = { TEXT("MOVEMENT"), TEXT("GUARD"), TEXT("HIT REACTIONS"), TEXT("PUNCHES"), TEXT("KICKS"), TEXT("AIR"), TEXT("SPECIALS"), TEXT("SUPERS"), TEXT("THROWS") };
-		static const TCHAR* Kinds[8] = { TEXT("MOVEMENT"), TEXT("BLOCKS"), TEXT("HITS"), TEXT("FALL / GET UP"), TEXT("PUNCHES"), TEXT("KICKS"), TEXT("COMBOS"), TEXT("ENERGY") };
+		static const TCHAR* Tabs[9] = { TEXT("MOVEMENT"), TEXT("GUARD"), TEXT("HIT REACTIONS"), TEXT("PUNCHES"), TEXT("KICKS"), TEXT("AIR + FLYING"), TEXT("SPECIALS"), TEXT("SUPERS"), TEXT("THROWS") };
+		static const TCHAR* Kinds[9] = { TEXT("MOVEMENT"), TEXT("BLOCKS"), TEXT("HITS"), TEXT("FALL / GET UP"), TEXT("PUNCHES"), TEXT("KICKS"), TEXT("COMBOS"), TEXT("ENERGY"), TEXT("FLYING") };
 		const float Pw = W * 0.6f, Lx = 24.f * U, Gw = Pw - 48.f * U;
 		GkRect(Cv, 0.f, 0.f, Pw, H, FLinearColor(0.02f, 0.02f, 0.03f, 0.88f));
 		GkText(Cv, TEXT("ANIMATIONS"), Lx, 18.f * U, 30.f * U, Bone);
@@ -196,15 +206,15 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 		}
 		if (bLabDrop && LabSlots.IsValidIndex(LabSlot))
 		{
-			const int32 Rows = 12; const float Rh = 30.f * U, Dw = FMath::Max(Cw, 520.f * U), Dh = 2.f * 34.f * U + (Rows + 1) * Rh + 34.f * U;
+			const int32 Rows = 12; const float Rh = 30.f * U, Dw = FMath::Max(Cw, 520.f * U), Dh = 3.f * 34.f * U + (Rows + 1) * Rh + 34.f * U;
 			float X = FMath::Min(DropX, Pw - Dw - 10.f * U), Y = DropY; if (Y + Dh > H - 10.f * U) { Y = FMath::Max(10.f * U, DropY - Ch - Dh); }
 			if (Mx >= X && Mx < X + Dw && My >= Y && My < Y + Dh) { Hot = -1; }
 			GkRect(Cv, X - 3.f * U, Y - 3.f * U, Dw + 6.f * U, Dh + 6.f * U, Gold); GkRect(Cv, X, Y, Dw, Dh, FLinearColor(0.03f, 0.03f, 0.05f, 1.f));
-			for (int32 k = 0; k < 8; k++) { Btn(X + (k % 4) * (Dw / 4.f), Y + (k / 4) * 34.f * U, Dw / 4.f - 3.f * U, 31.f * U, 200 + k, Kinds[k], 11.f * U, LabDropCat == k); }
+			for (int32 k = 0; k < 9; k++) { Btn(X + (k % 3) * (Dw / 3.f), Y + (k / 3) * 34.f * U, Dw / 3.f - 3.f * U, 31.f * U, 200 + k, Kinds[k], 12.f * U, LabDropCat == k); }
 			TArray<int32> Show; for (int32 k = 0; k < LabList.Num(); k++) { if (LabList[k].Cat == LabDropCat) { Show.Add(k); } }
 			LabScroll = FMath::Clamp(LabScroll, 0, FMath::Max(0, Show.Num() - Rows));
 			const FGkClip* Has = Clips[LabSet].Find(LabSlots[LabSlot].Slot); const FString Now = (Has && Has->Anim) ? Has->Anim->GetPathName() : FString();
-			float Ry = Y + 2.f * 34.f * U;
+			float Ry = Y + 3.f * 34.f * U;
 			Btn(X, Ry, Dw, Rh - 2.f * U, 9999, TEXT("NONE  (hand pose)"), 13.f * U, Now.IsEmpty()); Ry += Rh;
 			for (int32 r = 0; r < Rows && LabScroll + r < Show.Num(); r++) { const int32 k = Show[LabScroll + r]; Btn(X, Ry + r * Rh, Dw, Rh - 2.f * U, 10000 + k, LabList[k].Label, 13.f * U, LabList[k].Path == Now); }
 			GkText(Cv, FString::Printf(TEXT("%d - %d of %d      scroll for more"), Show.Num() ? LabScroll + 1 : 0, FMath::Min(Show.Num(), LabScroll + Rows), Show.Num()), X + 10.f * U, Y + Dh - 28.f * U, 12.f * U, Slate, false, 1);
