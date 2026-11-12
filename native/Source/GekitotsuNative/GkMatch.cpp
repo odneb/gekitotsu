@@ -1,6 +1,6 @@
 #include "GkMatch.h"
 #include "GkPad.h"
-#include "Components/SkeletalMeshComponent.h"
+#include "Components/PoseableMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/DirectionalLightComponent.h"
@@ -15,11 +15,8 @@
 #include "Engine/World.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
-#include "Animation/AnimSequence.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "Animation/AnimSingleNodeInstance.h"
-#include "Animation/AnimEnums.h"
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/PlayerController.h"
@@ -44,7 +41,6 @@ AGkMatch::AGkMatch()
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 }
 
-UAnimSequence* AGkMatch::Anim(const TCHAR* Name) const { const TObjectPtr<UAnimSequence>* A = Anims.Find(FName(Name)); return A ? A->Get() : nullptr; }
 
 // ------------------------------------------------------------------------------------------------ setting up
 void AGkMatch::BeginPlay()
@@ -105,37 +101,24 @@ void AGkMatch::BeginPlay()
 		}
 	}
 
-	// the fighters: Unreal's own mannequins stand in until the real characters are made
-	static const TCHAR* Names[] = { TEXT("MM_Idle"), TEXT("Walk/MF_Unarmed_Walk_Fwd"), TEXT("Walk/MF_Unarmed_Walk_Bwd"), TEXT("Jog/MF_Unarmed_Jog_Fwd"), TEXT("Jog/MF_Unarmed_Jog_Bwd"), TEXT("Jump/MM_Jump"), TEXT("Jump/MM_Fall_Loop"),
-		TEXT("Jump/MM_Land"), TEXT("Jump/MM_Dash"), TEXT("Attack/MM_Attack_01"), TEXT("Attack/MM_Attack_02"), TEXT("Attack/MM_Attack_03"), TEXT("Attack/MM_ChargedAttack") };
-	for (const TCHAR* N : Names)
-	{
-		const FString Leaf = FPaths::GetCleanFilename(N); const FString Path = FString::Printf(TEXT("/Game/Characters/Mannequins/Anims/Unarmed/%s.%s"), N, *Leaf);
-		if (UAnimSequence* A = LoadObject<UAnimSequence>(nullptr, *Path)) { Anims.Add(FName(*Leaf), A); }
-	}
-	if (UAnimSequence* A = LoadObject<UAnimSequence>(nullptr, TEXT("/Game/Characters/Mannequins/Anims/Death/MM_Death_Back_01.MM_Death_Back_01"))) { Anims.Add(TEXT("MM_Death_Back_01"), A); }
-	// The rules alone say where a fighter stands. These animations carry their own travel in the root bone (a walk walks
-	// away, then snaps back when it loops); that travel is locked off so the body stays exactly where the rules put it.
-	for (TPair<FName, TObjectPtr<UAnimSequence>>& It : Anims)
-	{
-		if (UAnimSequence* A = It.Value.Get()) { A->bEnableRootMotion = true; A->bForceRootLock = true; A->RootMotionRootLock = ERootMotionRootLock::AnimFirstFrame; }
-	}
+	// The fighters. The skeletons are Unreal's mannequins until the real characters are made; the animation is the browser
+	// game's own, sampled for every move and state (Content/Gk/poses.*) and solved onto the skeleton each frame.
+	if (!Poses.Load(FPaths::ProjectContentDir() / TEXT("Gk"))) { UE_LOG(LogTemp, Error, TEXT("Gekitotsu: the pose data (Content/Gk/poses.txt, poses.bin) did not load")); }
+	MoveClip.Reset(); for (int32 k = 0; k < gk::moveCount(); k++) { MoveClip.Add(FName(*(FString(TEXT("mv_")) + UTF8_TO_TCHAR(gk::moveKey(k))))); }
 	static const TCHAR* Meshes[2] = { TEXT("/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"), TEXT("/Game/Characters/Mannequins/Meshes/SKM_Quinn_Simple.SKM_Quinn_Simple") };
 	for (int32 i = 0; i < 2; i++)
 	{
-		USkeletalMeshComponent* C = NewObject<USkeletalMeshComponent>(this); C->SetupAttachment(RootComponent);
+		UPoseableMeshComponent* C = NewObject<UPoseableMeshComponent>(this); C->SetupAttachment(RootComponent);
 		C->SetUsingAbsoluteLocation(true); C->SetUsingAbsoluteRotation(true); C->SetUsingAbsoluteScale(true); C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		C->RegisterComponent();
-		if (USkeletalMesh* M = LoadObject<USkeletalMesh>(nullptr, Meshes[i])) { C->SetSkeletalMeshAsset(M); }
+		if (USkeletalMesh* M = LoadObject<USkeletalMesh>(nullptr, Meshes[i])) { C->SetSkinnedAssetAndUpdate(M); }
 		// player one is red, the other blue
 		for (int32 k = 0; k < C->GetNumMaterials(); k++)
 		{
 			if (UMaterialInstanceDynamic* Tint = C->CreateDynamicMaterialInstance(k)) { Tint->SetVectorParameterValue(TEXT("Paint Tint"), i ? FLinearColor(0.05f, 0.22f, 0.95f) : FLinearColor(0.9f, 0.07f, 0.04f)); }
 		}
-		C->SetAnimationMode(EAnimationMode::AnimationSingleNode); C->SetBoundsScale(30.f);
-		// never skipped: he is posed every frame whether or not the engine thinks he is in view
-		C->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones; C->bNeverDistanceCull = true;
-		Body[i] = C;
+		C->SetBoundsScale(30.f); C->bNeverDistanceCull = true;
+		Body[i] = C; Rig[i].Init(C);
 	}
 	if (W)
 	{
@@ -332,6 +315,7 @@ void AGkMatch::OnEvent(const gk::Event& E)
 	switch (E.type)
 	{
 		case gk::E_HIT:
+			HitKind[1 - Who] = (E.f & gk::H_LOW) ? 3 : E.a >= 2 ? 2 : E.a >= 1 ? 1 : 0;   // how hard it landed picks the reel: light, medium, heavy, or swept low
 			Sparks.Add(FSpark{ At(E.x, E.y), 0, 0 }); Shake = FMath::Max(Shake, 2.f + E.a * 2.f + ((E.f & gk::H_KO) ? 10.f : 0.f));
 			Combo[Who] = E.c; ComboDmg[Who] = E.d; ComboTimer[Who] = 80;
 			if (E.f & gk::H_IMPACT) { Remark(Who, (E.f & gk::H_CRUMPLE) ? TEXT("CRUMPLE!") : TEXT("BREACH!")); }
@@ -365,63 +349,77 @@ void AGkMatch::OnEvent(const gk::Event& E)
 }
 
 // ------------------------------------------------------------------------------------------------ the picture
-/** Sets one fighter's animation to the frame the rules are on. Nothing plays by itself: every pose is asked for by time. */
+/**
+ * Shows one fighter on the frame the rules are on: picks the browser game's pose for his state or move at that frame
+ * (the same choices the browser's fighterPose makes) and solves it onto the skeleton. Nothing plays by itself.
+ */
 void AGkMatch::ShowFighter(int32 i)
 {
-	USkeletalMeshComponent* C = Body[i]; if (!C) { return; }
-	const gk::Fighter& P = S.p[i]; const float T60 = 1.f / 60.f;
-	UAnimSequence* A = Anim(TEXT("MM_Idle")); float T = (S.frame + i * 20) * T60; bool bLoop = true; float Roll = 0.f, Sink = 0.f;
-	auto Use = [&](const TCHAR* Name, float Time, bool bLoops) { if (UAnimSequence* Q = Anim(Name)) { A = Q; T = Time; bLoop = bLoops; } };
+	UPoseableMeshComponent* C = Body[i]; if (!C) { return; }
+	const gk::Fighter& P = S.p[i]; const gk::Fighter& O = S.p[1 - i];
+	FName Clip(TEXT("idle")); int32 T = (S.frame + i * 44) % 262; float Roll = 0.f, Turn = 0.f;
+	auto Ease = [](float K) { K = FMath::Clamp(K, 0.f, 1.f); return K * K * (3.f - 2.f * K); };
 	switch (P.st)
 	{
 		case gk::IDLE:
-			if (P.sub == gk::CROUCH) { Use(TEXT("MM_Land"), 0.06f, false); Sink = 34.f; }
-			else if (P.sub == gk::WALKF) { Use(TEXT("MF_Unarmed_Walk_Fwd"), P.subf * T60, true); }
-			else if (P.sub == gk::WALKB) { Use(TEXT("MF_Unarmed_Walk_Bwd"), P.subf * T60, true); }
+			if (P.sub == gk::CROUCH) { Clip = TEXT("crouch"); T = FMath::Min(P.subf, 16); }
+			else if (P.sub == gk::WALKF) { Clip = TEXT("walkf"); T = P.subf < 65 ? P.subf : 5 + ((P.subf - 5) % 60); }
+			else if (P.sub == gk::WALKB) { Clip = TEXT("walkb"); T = P.subf < 71 ? P.subf : 5 + ((P.subf - 5) % 66); }
 			break;
-		case gk::PREJUMP: Use(TEXT("MM_Jump"), P.sf * T60, false); break;
-		case gk::JUMP: case gk::TECH: if (P.vy > 200) { Use(TEXT("MM_Jump"), 0.1f + P.sf * T60, false); } else { Use(TEXT("MM_Fall_Loop"), P.sf * T60, true); } break;
-		case gk::LAND: Use(TEXT("MM_Land"), P.sf * T60, false); break;
-		case gk::DASHF: Use(TEXT("MM_Dash"), P.sf * T60, false); break;
-		case gk::DASHB: Use(TEXT("MF_Unarmed_Jog_Bwd"), P.sf * T60, true); break;
-		case gk::RUN: case gk::DRUSH: Use(TEXT("MF_Unarmed_Jog_Fwd"), P.sf * T60 * 1.4f, true); break;
-		case gk::BLOCK: Use(TEXT("MF_Unarmed_Walk_Bwd"), 0.2f, false); if (P.cb) { Sink = 34.f; } break;
-		case gk::PARRY: case gk::PREC: Use(TEXT("MM_Idle"), 0.f, false); break;
-		case gk::HIT: Use(TEXT("MM_Death_Back_01"), FMath::Min(0.3f, P.sf * T60), false); if (P.cb) { Sink = 30.f; } break;
-		case gk::AHIT: case gk::THROWN: Use(TEXT("MM_Fall_Loop"), P.sf * T60, true); Roll = -70.f; break;
-		case gk::KDOWN: if (UAnimSequence* Q = Anim(TEXT("MM_Death_Back_01"))) { A = Q; T = Q->GetPlayLength() - 0.02f; bLoop = false; } break;
-		case gk::GETUP_: if (UAnimSequence* Q = Anim(TEXT("MM_Death_Back_01"))) { A = Q; T = Q->GetPlayLength() * FMath::Clamp(1.f - P.sf / float(gk::GETUP), 0.f, 1.f) * 0.6f; bLoop = false; } break;
-		case gk::THROWING: Use(TEXT("MM_Attack_01"), 0.25f, false); break;
+		case gk::PREJUMP: Clip = TEXT("prejump"); T = P.sf; break;
+		case gk::LAND: Clip = TEXT("land"); T = P.sf; break;
+		case gk::JUMP:
+		{
+			// a tight tuck going up, opening out on the way down; a jump with any travel in it is a somersault
+			const float U = FMath::Clamp((1125.f - P.vy) / 2250.f, 0.f, 1.f); Clip = TEXT("jump"); T = FMath::RoundToInt(U * 20.f);
+			if (P.jd != 0) { Roll = P.jd * 360.f * Ease(FMath::Min(1.f, U / 0.8f)); }
+			break;
+		}
+		case gk::TECH: Clip = TEXT("tech"); T = P.sf; break;
+		case gk::DASHF: Clip = TEXT("dashf"); T = P.sf; break;
+		case gk::DASHB: Clip = TEXT("dashb"); T = P.sf; break;
+		case gk::RUN: Clip = TEXT("run"); T = P.sf; break;
+		case gk::DRUSH: Clip = TEXT("drush"); T = P.sf; break;
+		case gk::PARRY: Clip = TEXT("parry"); T = P.sf; break;
+		case gk::PREC: Clip = TEXT("prec"); T = P.sf; break;
+		case gk::BLOCK: Clip = P.cb ? TEXT("blockC") : TEXT("blockS"); T = 0; break;
+		case gk::HIT:
+			if (P.crum == 1) { Clip = TEXT("crumple"); T = P.sf; }
+			else if (P.crum == 2) { Clip = TEXT("splat"); T = 0; }
+			else
+			{
+				static const TCHAR* Kinds[4] = { TEXT("hitL"), TEXT("hitM"), TEXT("hitH"), TEXT("hitLow") };
+				Clip = P.cb ? TEXT("hitCr") : Kinds[FMath::Clamp(HitKind[i], 0, 3)]; T = FMath::RoundToInt(20.f * P.sf / FMath::Max(1, P.sf + P.stun));
+			}
+			break;
+		// knocked into the air he goes limp and turns over like a thrown coat
+		case gk::AHIT: Clip = TEXT("ahit"); T = 0; Roll = -30.f - FMath::Clamp((700.f - P.vy) / 16.f, 0.f, 80.f); Turn = P.sf * 7.f; break;
+		case gk::KDOWN: Clip = TEXT("kd"); T = 0; break;
+		case gk::GETUP_: Clip = TEXT("getup"); T = P.sf; break;
+		case gk::WIN: Clip = TEXT("win"); T = P.sf; break;
+		case gk::THROWING:
+			if (P.tk == 0) { if (P.sf < 10) { Clip = TEXT("grab"); T = P.sf; } else if (P.pmT > 0) { Clip = TEXT("bite"); T = 9 - P.pmT; } else { Clip = TEXT("grab"); T = 10; } }
+			else { static const TCHAR* Throws[4] = { TEXT("throw1"), TEXT("throw2"), TEXT("throw3"), TEXT("throw4") }; Clip = Throws[FMath::Clamp(P.tk, 1, 4) - 1]; T = P.tf; }
+			break;
+		case gk::THROWN: Clip = TEXT("thrown"); T = 0; Roll = O.tk ? -FMath::Min(120.f, O.tf * 12.f) : -8.f; break;
 		case gk::ATK:
 		{
 			const gk::Move& M = gk::move(P.mv);
-			// a stand-in swing, stretched over the move's own startup, active and recovery frames so that it lands when the move does
-			const TCHAR* Name = (M.sp || M.sup) ? TEXT("MM_ChargedAttack") : M.lvl >= 1 && M.hsp >= 13 ? TEXT("MM_Attack_03") : M.lvl >= 1 ? TEXT("MM_Attack_02") : TEXT("MM_Attack_01");
-			if (UAnimSequence* Q = Anim(Name))
-			{
-				const float Len = Q->GetPlayLength(), HitAt = 0.38f; const int32 Su = FMath::Max(1, M.su - 1), La = FMath::Max(Su, M.lastAct), End = M.t < 900 ? M.t : La + 24;
-				const float K = P.mf <= Su ? HitAt * P.mf / Su : P.mf <= La ? HitAt : HitAt + (1.f - HitAt) * FMath::Min(1.f, float(P.mf - La) / FMath::Max(1, End - La));
-				A = Q; T = Len * K; bLoop = false;
-			}
-			if (M.crouch) { Sink = 30.f; }
+			if (MoveClip.IsValidIndex(P.mv)) { Clip = MoveClip[P.mv]; T = P.mf; }
+			// a Slipstream that did not land cleanly loses its shape and tumbles
+			if (M.has_home && P.mf >= M.home[0] && ((P.contact && !P.fr) || P.hmE)) { Clip = TEXT("ahit"); T = 0; Roll = -60.f - 30.f * FMath::Sin(P.mf * 0.5f); }
 			break;
 		}
 		default: break;
 	}
-	if (A)
-	{
-		if (Showing[i] != A)
-		{
-			C->SetAnimation(A); C->Stop(); Showing[i] = A;
-			if (UAnimSingleNodeInstance* Node = C->GetSingleNodeInstance()) { Node->SetRootMotionMode(ERootMotionMode::IgnoreRootMotion); }
-		}
-		const float Len = A->GetPlayLength(); const float At0 = bLoop ? FMath::Fmod(T, FMath::Max(0.01f, Len)) : FMath::Clamp(T, 0.f, FMath::Max(0.f, Len - 0.001f));
-		C->SetPosition(At0, false);
-	}
+	const float* Pose = Poses.Frame(Clip, T); if (!Pose) { Pose = Poses.Frame(TEXT("idle"), 0); }
+	const bool bLeft = P.face < 0;
+	Rig[i].Apply(Pose, P.y > 0, bLeft, Roll, Turn);
 	FVector Jit = FVector::ZeroVector;
 	if (P.hs > 0 && (P.st == gk::HIT || P.st == gk::AHIT || P.st == gk::BLOCK)) { Jit.Y = ((Ticks & 1) ? 1.0 : -1.0) * FMath::Min(4.0, P.hs * 0.6); }
-	// the mannequin faces its own +Y, which is the rules' "right"; the camera looks along +X
-	C->SetWorldLocationAndRotation(At(P.x, P.y, i ? 8.0 : -8.0) + Jit - FVector(0.0, 0.0, Sink), FRotator(0.0, P.face > 0 ? 0.0 : 180.0, P.face > 0 ? Roll : -Roll));
+	// The skeleton faces its own +Y, which is the rules' "right"; the camera looks along +X. Facing left he is the mirrored
+	// pose turned about, which shows the camera his chest exactly as the browser's mirror image does.
+	C->SetWorldLocationAndRotation(At(P.x, P.y, i ? 8.0 : -8.0) + Jit, FRotator(0.0, bLeft ? 180.0 : 0.0, 0.0));
 }
 
 void AGkMatch::Present(float Real)

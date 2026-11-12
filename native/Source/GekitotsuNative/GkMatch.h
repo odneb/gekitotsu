@@ -6,9 +6,10 @@
 #include "InputCoreTypes.h"
 #include "Core/gk_sim.h"
 #include "Core/gk_ai.h"
+#include "GkBody.h"
 #include "GkMatch.generated.h"
 
-class USkeletalMeshComponent; class UStaticMeshComponent; class UAnimSequence; class ACameraActor; class UCanvas; class FGkPads;
+class UPoseableMeshComponent; class UStaticMeshComponent; class ACameraActor; class UCanvas; class FGkPads;
 
 UCLASS()
 class GEKITOTSUNATIVE_API AGkGameMode : public AGameModeBase
@@ -44,11 +45,11 @@ public:
 	void DrawHud(UCanvas* Cv);
 	static AGkMatch* Current;
 
-	UPROPERTY() TObjectPtr<USkeletalMeshComponent> Body[2];
+	UPROPERTY() TObjectPtr<UPoseableMeshComponent> Body[2];
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> ShotMesh[4];
 	UPROPERTY() TObjectPtr<ACameraActor> Cam;
-	UPROPERTY() TMap<FName, TObjectPtr<UAnimSequence>> Anims;
-	UPROPERTY() TObjectPtr<UAnimSequence> Showing[2];
+	// the browser game's animation and the two skeletons it is solved onto
+	FGkPoses Poses; FGkBody Rig[2]; TArray<FName> MoveClip; int32 HitKind[2] = { 1, 1 };
 
 	// the match
 	gk::State S; gk::Ai Cpu[2];
@@ -71,5 +72,4 @@ public:
 	FVector At(int32 X, int32 Y, double Depth = 0.0) const { return FVector(Depth, double(X) * Cm, double(Y) * Cm); }
 	void Restart(); int32 ReadPlayer() const; int32 DummyInput(); void MenuInput(); void StepOnce(); void OnEvent(const gk::Event& E); void Track(int32 In);
 	void Present(float Real); void ShowFighter(int32 i); void SaveBinds() const; void LoadBinds(); void Say(const TCHAR* Word, int32 Hold); void Remark(int32 Who, const TCHAR* Text);
-	UAnimSequence* Anim(const TCHAR* Name) const;
 };
