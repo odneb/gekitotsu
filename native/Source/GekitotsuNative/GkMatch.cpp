@@ -1,6 +1,12 @@
 #include "GkMatch.h"
 #include "GkPad.h"
 #include "Components/PoseableMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Animation/AnimSequence.h"
+#include "Animation/AnimSingleNodeInstance.h"
+#include "NiagaraSystem.h"
+#include "NiagaraFunctionLibrary.h"
+#include "Sound/SoundBase.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/DirectionalLightComponent.h"
@@ -206,8 +212,15 @@ void AGkMatch::BeginPlay()
 		UPoseableMeshComponent* C = NewObject<UPoseableMeshComponent>(this); C->SetupAttachment(RootComponent);
 		C->SetUsingAbsoluteLocation(true); C->SetUsingAbsoluteRotation(true); C->SetUsingAbsoluteScale(true); C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		C->RegisterComponent(); C->SetBoundsScale(30.f); C->bNeverDistanceCull = true;
-		Body[i] = C; DressFighter(i);
+		Body[i] = C;
+		USkeletalMeshComponent* A = NewObject<USkeletalMeshComponent>(this); A->SetupAttachment(RootComponent);
+		A->SetUsingAbsoluteLocation(true); A->SetUsingAbsoluteRotation(true); A->SetUsingAbsoluteScale(true); A->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		A->SetAnimationMode(EAnimationMode::AnimationSingleNode); A->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
+		A->RegisterComponent(); A->SetBoundsScale(30.f); A->bNeverDistanceCull = true; A->SetVisibility(false);
+		Anim[i] = A;
 	}
+	LoadClips(); LoadVfx();
+	for (int32 i = 0; i < 2; i++) { DressFighter(i); }
 	if (W)
 	{
 		Cam = W->SpawnActor<ACameraActor>(CamPos, FRotator::ZeroRotator);
@@ -257,8 +270,20 @@ void AGkMatch::DressFighter(int32 i)
 				Shown->Destroy();
 			}
 		}
-		if (bDone) { Rig[i].Init(C); return; }
+		if (bDone)
+		{
+			Rig[i].Init(C);
+			if (USkeletalMeshComponent* A = Anim[i])
+			{
+				A->SetOverlayMaterial(C->GetOverlayMaterial()); A->EmptyOverrideMaterials(); A->SetSkeletalMeshAsset(Noa);
+				for (int32 k = 0; k < C->GetNumMaterials(); k++) { A->SetMaterial(k, C->GetMaterial(k)); }
+				A->SetAnimationMode(EAnimationMode::AnimationSingleNode); Playing[i] = nullptr;
+			}
+			bNoa[i] = Clips.Num() > 0 && !FParse::Param(FCommandLine::Get(), TEXT("gknoclips"));
+			return;
+		}
 	}
+	bNoa[i] = false; if (Anim[i]) { Anim[i]->SetVisibility(false); }
 	C->EmptyOverrideMaterials();
 	static const TCHAR* Meshes[2] = { TEXT("/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"), TEXT("/Game/Characters/Mannequins/Meshes/SKM_Quinn_Simple.SKM_Quinn_Simple") };
 	{
@@ -669,7 +694,14 @@ void AGkMatch::OnEvent(const gk::Event& E)
 	{
 		case gk::E_HIT:
 			HitKind[1 - Who] = (E.f & gk::H_LOW) ? 3 : E.a >= 2 ? 2 : E.a >= 1 ? 1 : 0;   // how hard it landed picks the reel: light, medium, heavy, or swept low
-			Fx.Hit(At(E.x, E.y), (E.f & gk::H_KO) ? 3 : FMath::Clamp(E.a, 0, 2), float(S.p[Who].face)); Shake = FMath::Max(Shake, 2.f + E.a * 2.f + ((E.f & gk::H_KO) ? 10.f : 0.f));
+			{   // one spark and one sound for each blow that lands, sized by how hard it was
+				const int32 Lv = (E.f & gk::H_KO) ? 3 : FMath::Clamp(E.a, 0, 2); const float Dr = float(S.p[Who].face); const FVector Pt = At(E.x, E.y, -30.0);
+				static const TCHAR* Sys[4] = { TEXT("NS_Hit_01_Once"), TEXT("NS_Hit_04_Once"), TEXT("NS_Hit_06_Directional_Once"), TEXT("NS_Radial_Spiky_Hit_01") };
+				static const TCHAR* Snd[4] = { TEXT("SFX_Vefects_Hit_01_Cue"), TEXT("SFX_Vefects_Hit_04_Cue"), TEXT("SFX_Vefects_Hit_07_Cue"), TEXT("SFX_Vefects_Radial_Spiky_Hit_01_Cue") };
+				static const float Size[4] = { 0.55f, 0.85f, 1.2f, 1.6f };
+				if (!PlayVfx(Sys[Lv], Pt, Size[Lv], Lv == 2 ? Dr : 0.f, Snd[Lv])) { Fx.Hit(At(E.x, E.y), Lv, Dr); }
+			}
+			Shake = FMath::Max(Shake, 2.f + E.a * 2.f + ((E.f & gk::H_KO) ? 10.f : 0.f));
 			{ const float Dr = float(S.p[Who].face); const bool bKo = (E.f & gk::H_KO) != 0, bFin = (E.f & gk::H_FINISH) != 0;
 			  CamKick(Dr * (bKo ? 8.f : bFin ? 9.f : E.a >= 2 ? 3.f : 1.2f), bKo ? -0.14f : bFin ? -0.16f : E.a >= 2 ? -0.05f : -0.02f, bKo ? 12.f : bFin ? 14.f : E.a >= 2 ? 4.f : 0.f, bKo ? Dr * 8.f : bFin ? Dr * 6.f : 0.f); }
 			Combo[Who] = E.c; ComboDmg[Who] = E.d; ComboTimer[Who] = 80;
@@ -680,7 +712,7 @@ void AGkMatch::OnEvent(const gk::Event& E)
 			else if (E.e == 2 && E.c <= 1) { Remark(Who, TEXT("PUNISH")); }
 			else if (E.e == 1 && E.c <= 1) { Remark(Who, TEXT("COUNTER")); }
 			break;
-		case gk::E_BLOCK: CamKick(float(S.p[Who].face) * 0.8f, -0.012f, 0.f); Fx.Guard(At(E.x, E.y), float(S.p[Who].face)); Shake = FMath::Max(Shake, 1.5f); break;
+		case gk::E_BLOCK: CamKick(float(S.p[Who].face) * 0.8f, -0.012f, 0.f); if (!PlayVfx(TEXT("NS_Block_Radial_01_Once"), At(E.x, E.y, -30.0), 0.8f, 0.f, TEXT("SFX_Vefects_Block_01_Cue"))) { Fx.Guard(At(E.x, E.y), float(S.p[Who].face)); } Shake = FMath::Max(Shake, 1.5f); break;
 		case gk::E_PARRY: Fx.Parry(At(E.x, E.y), false); break;
 		case gk::E_PPARRY: Fx.Parry(At(E.x, E.y), true); Shake = FMath::Max(Shake, 5.f); Remark(Who, TEXT("PERFECT PARRY")); break;
 		case gk::E_ARMOR: Fx.Guard(At(E.x, E.y), float(S.p[Who].face)); Remark(Who, TEXT("ARMOR")); break;
@@ -688,9 +720,10 @@ void AGkMatch::OnEvent(const gk::Event& E)
 		case gk::E_SPLAT: CamKick(Feet.Y > 0 ? 6.f : -6.f, -0.1f, 8.f, Feet.Y > 0 ? 8.f : -8.f); Fx.Hit(Feet + FVector(0, 0, 100), 2, float(-S.p[Who].face)); Fx.Dust(Feet, 1.4f, 0.f); Remark(Who, E.a ? TEXT("STUN!") : TEXT("WALL SPLAT")); Shake = FMath::Max(Shake, 12.f); break;
 		case gk::E_GBOUNCE: case gk::E_WBOUNCE: if (E.type == gk::E_WBOUNCE) { CamKick(Feet.Y > 0 ? 5.f : -5.f, -0.1f, 8.f, Feet.Y > 0 ? 7.f : -7.f); } else { CamKick((Ticks & 1) ? 4.f : -4.f, -0.08f, 7.f); } Fx.Dust(Feet, 1.6f, 0.f); Fx.Hit(FVector(Feet.X, Feet.Y, E.type == gk::E_GBOUNCE ? 10.0 : Feet.Z + 90.0), 1, 0.f); Shake = FMath::Max(Shake, 10.f); break;
 		case gk::E_KD: Fx.Dust(Feet, 1.3f, 0.f); Shake = FMath::Max(Shake, 3.f); break;
-		case gk::E_LAND: Fx.Dust(Feet, 0.55f, 0.f); break;
-		case gk::E_JUMP: case gk::E_WALLJUMP: case gk::E_TECH: case gk::E_RISE: Fx.Dust(Feet, 0.45f, 0.f); break;
-		case gk::E_DASH: case gk::E_RUN: Fx.Dust(Feet, 0.8f, float(S.p[Who].face)); break;
+		case gk::E_LAND: if (!PlayVfx(TEXT("NS_Directional_Dust_01_Once"), Feet + FVector(-20, 0, 2), 0.7f, 0.f, TEXT("SFX_Vefects_Directional_Dust_01_Cue"), 0.5f)) { Fx.Dust(Feet, 0.55f, 0.f); } break;
+		case gk::E_JUMP: case gk::E_WALLJUMP: if (!PlayVfx(TEXT("NS_Directional_Dust_Jump_01_Once"), FVector(Feet.X - 20, Feet.Y, 2), 0.8f, 0.f, TEXT("SFX_Vefects_Jump_Dust_01_Cue"), 0.6f)) { Fx.Dust(Feet, 0.45f, 0.f); } break;
+		case gk::E_TECH: case gk::E_RISE: Fx.Dust(Feet, 0.45f, 0.f); break;
+		case gk::E_DASH: case gk::E_RUN: if (!PlayVfx(S.p[Who].face > 0 ? TEXT("NS_Directional_Dust_03_Once_Fast") : TEXT("NS_Directional_Dust_03_Once_Fast_Flip"), FVector(Feet.X - 20, Feet.Y, 2), 0.8f, 0.f, nullptr)) { Fx.Dust(Feet, 0.8f, float(S.p[Who].face)); } break;
 		case gk::E_EX: case gk::E_DI: case gk::E_HOME: if (E.type == gk::E_HOME) { CamKick(0.f, 0.f, 9.f); } Fx.Aura(Feet, Ki, 0.7f); break;
 		case gk::E_RUSH: Fx.Aura(Feet, Ki, 0.9f); Remark(Who, TEXT("GHOST STEP")); break;
 		case gk::E_BURNOUT: Remark(Who, TEXT("BURNOUT")); break;
@@ -778,7 +811,80 @@ void AGkMatch::ShowFighter(int32 i)
 	if (P.hs > 0 && (P.st == gk::HIT || P.st == gk::AHIT || P.st == gk::BLOCK)) { Jit.Y = ((Ticks & 1) ? 1.0 : -1.0) * FMath::Min(4.0, P.hs * 0.6); }
 	// The skeleton faces its own +Y, which is the rules' "right"; the camera looks along +X. Facing left he is the mirrored
 	// pose turned about, which shows the camera his chest exactly as the browser's mirror image does.
-	C->SetWorldLocationAndRotation(Wd(At(P.x, P.y, i ? 8.0 : -8.0) + Jit), Anchor.GetRotation() * FRotator(0.0, bLeft ? 180.0 : 0.0, 0.0).Quaternion());
+	const FVector Where = Wd(At(P.x, P.y, i ? 8.0 : -8.0) + Jit); const FQuat Facing = Anchor.GetRotation() * FRotator(0.0, bLeft ? 180.0 : 0.0, 0.0).Quaternion();
+	C->SetWorldLocationAndRotation(Where, Facing);
+	// Noa: an animation clip where there is one for this, shown at the time the rules are on
+	const FGkClip* Use = (bNoa[i] && Anim[i]) ? ClipFor(Clip, P.st == gk::ATK ? P.mv : -1) : nullptr;
+	if (Anim[i]) { Anim[i]->SetVisibility(Use != nullptr); } C->SetVisibility(Use == nullptr);
+	if (Use)
+	{
+		USkeletalMeshComponent* A = Anim[i]; const float Len = Use->Anim->GetPlayLength();
+		if (Playing[i] != Use->Anim) { Playing[i] = Use->Anim; A->SetAnimation(Use->Anim); A->SetPlayRate(0.f); }
+		float At01;
+		if (Use->bLoop) { At01 = FMath::Fmod((S.frame + i * 17) / 60.f, FMath::Max(0.05f, Len * (Use->To - Use->From))) / FMath::Max(0.05f, Len * (Use->To - Use->From)); }
+		else { const int32 Count = FMath::Max(2, Poses.Length(Clip)); At01 = FMath::Clamp(float(T) / float(Count - 1), 0.f, 1.f); }
+		A->SetPosition(Len * FMath::Lerp(Use->From, Use->To, At01), false);
+		// her clips already carry their own rise and fall; a jump's height comes from the rules alone
+		A->SetWorldLocationAndRotation(Where, Facing);
+	}
+}
+
+/** The animation clips Noa has, by the name of the pose clip each stands in for, and by kind of attack. */
+void AGkMatch::LoadClips()
+{
+	Clips.Reset(); ClipKeep.Reset();
+	const FString V4 = TEXT("/Game/UnarmFightAnimBundle/UnarmedFightingAnimationV4/Animation/IP/A_UnarmedFightingAnimationV4_"), V3 = TEXT("/Game/UnarmFightAnimBundle/UnarmedFightingAnimationV3/Animation/IP/A_UnarmedFightingAnimationV3_");
+	const FString V2 = TEXT("/Game/UnarmFightAnimBundle/UnarmedFightingAnimationV2/Animation/IP/A_UnarmedFightingAnimationsV2_"), V1 = TEXT("/Game/UnarmFightAnimBundle/UnarmedFightingAnimationV1/Animation/A_UnarmedFightingAnimationsV1_");
+	const FString SC = TEXT("/Game/Superhero_Combat/Animations/Style_One/Anim_SC_");
+	auto Add = [this](const TCHAR* Name, const FString& Path, bool bLoop, float From = 0.f, float To = 1.f)
+	{
+		const FString Full = Path + TEXT("_Noa"); const FString Obj = Full + TEXT(".") + FPaths::GetBaseFilename(Full);
+		if (UAnimSequence* A = LoadObject<UAnimSequence>(nullptr, *Obj)) { FGkClip C; C.Anim = A; C.bLoop = bLoop; C.From = From; C.To = To; Clips.Add(FName(Name), C); ClipKeep.Add(A); }
+		else { UE_LOG(LogTemp, Warning, TEXT("GkClip: %s is not there"), *Obj); }
+	};
+	Add(TEXT("idle"), V4 + TEXT("Idle_IP"), true); Add(TEXT("walkf"), V4 + TEXT("Move_Fw_IP"), true); Add(TEXT("walkb"), V4 + TEXT("Move_Bw_IP"), true);
+	Add(TEXT("crouch"), V4 + TEXT("Squat_IP"), false); Add(TEXT("jump"), V4 + TEXT("Jump_IP"), false, 0.15f, 0.85f);
+	Add(TEXT("blockS"), V4 + TEXT("Defense2_Loop_IP"), true); Add(TEXT("hitL"), V3 + TEXT("Hit_IP"), false); Add(TEXT("hitM"), V1 + TEXT("Hit_1"), false); Add(TEXT("hitH"), V1 + TEXT("Hit_2"), false);
+	Add(TEXT("kd"), V1 + TEXT("Dead_1"), false, 0.95f, 1.f); Add(TEXT("getup"), V2 + TEXT("Rise1_IP"), false);
+	Add(TEXT("atk_punch"), SC + TEXT("Punch"), false); Add(TEXT("atk_kick"), V4 + TEXT("Kick3_IP"), false); Add(TEXT("atk_srk"), V4 + TEXT("Shoryuken_IP"), false);
+	Add(TEXT("atk_jpunch"), V4 + TEXT("Jump_Punch1_IP"), false, 0.25f, 0.8f); Add(TEXT("atk_jkick"), V4 + TEXT("Jump_Kick_IP"), false, 0.25f, 0.8f);
+	UE_LOG(LogTemp, Display, TEXT("GkClip: %d clips for Noa"), Clips.Num());
+}
+
+const AGkMatch::FGkClip* AGkMatch::ClipFor(FName Pose, int32 MoveId) const
+{
+	if (MoveId >= 0)
+	{
+		// an attack is matched by its kind: rising uppercuts, air or ground, fist or foot (the move's key ends in P or K)
+		const FString Key = UTF8_TO_TCHAR(gk::moveKey(MoveId)); const TCHAR* What = nullptr;
+		if (Key.StartsWith(TEXT("SRK")) || Key == TEXT("QSRK")) { What = TEXT("atk_srk"); }
+		else if (Key.Len() == 3 && Key[0] == 'j') { What = Key.EndsWith(TEXT("K")) ? TEXT("atk_jkick") : TEXT("atk_jpunch"); }
+		else if (Key.Len() == 3 && (Key[0] == '5' || Key[0] == '2')) { What = Key.EndsWith(TEXT("K")) ? TEXT("atk_kick") : TEXT("atk_punch"); if (Key[0] == '2') { What = nullptr; } }
+		return What ? Clips.Find(FName(What)) : nullptr;
+	}
+	return Clips.Find(Pose);
+}
+
+/** Vefects' Combat Flipbook VFX: the hit, guard and dust systems used, and the sounds that go with them. */
+void AGkMatch::LoadVfx()
+{
+	const FString H = TEXT("/Game/Vefects/Combat_Flipbook_VFX/VFX/Hit/Particles/Once/"), D = TEXT("/Game/Vefects/Combat_Flipbook_VFX/VFX/Dust/Particles/Once/"), Au = TEXT("/Game/Vefects/Combat_Flipbook_VFX/Audio/WAV/Fer/One_Shot/");
+	auto Sys = [this](const FString& Dir, const TCHAR* Name) { if (UNiagaraSystem* N = LoadObject<UNiagaraSystem>(nullptr, *(Dir + Name + TEXT(".") + Name))) { Vfx.Add(FName(Name), N); } else { UE_LOG(LogTemp, Warning, TEXT("GkVfx: %s is not there"), Name); } };
+	auto Snd = [this, &Au](const TCHAR* Name) { if (USoundBase* N = LoadObject<USoundBase>(nullptr, *(Au + Name + TEXT(".") + Name))) { Sfx.Add(FName(Name), N); } };
+	for (const TCHAR* N : { TEXT("NS_Hit_01_Once"), TEXT("NS_Hit_04_Once"), TEXT("NS_Hit_06_Directional_Once"), TEXT("NS_Radial_Spiky_Hit_01"), TEXT("NS_Block_Radial_01_Once"), TEXT("NS_Radial_Burst") }) { Sys(H, N); }
+	for (const TCHAR* N : { TEXT("NS_Directional_Dust_Jump_01_Once"), TEXT("NS_Directional_Dust_01_Once"), TEXT("NS_Directional_Dust_03_Once_Fast"), TEXT("NS_Directional_Dust_03_Once_Fast_Flip") }) { Sys(D, N); }
+	for (const TCHAR* N : { TEXT("SFX_Vefects_Hit_01_Cue"), TEXT("SFX_Vefects_Hit_04_Cue"), TEXT("SFX_Vefects_Hit_07_Cue"), TEXT("SFX_Vefects_Radial_Spiky_Hit_01_Cue"), TEXT("SFX_Vefects_Block_01_Cue"), TEXT("SFX_Vefects_Jump_Dust_01_Cue"), TEXT("SFX_Vefects_Directional_Dust_01_Cue") }) { Snd(N); }
+	UE_LOG(LogTemp, Display, TEXT("GkVfx: %d effects, %d sounds"), Vfx.Num(), Sfx.Num());
+}
+
+/** Plays one effect at a place in the fight's own space, turned to the way the blow travels (Dir +1 or -1 along the stage, 0 for none), with its sound. False if the effect is not there. */
+bool AGkMatch::PlayVfx(const TCHAR* Name, const FVector& Local, float Scale, float Dir, const TCHAR* Sound, float Volume)
+{
+	if (Sound && Screen == 3) { if (TObjectPtr<USoundBase>* Sn = Sfx.Find(FName(Sound))) { UGameplayStatics::PlaySound2D(this, *Sn, Volume); } }
+	TObjectPtr<UNiagaraSystem>* Sy = Vfx.Find(FName(Name)); if (!Sy || !*Sy) { return false; }
+	const FQuat Turn = Anchor.GetRotation() * FRotator(0.0, Dir > 0.f ? 90.0 : Dir < 0.f ? -90.0 : 0.0, 0.0).Quaternion();
+	UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, *Sy, Wd(Local), Turn.Rotator(), FVector(Scale), true, true, ENCPoolMethod::AutoRelease);
+	return true;
 }
 
 void AGkMatch::Present(float Real)

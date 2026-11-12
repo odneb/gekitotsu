@@ -10,7 +10,7 @@
 #include "GkFx.h"
 #include "GkMatch.generated.h"
 
-class UPoseableMeshComponent; class UStaticMeshComponent; class USceneComponent; class ACameraActor; class AExponentialHeightFog; class UCanvas; class FGkPads;
+class UPoseableMeshComponent; class USkeletalMeshComponent; class UAnimSequence; class UNiagaraSystem; class USoundBase; class UStaticMeshComponent; class USceneComponent; class ACameraActor; class AExponentialHeightFog; class UCanvas; class FGkPads;
 
 /** A place to fight. Kind 0 is the measured training room and 1 the canyon, both built by the game on its own bare map; 2 is a dressed map from an environment pack, opened as it was shipped, with the fight set down in it. */
 struct FGkStage { FString Name, Map, Sky; int32 Kind = 2; double Time = 500.0; bool bFixed = false; FVector At = FVector::ZeroVector; double Yaw = 0.0; };
@@ -61,6 +61,17 @@ public:
 
 	UPROPERTY() TObjectPtr<UPoseableMeshComponent> Body[2];
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> ShotMesh[4];
+	// Noa moves by animation clips where there is one for what she is doing (bought packs, retargeted to her skeleton by
+	// tools/retarget_noa.py) and by the solved poses where there is not. Each clip is shown at the exact time the rules are on.
+	struct FGkClip { TObjectPtr<UAnimSequence> Anim; bool bLoop = false; float From = 0.f, To = 1.f; };
+	UPROPERTY() TObjectPtr<USkeletalMeshComponent> Anim[2];
+	UPROPERTY() TArray<TObjectPtr<UAnimSequence>> ClipKeep;
+	TMap<FName, FGkClip> Clips; bool bNoa[2] = { false, false }; TObjectPtr<UAnimSequence> Playing[2];
+	void LoadClips(); const FGkClip* ClipFor(FName Pose, int32 MoveId) const;
+	// hit, guard and dust effects and their sounds (Vefects' Combat Flipbook VFX)
+	UPROPERTY() TMap<FName, TObjectPtr<UNiagaraSystem>> Vfx;
+	UPROPERTY() TMap<FName, TObjectPtr<USoundBase>> Sfx;
+	void LoadVfx(); bool PlayVfx(const TCHAR* Name, const FVector& Local, float Scale, float Dir, const TCHAR* Sound, float Volume = 1.f);
 	UPROPERTY() TObjectPtr<ACameraActor> Cam;
 	// the two places to fight: the measured training room, and the wasteland stage; and the air between
 	UPROPERTY() TArray<TObjectPtr<USceneComponent>> GridParts;
