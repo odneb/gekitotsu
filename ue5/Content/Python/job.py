@@ -372,6 +372,9 @@ def fighter(tag, sk, anim, mi, ink, y, yaw, t, scale):
     return a
 
 
+STAGE_X, STAGE_Y, STAGE_S = -420.0, 0.0, 1.0
+
+
 def build():
     kg = import_character()
     sk = (kg.get('SkeletalMesh') or [None])[0]; anim = (kg.get('AnimSequence') or [None])[0]
@@ -421,17 +424,25 @@ def build():
     shape('SunDisc', 'Sphere', (-62000, 1500, 7600), (250, 250, 250), mk_sun(), tag='SunDisc')
     shape('Mountain', 'Cone', (-36000, 1200, 5200), (300, 300, 104), mount)
     shape('MountainL', 'Cone', (-33000, -26000, 2600), (260, 260, 52), mount); shape('MountainR', 'Cone', (-34000, 27000, 3100), (280, 280, 62), mount)
-    torii('GateMain', -1750, 0, 2.3, red, dark)
-    torii('GateL', -3400, -2100, 1.5, red, dark); torii('GateR', -3400, 2100, 1.5, red, dark); torii('GateFar', -6200, 0, 3.0, red, dark)
-    for i, x in enumerate((-520, -1000, -1600, -2400)):
-        for sd in (-1, 1): lantern('Lantern%d%s' % (i, 'L' if sd < 0 else 'R'), x, sd * (760 + i * 150), 1.25, stone, glow)
-    for sd in (-1, 1):
-        y = sd * 3300
-        shape('Hall_body', 'Cube', (-2600, y, 260), (9, 14, 5.2), dark); shape('Hall_roof', 'Cube', (-2600, y, 560), (11.5, 17, 0.5), dark); shape('Hall_roof2', 'Cube', (-2600, y, 640), (8, 13, 0.6), dark)
-        for j in range(4): shape('Hall_win', 'Cube', (-2145, y - 480 + j * 320, 250), (0.1, 1.9, 2.2), glow)
-    shape('Steps1', 'Cube', (-1250, 0, 12), (5, 30, 0.24), stone); shape('Steps2', 'Cube', (-1500, 0, 36), (5, 26, 0.24), stone)
-
-    # --- fighters, mid-rush at each other
+    # the shrine: a modelled scene (Shrine Asset Pack by Aki3D, from Fab) turned so its long approach runs away from the camera,
+    # starting just behind the line of play. The lanterns are MXRblend's (CC BY 4.0).
+    SHRINE = '/Game/Fab/Shrine_Asset_Pack_Ready_Made_Scene_Template_for_Unity_/shrinescene/StaticMeshes/shrinescene'
+    LANT = '/Game/Fab/Asian_Lanterns_–_Free_Low_Poly_3D_Asset_Pack___3_Lanterns/lanternsdemo/StaticMeshes/lanternsdemo'
+    sm = EAL.load_asset(SHRINE)
+    if sm:
+        a = ELL.spawn_actor_from_object(sm, V(STAGE_X, STAGE_Y, 0), R(0, -90)); a.set_actor_label('Shrine'); a.set_actor_scale3d(V(STAGE_S, STAGE_S, STAGE_S))
+        sp(a.static_mesh_component, cast_shadow=False)   # a quarter of a million triangles of shadow is more than a laptop can spend at 60 frames a second
+        # the sun is behind the shrine, so it needs light from the front to be more than a silhouette: two warm lamps beside the camera
+        for sd in (-1, 1):
+            kl = ELL.spawn_actor_from_class(unreal.PointLight, V(650, sd * 1000, 520), R(0, 0)); kl.set_actor_label('FrontLamp')
+            sp(kl.point_light_component, intensity_units=unreal.LightUnits.CANDELAS, intensity=2200.0, light_color=unreal.Color(255, 150, 96), attenuation_radius=7000.0, source_radius=120.0, cast_shadows=False, volumetric_scattering_intensity=0.0)
+    else: log('no shrine mesh: add the Shrine Asset Pack from Fab')
+    lm = EAL.load_asset(LANT)
+    if lm:
+        for i, (x, y, z) in enumerate(((-260, -620, 190), (-260, 620, 190))):
+            a = ELL.spawn_actor_from_object(lm, V(x, y, z), R(0, 90)); a.set_actor_label('Lanterns%d' % i)
+            l = ELL.spawn_actor_from_class(unreal.PointLight, V(x + 40, y, z + 60), R(0, 0)); l.set_actor_label('LanternLight%d' % i)
+            sp(l.point_light_component, intensity_units=unreal.LightUnits.CANDELAS, intensity=140.0, light_color=unreal.Color(255, 120, 60), attenuation_radius=1400.0, source_radius=30.0, cast_shadows=False, volumetric_scattering_intensity=0.8)
     # the fighters are not placed in the level: the match brings its own
 
     cam = ELL.spawn_actor_from_class(unreal.CineCameraActor, V(600, 0, 92), R(2.5, 180)); cam.set_actor_label('MatchCam')
