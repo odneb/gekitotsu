@@ -16,6 +16,8 @@
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
 #include "Animation/AnimSequence.h"
+#include "Materials/MaterialInterface.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Animation/AnimSingleNodeInstance.h"
 #include "Animation/AnimEnums.h"
 #include "Camera/CameraActor.h"
@@ -70,8 +72,24 @@ void AGkMatch::BeginPlay()
 		return C;
 	};
 	const double Half = double(gk::STAGE) * Cm;
-	Piece(Plane, FVector(200.0, 0.0, 0.0), FVector(30.0, 40.0, 1.0));
-	Piece(Cube, FVector(60.0, Half + 25.0, 150.0), FVector(0.5, 0.5, 3.0)); Piece(Cube, FVector(60.0, -Half - 25.0, 150.0), FVector(0.5, 0.5, 3.0));
+	// A training room: a dark floor and back wall ruled with a measured grid, so every step, jump and knock-back can be
+	// read against it. One square is 50 of the rules' units (about a metre); every second line is heavier. The gold line
+	// is the middle of the stage and the red lines are its two ends.
+	UMaterialInterface* Flat = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+	auto Paint = [Flat](UStaticMeshComponent* C, const FLinearColor& Col) { if (UMaterialInstanceDynamic* M = C->CreateDynamicMaterialInstance(0, Flat)) { M->SetVectorParameterValue(TEXT("Color"), Col); } C->SetCastShadow(false); };
+	const double WallX = 140.0, Sq = 50.0 * gk::F * Cm, Wide = 11.0 * Sq, High = 14.0 * Sq, Near = 700.0;
+	const FLinearColor Slab(0.035f, 0.04f, 0.055f), Line(0.2f, 0.23f, 0.28f), Heavy(0.42f, 0.46f, 0.52f), Gold(0.9f, 0.6f, 0.1f), Red(0.8f, 0.1f, 0.08f);
+	Paint(Piece(Plane, FVector(WallX - 1500.0, 0.0, -0.5), FVector(30.0, Wide * 2.0 / 100.0, 1.0)), Slab * 1.7f);
+	{ UStaticMeshComponent* Wall = Piece(Plane, FVector(WallX, 0.0, High * 0.5), FVector(High / 100.0 + 20.0, Wide * 2.0 / 100.0, 1.0)); Wall->SetWorldRotation(FRotator(90.0, 0.0, 0.0)); Paint(Wall, Slab); }
+	auto Upright = [&](double Y, double Thick, const FLinearColor& Col)
+	{
+		Paint(Piece(Cube, FVector(WallX - 2.0, Y, High * 0.5), FVector(0.02, Thick, High / 100.0)), Col);                    // up the wall
+		Paint(Piece(Cube, FVector(WallX - Near * 0.5, Y, 0.0), FVector(Near / 100.0, Thick, 0.02)), Col);                   // and across the floor toward the camera
+	};
+	for (int32 k = -10; k <= 10; k++) { if (k != 0) { Upright(k * Sq, k % 2 == 0 ? 0.04 : 0.02, k % 2 == 0 ? Heavy : Line); } }
+	Upright(0.0, 0.06, Gold); Upright(Half, 0.07, Red); Upright(-Half, 0.07, Red);
+	for (int32 k = 1; k <= 13; k++) { Paint(Piece(Cube, FVector(WallX - 2.0, 0.0, k * Sq), FVector(0.02, Wide * 2.0 / 100.0, k % 2 == 0 ? 0.04 : 0.02)), k % 2 == 0 ? Heavy : Line); }
+	for (int32 k = 0; k <= 7; k++) { Paint(Piece(Cube, FVector(WallX - k * Sq, 0.0, 0.0), FVector(k == 0 ? 0.06 : 0.02, Wide * 2.0 / 100.0, 0.02)), k == 0 ? Heavy : Line); }
 	for (int32 k = 0; k < 4; k++) { ShotMesh[k] = Piece(Ball, FVector::ZeroVector, FVector(0.45)); ShotMesh[k]->SetCastShadow(false); ShotMesh[k]->SetVisibility(false); }
 	if (W)
 	{
@@ -109,6 +127,11 @@ void AGkMatch::BeginPlay()
 		C->SetUsingAbsoluteLocation(true); C->SetUsingAbsoluteRotation(true); C->SetUsingAbsoluteScale(true); C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		C->RegisterComponent();
 		if (USkeletalMesh* M = LoadObject<USkeletalMesh>(nullptr, Meshes[i])) { C->SetSkeletalMeshAsset(M); }
+		// player one is red, the other blue
+		for (int32 k = 0; k < C->GetNumMaterials(); k++)
+		{
+			if (UMaterialInstanceDynamic* Tint = C->CreateDynamicMaterialInstance(k)) { Tint->SetVectorParameterValue(TEXT("Paint Tint"), i ? FLinearColor(0.05f, 0.22f, 0.95f) : FLinearColor(0.9f, 0.07f, 0.04f)); }
+		}
 		C->SetAnimationMode(EAnimationMode::AnimationSingleNode); C->SetBoundsScale(30.f);
 		// never skipped: he is posed every frame whether or not the engine thinks he is in view
 		C->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones; C->bNeverDistanceCull = true;
