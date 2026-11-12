@@ -1,0 +1,9 @@
+{
+	"FileVersion": 3,
+	"EngineAssociation": "5.8",
+	"Category": "",
+	"Description": "GEKITOTSU: native Unreal fighting game",
+	"Modules": [
+		{ "Name": "GekitotsuNative", "Type": "Runtime", "LoadingPhase": "Default" }
+	]
+}
