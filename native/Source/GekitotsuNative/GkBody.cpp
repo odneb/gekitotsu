@@ -44,6 +44,17 @@ void FGkBody::Init(UPoseableMeshComponent* InMesh)
 			{ TEXT("spine_04"), TEXT("-") }, { TEXT("spine_05"), TEXT("-") } };
 		for (const auto& M : Map) { Alias.Add(FName(M[0]), FName(M[1])); }
 	}
+	else if (RS.FindBoneIndex(TEXT("LeftUpLeg")) != INDEX_NONE)
+	{
+		// Kagu's skeleton (his lowest spine bone is the one named Spine02)
+		static const TCHAR* Map[][2] = { { TEXT("pelvis"), TEXT("Hips") }, { TEXT("spine_01"), TEXT("Spine02") }, { TEXT("spine_02"), TEXT("Spine01") }, { TEXT("spine_03"), TEXT("Spine") },
+			{ TEXT("neck_01"), TEXT("neck") }, { TEXT("neck_02"), TEXT("-") }, { TEXT("head"), TEXT("Head") }, { TEXT("spine_04"), TEXT("-") }, { TEXT("spine_05"), TEXT("-") },
+			{ TEXT("clavicle_l"), TEXT("LeftShoulder") }, { TEXT("upperarm_l"), TEXT("LeftArm") }, { TEXT("lowerarm_l"), TEXT("LeftForeArm") }, { TEXT("hand_l"), TEXT("LeftHand") },
+			{ TEXT("clavicle_r"), TEXT("RightShoulder") }, { TEXT("upperarm_r"), TEXT("RightArm") }, { TEXT("lowerarm_r"), TEXT("RightForeArm") }, { TEXT("hand_r"), TEXT("RightHand") },
+			{ TEXT("thigh_l"), TEXT("LeftUpLeg") }, { TEXT("calf_l"), TEXT("LeftLeg") }, { TEXT("foot_l"), TEXT("LeftFoot") }, { TEXT("ball_l"), TEXT("LeftToeBase") },
+			{ TEXT("thigh_r"), TEXT("RightUpLeg") }, { TEXT("calf_r"), TEXT("RightLeg") }, { TEXT("foot_r"), TEXT("RightFoot") }, { TEXT("ball_r"), TEXT("RightToeBase") } };
+		for (const auto& M : Map) { Alias.Add(FName(M[0]), FName(M[1])); }
+	}
 	// The solve expects a skeleton that stands facing +Y with its left hand toward +X. One that was brought in facing
 	// another way is turned to that in its reference pose, so everything after reads it the same.
 	const FTransform* HL = Ref.Find(Bone(TEXT("hand_l"))); const FTransform* HR = Ref.Find(Bone(TEXT("hand_r")));

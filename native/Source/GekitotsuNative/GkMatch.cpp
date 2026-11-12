@@ -247,7 +247,27 @@ void AGkMatch::DressFighter(int32 i)
 {
 	UPoseableMeshComponent* C = Body[i]; if (!C) { return; }
 	// Noa, the MeshBites character, as she is shipped: her own mesh, toon materials and outline, taken from her lit Blueprint
-	if (Setup.Char[i] % 3 == 0)
+	if (Setup.Char[i] % 4 == 0)
+	{
+		// Kagu, brought over from the first project: his mesh and painted flat-colour map under the same toon shader. Player
+		// two's Kagu wears the white colourway (Shiro).
+		USkeletalMesh* Kagu = LoadObject<USkeletalMesh>(nullptr, TEXT("/Game/Kagu/Kagu_V3.Kagu_V3"));
+		UMaterialInterface* Skin = LoadObject<UMaterialInterface>(nullptr, (i == 1 && Setup.Char[0] % 4 == 0) ? TEXT("/Game/Kagu/MI_Shiro.MI_Shiro") : TEXT("/Game/Kagu/MI_Kagu.MI_Kagu"));
+		UMaterialInterface* Ink = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Kagu/MI_Kagu_Outline.MI_Kagu_Outline"));
+		if (Kagu && Skin)
+		{
+			C->EmptyOverrideMaterials(); C->SetSkinnedAssetAndUpdate(Kagu); for (int32 k = 0; k < C->GetNumMaterials(); k++) { C->SetMaterial(k, Skin); } C->SetOverlayMaterial(Ink);
+			Rig[i].Init(C);
+			if (USkeletalMeshComponent* A = Anim[i])
+			{
+				A->EmptyOverrideMaterials(); A->SetSkeletalMeshAsset(Kagu); for (int32 k = 0; k < A->GetNumMaterials(); k++) { A->SetMaterial(k, Skin); } A->SetOverlayMaterial(Ink);
+				A->SetAnimationMode(EAnimationMode::AnimationSingleNode); Playing[i] = nullptr;
+			}
+			ClipSet[i] = (Clips[0].Num() > 0 && !FParse::Param(FCommandLine::Get(), TEXT("gknoclips"))) ? 0 : -1;
+			return;
+		}
+	}
+	if (Setup.Char[i] % 4 == 1)
 	{
 		bool bDone = false; UWorld* W = GetWorld();
 		UClass* Bp = LoadObject<UClass>(nullptr, TEXT("/Game/MeshBites_Stylized_Anime_Shader/Art/Models/Characters/Noa_00/BP/BP_Noa_00_Lit.BP_Noa_00_Lit_C"));
@@ -279,11 +299,11 @@ void AGkMatch::DressFighter(int32 i)
 				for (int32 k = 0; k < C->GetNumMaterials(); k++) { A->SetMaterial(k, C->GetMaterial(k)); }
 				A->SetAnimationMode(EAnimationMode::AnimationSingleNode); Playing[i] = nullptr;
 			}
-			bNoa[i] = Clips.Num() > 0 && !FParse::Param(FCommandLine::Get(), TEXT("gknoclips"));
+			ClipSet[i] = (Clips[1].Num() > 0 && !FParse::Param(FCommandLine::Get(), TEXT("gknoclips"))) ? 1 : -1;
 			return;
 		}
 	}
-	bNoa[i] = false; if (Anim[i]) { Anim[i]->SetVisibility(false); }
+	ClipSet[i] = -1; if (Anim[i]) { Anim[i]->SetVisibility(false); }
 	C->EmptyOverrideMaterials();
 	static const TCHAR* Meshes[2] = { TEXT("/Game/Characters/Mannequins/Meshes/SKM_Manny_Simple.SKM_Manny_Simple"), TEXT("/Game/Characters/Mannequins/Meshes/SKM_Quinn_Simple.SKM_Quinn_Simple") };
 	{
@@ -300,7 +320,7 @@ void AGkMatch::DressFighter(int32 i)
 		}
 		else
 		{
-			if (USkeletalMesh* M = LoadObject<USkeletalMesh>(nullptr, Meshes[Setup.Char[i] % 3 == 2 ? 1 : 0])) { C->SetSkinnedAssetAndUpdate(M); }
+			if (USkeletalMesh* M = LoadObject<USkeletalMesh>(nullptr, Meshes[Setup.Char[i] % 4 == 3 ? 1 : 0])) { C->SetSkinnedAssetAndUpdate(M); }
 			const TCHAR* Side = i ? TEXT("P2") : TEXT("P1"); bool bAnime = true;
 			for (int32 k = 0; k < C->GetNumMaterials(); k++)
 			{
@@ -607,7 +627,7 @@ void AGkMatch::MenuInput()
 	}
 	else if (Screen == 1)
 	{   // choosing fighters: player one, then the other side
-		if (bPrev || bNext) { Setup.Char[SelWho] = (Setup.Char[SelWho] + (bPrev ? 2 : 1)) % 3; DressFighter(SelWho); }
+		if (bPrev || bNext) { Setup.Char[SelWho] = (Setup.Char[SelWho] + (bPrev ? 3 : 1)) % 4; DressFighter(0); DressFighter(1); }
 		if (bOk) { if (SelWho == 0) { SelWho = 1; } else { Screen = 2; StageAt = Mode == 1 ? 0 : FMath::Max(1, Setup.Stage); } }
 		else if (bBack) { if (SelWho == 1) { SelWho = 0; } else { Screen = 0; MenuAt = Mode; } }
 	}
@@ -814,7 +834,7 @@ void AGkMatch::ShowFighter(int32 i)
 	const FVector Where = Wd(At(P.x, P.y, i ? 8.0 : -8.0) + Jit); const FQuat Facing = Anchor.GetRotation() * FRotator(0.0, bLeft ? 180.0 : 0.0, 0.0).Quaternion();
 	C->SetWorldLocationAndRotation(Where, Facing);
 	// Noa: an animation clip where there is one for this, shown at the time the rules are on
-	const FGkClip* Use = (bNoa[i] && Anim[i]) ? ClipFor(Clip, P.st == gk::ATK ? P.mv : -1) : nullptr;
+	const FGkClip* Use = (ClipSet[i] >= 0 && Anim[i]) ? ClipFor(ClipSet[i], Clip, P.st == gk::ATK ? P.mv : -1) : nullptr;
 	if (Anim[i]) { Anim[i]->SetVisibility(Use != nullptr); } C->SetVisibility(Use == nullptr);
 	if (Use)
 	{
@@ -832,14 +852,18 @@ void AGkMatch::ShowFighter(int32 i)
 /** The animation clips Noa has, by the name of the pose clip each stands in for, and by kind of attack. */
 void AGkMatch::LoadClips()
 {
-	Clips.Reset(); ClipKeep.Reset();
+	ClipKeep.Reset();
+	static const TCHAR* Suffix[2] = { TEXT("_Kagu"), TEXT("_Noa") };
+	for (int32 Set = 0; Set < 2; Set++)
+	{
+	Clips[Set].Reset();
 	const FString V4 = TEXT("/Game/UnarmFightAnimBundle/UnarmedFightingAnimationV4/Animation/IP/A_UnarmedFightingAnimationV4_"), V3 = TEXT("/Game/UnarmFightAnimBundle/UnarmedFightingAnimationV3/Animation/IP/A_UnarmedFightingAnimationV3_");
 	const FString V2 = TEXT("/Game/UnarmFightAnimBundle/UnarmedFightingAnimationV2/Animation/IP/A_UnarmedFightingAnimationsV2_"), V1 = TEXT("/Game/UnarmFightAnimBundle/UnarmedFightingAnimationV1/Animation/A_UnarmedFightingAnimationsV1_");
 	const FString SC = TEXT("/Game/Superhero_Combat/Animations/Style_One/Anim_SC_");
-	auto Add = [this](const TCHAR* Name, const FString& Path, bool bLoop, float From = 0.f, float To = 1.f)
+	auto Add = [this, Set](const TCHAR* Name, const FString& Path, bool bLoop, float From = 0.f, float To = 1.f)
 	{
-		const FString Full = Path + TEXT("_Noa"); const FString Obj = Full + TEXT(".") + FPaths::GetBaseFilename(Full);
-		if (UAnimSequence* A = LoadObject<UAnimSequence>(nullptr, *Obj)) { FGkClip C; C.Anim = A; C.bLoop = bLoop; C.From = From; C.To = To; Clips.Add(FName(Name), C); ClipKeep.Add(A); }
+		const FString Full = Path + Suffix[Set]; const FString Obj = Full + TEXT(".") + FPaths::GetBaseFilename(Full);
+		if (UAnimSequence* A = LoadObject<UAnimSequence>(nullptr, *Obj)) { FGkClip C; C.Anim = A; C.bLoop = bLoop; C.From = From; C.To = To; Clips[Set].Add(FName(Name), C); ClipKeep.Add(A); }
 		else { UE_LOG(LogTemp, Warning, TEXT("GkClip: %s is not there"), *Obj); }
 	};
 	Add(TEXT("idle"), V4 + TEXT("Idle_IP"), true); Add(TEXT("walkf"), V4 + TEXT("Move_Fw_IP"), true); Add(TEXT("walkb"), V4 + TEXT("Move_Bw_IP"), true);
@@ -848,11 +872,13 @@ void AGkMatch::LoadClips()
 	Add(TEXT("kd"), V1 + TEXT("Dead_1"), false, 0.95f, 1.f); Add(TEXT("getup"), V2 + TEXT("Rise1_IP"), false);
 	Add(TEXT("atk_punch"), SC + TEXT("Punch"), false); Add(TEXT("atk_kick"), V4 + TEXT("Kick3_IP"), false); Add(TEXT("atk_srk"), V4 + TEXT("Shoryuken_IP"), false);
 	Add(TEXT("atk_jpunch"), V4 + TEXT("Jump_Punch1_IP"), false, 0.25f, 0.8f); Add(TEXT("atk_jkick"), V4 + TEXT("Jump_Kick_IP"), false, 0.25f, 0.8f);
-	UE_LOG(LogTemp, Display, TEXT("GkClip: %d clips for Noa"), Clips.Num());
+	UE_LOG(LogTemp, Display, TEXT("GkClip: %d clips for %s"), Clips[Set].Num(), Set ? TEXT("Noa") : TEXT("Kagu"));
+	}
 }
 
-const AGkMatch::FGkClip* AGkMatch::ClipFor(FName Pose, int32 MoveId) const
+const AGkMatch::FGkClip* AGkMatch::ClipFor(int32 Set, FName Pose, int32 MoveId) const
 {
+	if (Set < 0 || Set > 1) { return nullptr; }
 	if (MoveId >= 0)
 	{
 		// an attack is matched by its kind: rising uppercuts, air or ground, fist or foot (the move's key ends in P or K)
@@ -860,9 +886,9 @@ const AGkMatch::FGkClip* AGkMatch::ClipFor(FName Pose, int32 MoveId) const
 		if (Key.StartsWith(TEXT("SRK")) || Key == TEXT("QSRK")) { What = TEXT("atk_srk"); }
 		else if (Key.Len() == 3 && Key[0] == 'j') { What = Key.EndsWith(TEXT("K")) ? TEXT("atk_jkick") : TEXT("atk_jpunch"); }
 		else if (Key.Len() == 3 && (Key[0] == '5' || Key[0] == '2')) { What = Key.EndsWith(TEXT("K")) ? TEXT("atk_kick") : TEXT("atk_punch"); if (Key[0] == '2') { What = nullptr; } }
-		return What ? Clips.Find(FName(What)) : nullptr;
+		return What ? Clips[Set].Find(FName(What)) : nullptr;
 	}
-	return Clips.Find(Pose);
+	return Clips[Set].Find(Pose);
 }
 
 /** Vefects' Combat Flipbook VFX: the hit, guard and dust systems used, and the sounds that go with them. */

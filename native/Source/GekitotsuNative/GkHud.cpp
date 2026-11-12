@@ -189,26 +189,26 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 		else if (Screen == 1)
 		{
 			// choosing fighters: the roster's two rows of tiles, most of them still empty
-			static const TCHAR* Who[3] = { TEXT("NOA"), TEXT("MANNY"), TEXT("QUINN") };
+			static const TCHAR* Who[4] = { TEXT("KAGU"), TEXT("NOA"), TEXT("MANNY"), TEXT("QUINN") };
 			GkText(Cv, TEXT("SELECT CHARACTER"), Mid, H * 0.06f, 56.f * U, Bone, true, 4);
 			const float Tile = 104.f * U, Sp = 6.f * U, X0 = Mid - 4.f * (Tile + Sp), Y0 = H * 0.66f;
 			for (int32 r = 0; r < 2; r++) { for (int32 c = 0; c < 8; c++)
 			{
-				const float X = X0 + c * (Tile + Sp), Y = Y0 + r * (Tile + Sp); const bool bHas = r == 0 && c < 3;
+				const float X = X0 + c * (Tile + Sp), Y = Y0 + r * (Tile + Sp); const bool bHas = r == 0 && c < 4;
 				GkRect(Cv, X, Y, Tile, Tile, bHas ? FLinearColor(0.2f, 0.21f, 0.25f, 0.95f) : FLinearColor(0.08f, 0.08f, 0.1f, 0.85f));
 				if (bHas) { GkText(Cv, Who[c], X + Tile * 0.5f, Y + Tile * 0.4f, 17.f * U, Bone, true); }
-				else if (r == 0 && c == 4) { GkText(Cv, TEXT("?"), X + Tile * 0.5f, Y + Tile * 0.22f, 44.f * U, GkFade(Bone, 0.5f), true); }
+				else if (r == 0 && c == 5) { GkText(Cv, TEXT("?"), X + Tile * 0.5f, Y + Tile * 0.22f, 44.f * U, GkFade(Bone, 0.5f), true); }
 				for (int32 p = 0; p < 2; p++)
 				{
-					if (bHas && Setup.Char[p] % 3 == c && (p <= SelWho))
+					if (bHas && Setup.Char[p] % 4 == c && (p <= SelWho))
 					{
 						const FLinearColor Edge = p ? Blue : Red; const float T = 5.f * U, In = p * 7.f * U;
 						GkRect(Cv, X + In, Y + In, Tile - 2 * In, T, Edge); GkRect(Cv, X + In, Y + Tile - T - In, Tile - 2 * In, T, Edge); GkRect(Cv, X + In, Y + In, T, Tile - 2 * In, Edge); GkRect(Cv, X + Tile - T - In, Y + In, T, Tile - 2 * In, Edge);
 					}
 				}
 			} }
-			GkText(Cv, FString::Printf(TEXT("PLAYER 01   %s"), Who[Setup.Char[0] % 3]), W * 0.14f, H * 0.86f, 34.f * U, SelWho == 0 ? Bone : GkFade(Bone, 0.6f), true, 3);
-			GkText(Cv, FString::Printf(TEXT("%s   %s"), Mode == 0 ? TEXT("CPU") : Mode == 1 ? TEXT("DUMMY") : TEXT("CPU 02"), Who[Setup.Char[1] % 3]), W * 0.86f, H * 0.86f, 34.f * U, SelWho == 1 ? Bone : GkFade(Bone, 0.6f), true, 3);
+			GkText(Cv, FString::Printf(TEXT("PLAYER 01   %s"), Who[Setup.Char[0] % 4]), W * 0.14f, H * 0.86f, 34.f * U, SelWho == 0 ? Bone : GkFade(Bone, 0.6f), true, 3);
+			GkText(Cv, FString::Printf(TEXT("%s   %s"), Mode == 0 ? TEXT("CPU") : Mode == 1 ? TEXT("DUMMY") : TEXT("CPU 02"), Who[Setup.Char[1] % 4]), W * 0.86f, H * 0.86f, 34.f * U, SelWho == 1 ? Bone : GkFade(Bone, 0.6f), true, 3);
 			GkText(Cv, SelWho == 0 ? TEXT("LEFT / RIGHT  choose player one's fighter      LIGHT  confirm      HEAVY  back") : TEXT("LEFT / RIGHT  choose the opponent      LIGHT  confirm      HEAVY  back"), Mid, H * 0.945f, 16.f * U, Gold, true);
 		}
 		else if (Screen == 2)

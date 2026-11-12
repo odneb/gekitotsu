@@ -14,7 +14,7 @@ class UPoseableMeshComponent; class USkeletalMeshComponent; class UAnimSequence;
 
 /** A place to fight. Kind 0 is the measured training room and 1 the canyon, both built by the game on its own bare map; 2 is a dressed map from an environment pack, opened as it was shipped, with the fight set down in it. */
 struct FGkStage { FString Name, Map, Sky; int32 Kind = 2; double Time = 500.0; bool bFixed = false; FVector At = FVector::ZeroVector; double Yaw = 0.0; };
-/** What has been chosen in the menus. It outlives a change of map. Char: 0 is Noa, 1 and 2 the mannequins. */
+/** What has been chosen in the menus. It outlives a change of map. Char: 0 is Kagu, 1 Noa, 2 and 3 the mannequins. */
 struct FGkSetup { int32 Stage = 1, Mode = 0, Level = 2, Dummy = 0, Char[2] = { 0, 0 }; bool bGo = false; };
 
 UCLASS()
@@ -66,8 +66,8 @@ public:
 	struct FGkClip { TObjectPtr<UAnimSequence> Anim; bool bLoop = false; float From = 0.f, To = 1.f; };
 	UPROPERTY() TObjectPtr<USkeletalMeshComponent> Anim[2];
 	UPROPERTY() TArray<TObjectPtr<UAnimSequence>> ClipKeep;
-	TMap<FName, FGkClip> Clips; bool bNoa[2] = { false, false }; TObjectPtr<UAnimSequence> Playing[2];
-	void LoadClips(); const FGkClip* ClipFor(FName Pose, int32 MoveId) const;
+	TMap<FName, FGkClip> Clips[2]; int32 ClipSet[2] = { -1, -1 }; TObjectPtr<UAnimSequence> Playing[2];   // clip sets: 0 Kagu's, 1 Noa's
+	void LoadClips(); const FGkClip* ClipFor(int32 Set, FName Pose, int32 MoveId) const;
 	// hit, guard and dust effects and their sounds (Vefects' Combat Flipbook VFX)
 	UPROPERTY() TMap<FName, TObjectPtr<UNiagaraSystem>> Vfx;
 	UPROPERTY() TMap<FName, TObjectPtr<USoundBase>> Sfx;
