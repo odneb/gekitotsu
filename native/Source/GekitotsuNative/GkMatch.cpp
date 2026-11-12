@@ -99,7 +99,8 @@ void AGkMatch::BeginPlay()
 		UStaticMesh* Cone = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cone.Cone"));
 		auto Lit = [Flat](UStaticMeshComponent* C, const FLinearColor& Col, bool bShadow) { if (UMaterialInstanceDynamic* M = C->CreateDynamicMaterialInstance(0, Flat)) { M->SetVectorParameterValue(TEXT("Color"), Col); } C->SetCastShadow(bShadow); };
 		const FLinearColor Sand(0.62f, 0.36f, 0.17f), Rock(0.44f, 0.19f, 0.10f), Deep(0.27f, 0.11f, 0.07f);
-		Lit(Piece(Plane, FVector(16000.0, 0.0, -0.5), FVector(800.0, 900.0, 1.0)), Sand, false);
+		{ UStaticMeshComponent* Floor = Piece(Plane, FVector(16000.0, 0.0, -0.5), FVector(800.0, 900.0, 1.0)); Lit(Floor, Sand, false);
+		  if (UMaterialInterface* Cel = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/GkStage/M_GkSand.M_GkSand"))) { Floor->SetMaterial(0, Cel); } }
 		FRandomStream R(4411);
 		auto Shade = [&R, Rock, Deep]() { return FMath::Lerp(Deep, Rock, R.FRandRange(0.35f, 1.f)); };
 		auto Mesa = [&](double X, double Y, double W, double H, double D)
@@ -116,6 +117,8 @@ void AGkMatch::BeginPlay()
 			UStaticMesh* M = LoadObject<UStaticMesh>(nullptr, *Path);
 			if (!M) { Mesa(X, Y, 700.0 * Scale, 500.0 * Scale, 600.0 * Scale); return; }
 			UStaticMeshComponent* C = Piece(M, FVector(X, Y, -6.0 * Scale), FVector(Scale)); C->SetWorldRotation(FRotator(0.0, R.FRandRange(0.f, 360.f), 0.0)); C->SetCastShadow(bShadow);
+			// drawn the way the fighters are: the cel shader's lit variant over the rock's own painted colour (tools/make_stage_materials.py)
+			if (UMaterialInterface* Cel = LoadObject<UMaterialInterface>(nullptr, *FString::Printf(TEXT("/Game/GkStage/MI_Cel_%s.MI_Cel_%s"), *M->GetName(), *M->GetName()))) { C->SetMaterial(0, Cel); }
 		};
 		static const TCHAR* Small[] = { TEXT("Cliffs/Cliff_06/SM_Cliff_6.SM_Cliff_6"), TEXT("Cliffs/Cliff_02/SM_Cliff_2.SM_Cliff_2"), TEXT("Cliffs/Cliff_08/SM_Cliff_8.SM_Cliff_8") };
 		static const TCHAR* Mid[] = { TEXT("Cliffs/Cliff_10/SM_Cliff_10.SM_Cliff_10"), TEXT("Cliffs/Cliff_16/SM_CLIFF_16.SM_CLIFF_16"), TEXT("Cliffs/Cliff_01/SM_CLIFF_1.SM_CLIFF_1"), TEXT("Cliffs/Cliff_07/SM_Cliff_7.SM_Cliff_7"), TEXT("Cliffs/Cliff_11/SM_Cliff_11.SM_Cliff_11"), TEXT("Cliffs/Cliff_02/SM_Cliff_2.SM_Cliff_2"), TEXT("Cliffs/Cliff_08/SM_Cliff_8.SM_Cliff_8") };
@@ -207,7 +210,6 @@ void AGkMatch::BeginPlay()
 			  PP.bOverride_BloomIntensity = true; PP.BloomIntensity = 0.9f; PP.bOverride_BloomThreshold = true; PP.BloomThreshold = 1.0f;
 			  PP.bOverride_VignetteIntensity = true; PP.VignetteIntensity = 0.5f;
 			  PP.bOverride_ColorSaturation = true; PP.ColorSaturation = FVector4(1.08, 1.08, 1.08, 1.0); PP.bOverride_ColorContrast = true; PP.ColorContrast = FVector4(1.06, 1.06, 1.06, 1.0);
-			  PP.bOverride_DepthOfFieldFstop = true; PP.DepthOfFieldFstop = 1.4f; PP.bOverride_DepthOfFieldFocalDistance = true; PP.DepthOfFieldFocalDistance = 900.f;
 			  Cam->GetCameraComponent()->PostProcessBlendWeight = 1.f; }
 			if (APlayerController* PC = W->GetFirstPlayerController()) { PC->SetViewTarget(Cam); }
 		}
@@ -276,7 +278,7 @@ void AGkMatch::MakeSky()
 	Sky->FinishSpawning(At);
 	SkyActor = Sky;
 	// the sky's clock runs in seconds: a 600 second day, then a 480 second night. The fight is held at dusk.
-	double Time = 548.0; FParse::Value(FCommandLine::Get(), TEXT("-gktime="), Time);
+	double Time = 500.0; FParse::Value(FCommandLine::Get(), TEXT("-gktime="), Time);
 	if (!GkCall(Sky, TEXT("Set New Time"), nullptr, Time)) { UE_LOG(LogTemp, Warning, TEXT("GkSky: no Set New Time")); }
 	SetWeather(0, 0.5);
 }
@@ -299,6 +301,10 @@ void AGkMatch::Restart()
 	gk::newMatch(S, Mode == 1, 2); gk::aiMake(Cpu[0], Level); gk::aiMake(Cpu[1], Level);
 	OverTimer = 0; CallHold = 0; Hist.Reset(); LastIn = -1; Adv = -999; bExchange = false; Sparks.Reset();
 	for (int32 i = 0; i < 2; i++) { Combo[i] = 0; ComboTimer[i] = 0; NoteTimer[i] = 0; ActFrame[i] = 0; bWasIdle[i] = true; }
+}
+void AGkMatch::CamKick(float Roll, float Zm, float Fov, float Yaw)
+{
+	if (FMath::Abs(Roll) > FMath::Abs(CamD.KRoll)) { CamD.KRoll = Roll; } CamD.KZm = FMath::Min(CamD.KZm, Zm); CamD.KFov = FMath::Max(CamD.KFov, Fov); if (FMath::Abs(Yaw) > FMath::Abs(CamD.KYaw)) { CamD.KYaw = Yaw; }
 }
 void AGkMatch::Say(const TCHAR* Word, int32 Hold) { CallWord = Word; CallAge = 0; CallHold = Hold; }
 void AGkMatch::Remark(int32 Who, const TCHAR* Text) { Note[Who & 1] = Text; NoteTimer[Who & 1] = 60; }
@@ -475,6 +481,8 @@ void AGkMatch::OnEvent(const gk::Event& E)
 		case gk::E_HIT:
 			HitKind[1 - Who] = (E.f & gk::H_LOW) ? 3 : E.a >= 2 ? 2 : E.a >= 1 ? 1 : 0;   // how hard it landed picks the reel: light, medium, heavy, or swept low
 			Fx.Hit(At(E.x, E.y), (E.f & gk::H_KO) ? 3 : FMath::Clamp(E.a, 0, 2), float(S.p[Who].face)); Shake = FMath::Max(Shake, 2.f + E.a * 2.f + ((E.f & gk::H_KO) ? 10.f : 0.f));
+			{ const float Dr = float(S.p[Who].face); const bool bKo = (E.f & gk::H_KO) != 0, bFin = (E.f & gk::H_FINISH) != 0;
+			  CamKick(Dr * (bKo ? 8.f : bFin ? 9.f : E.a >= 2 ? 3.f : 1.2f), bKo ? -0.14f : bFin ? -0.16f : E.a >= 2 ? -0.05f : -0.02f, bKo ? 12.f : bFin ? 14.f : E.a >= 2 ? 4.f : 0.f, bKo ? Dr * 8.f : bFin ? Dr * 6.f : 0.f); }
 			Combo[Who] = E.c; ComboDmg[Who] = E.d; ComboTimer[Who] = 80;
 			if (E.f & gk::H_IMPACT) { Remark(Who, (E.f & gk::H_CRUMPLE) ? TEXT("CRUMPLE!") : TEXT("BREACH!")); }
 			else if (E.f & gk::H_FREE) { Remark(Who, TEXT("CHASE")); }
@@ -483,18 +491,18 @@ void AGkMatch::OnEvent(const gk::Event& E)
 			else if (E.e == 2 && E.c <= 1) { Remark(Who, TEXT("PUNISH")); }
 			else if (E.e == 1 && E.c <= 1) { Remark(Who, TEXT("COUNTER")); }
 			break;
-		case gk::E_BLOCK: Fx.Guard(At(E.x, E.y), float(S.p[Who].face)); Shake = FMath::Max(Shake, 1.5f); break;
+		case gk::E_BLOCK: CamKick(float(S.p[Who].face) * 0.8f, -0.012f, 0.f); Fx.Guard(At(E.x, E.y), float(S.p[Who].face)); Shake = FMath::Max(Shake, 1.5f); break;
 		case gk::E_PARRY: Fx.Parry(At(E.x, E.y), false); break;
 		case gk::E_PPARRY: Fx.Parry(At(E.x, E.y), true); Shake = FMath::Max(Shake, 5.f); Remark(Who, TEXT("PERFECT PARRY")); break;
 		case gk::E_ARMOR: Fx.Guard(At(E.x, E.y), float(S.p[Who].face)); Remark(Who, TEXT("ARMOR")); break;
-		case gk::E_DICLASH: Say(TEXT("CLASH!"), 50); Shake = FMath::Max(Shake, 12.f); break;
-		case gk::E_SPLAT: Fx.Hit(Feet + FVector(0, 0, 100), 2, float(-S.p[Who].face)); Fx.Dust(Feet, 1.4f, 0.f); Remark(Who, E.a ? TEXT("STUN!") : TEXT("WALL SPLAT")); Shake = FMath::Max(Shake, 12.f); break;
-		case gk::E_GBOUNCE: case gk::E_WBOUNCE: Fx.Dust(Feet, 1.6f, 0.f); Fx.Hit(FVector(Feet.X, Feet.Y, E.type == gk::E_GBOUNCE ? 10.0 : Feet.Z + 90.0), 1, 0.f); Shake = FMath::Max(Shake, 10.f); break;
+		case gk::E_DICLASH: CamKick(7.f, -0.14f, 12.f); Say(TEXT("CLASH!"), 50); Shake = FMath::Max(Shake, 12.f); break;
+		case gk::E_SPLAT: CamKick(Feet.Y > 0 ? 6.f : -6.f, -0.1f, 8.f, Feet.Y > 0 ? 8.f : -8.f); Fx.Hit(Feet + FVector(0, 0, 100), 2, float(-S.p[Who].face)); Fx.Dust(Feet, 1.4f, 0.f); Remark(Who, E.a ? TEXT("STUN!") : TEXT("WALL SPLAT")); Shake = FMath::Max(Shake, 12.f); break;
+		case gk::E_GBOUNCE: case gk::E_WBOUNCE: if (E.type == gk::E_WBOUNCE) { CamKick(Feet.Y > 0 ? 5.f : -5.f, -0.1f, 8.f, Feet.Y > 0 ? 7.f : -7.f); } else { CamKick((Ticks & 1) ? 4.f : -4.f, -0.08f, 7.f); } Fx.Dust(Feet, 1.6f, 0.f); Fx.Hit(FVector(Feet.X, Feet.Y, E.type == gk::E_GBOUNCE ? 10.0 : Feet.Z + 90.0), 1, 0.f); Shake = FMath::Max(Shake, 10.f); break;
 		case gk::E_KD: Fx.Dust(Feet, 1.3f, 0.f); Shake = FMath::Max(Shake, 3.f); break;
 		case gk::E_LAND: Fx.Dust(Feet, 0.55f, 0.f); break;
 		case gk::E_JUMP: case gk::E_WALLJUMP: case gk::E_TECH: case gk::E_RISE: Fx.Dust(Feet, 0.45f, 0.f); break;
 		case gk::E_DASH: case gk::E_RUN: Fx.Dust(Feet, 0.8f, float(S.p[Who].face)); break;
-		case gk::E_EX: case gk::E_DI: case gk::E_HOME: Fx.Aura(Feet, Ki, 0.7f); break;
+		case gk::E_EX: case gk::E_DI: case gk::E_HOME: if (E.type == gk::E_HOME) { CamKick(0.f, 0.f, 9.f); } Fx.Aura(Feet, Ki, 0.7f); break;
 		case gk::E_RUSH: Fx.Aura(Feet, Ki, 0.9f); Remark(Who, TEXT("GHOST STEP")); break;
 		case gk::E_BURNOUT: Remark(Who, TEXT("BURNOUT")); break;
 		case gk::E_SUPER: Fx.Aura(Feet, Ki, 1.8f); Say(*FString(UTF8_TO_TCHAR(gk::moveName(E.c))).ToUpper(), 70); Shake = FMath::Max(Shake, 6.f); break;
@@ -634,7 +642,63 @@ void AGkMatch::Present(float Real)
 	const FVector Want(-Dist, Tx * Unit, Ty * Unit);
 	CamPos = FMath::Lerp(CamPos, Want, FMath::Clamp(double(Real) * 9.0, 0.0, 1.0));
 	Shake *= FMath::Pow(0.85f, FMath::Clamp(Real * 60.f, 0.f, 4.f));
-	if (Cam) { Cam->GetCameraComponent()->PostProcessSettings.DepthOfFieldFocalDistance = float(-CamPos.X); Cam->SetActorLocation(CamPos + FVector(0.0, FMath::Sin(Ticks * 1.7) * Shake, FMath::Cos(Ticks * 2.3) * Shake * 0.7)); }
+
+	// ---- the director (the browser game's camDirect): what the moment asks of the camera
+	struct FWant { float Yaw, Pit, Roll, Zm, Fov, K, Pad; bool bSolo; } T = { float(FMath::Sin(Ticks * 0.013) * 1.8), 4.f, float(FMath::Sin(Ticks * 0.009) * 0.5), 1.f, 0.f, 0.1f, 0.f, false };
+	auto Ez = [](float u) { u = FMath::Clamp(u, 0.f, 1.f); return u * u * (3.f - 2.f * u); };
+	if (S.freeze > 0) { FrzMax = FMath::Max(FrzMax, S.freeze); } else { FrzMax = 0; }
+	bool bDirected = false;
+	if (Place == 0 || bMenu) { bDirected = true; }   // the training room and the menu are watched plainly
+	else if (S.phase == gk::PH_INTRO) { const float e = 1.f - Ez(S.pt / (gk::INTRO * 0.8f)); T.Yaw = -62.f * e; T.Pit = 4.f + 9.f * e; T.Zm = 1.f + 0.3f * e; T.Roll = -5.f * e; T.K = 0.3f; bDirected = true; }
+	for (int32 i = 0; i < 2 && !bDirected; i++)
+	{
+		const gk::Fighter& P = S.p[i]; const gk::Fighter& O = S.p[1 - i]; const gk::Move* M = (P.st == gk::ATK && P.mv >= 0) ? &gk::move(P.mv) : nullptr; const float Fc = float(P.face);
+		if (M && M->sup)
+		{
+			if (S.freeze > 0 && S.frzWho == i && FrzMax > 0)
+			{   // the flash before a super: the camera comes round to his front and low, then back as it lets go
+				const float u = Ez(1.f - float(S.freeze) / float(FrzMax)); const bool bBig = M->ca != 0;
+				T.Yaw = Fc * (bBig ? -58.f + 100.f * u : -40.f + 66.f * u); T.Pit = bBig ? -9.f + 6.f * u : -6.f; T.Roll = Fc * (bBig ? 12.f - 20.f * u : 8.f - 12.f * u); T.Fov = bBig ? 0.f : 4.f * (1.f - u); T.K = 0.34f; T.bSolo = true;
+			}
+			else { T.Yaw = Fc * (M->ca ? 20.f : 13.f) * FMath::Sin(FMath::Min(3.1f, P.mf * 0.045f)); T.Roll = Fc * (M->ca ? 6.f : 4.f) * FMath::Cos(P.mf * 0.06f); T.Pit = P.y > 30 * gk::F ? -5.f : 1.f; T.K = 0.14f; }
+			bDirected = true; break;
+		}
+		if (M && M->has_home && P.mf >= M->home[0] && !P.hmE && !(P.contact && !P.fr)) { T.Yaw = -Fc * 27.f; T.Roll = -Fc * 7.f; T.Pit = 1.f; T.Fov = 6.f; T.K = 0.3f; T.Pad = 44.f; bDirected = true; break; }
+		if (P.st == gk::THROWING) { T.Yaw = Fc * 26.f * Ez(P.sf / 26.f); T.Roll = Fc * 4.f; T.Zm = 0.88f; T.Pit = 1.f; T.K = 0.16f; bDirected = true; break; }
+		if (M && M->di) { T.Yaw = -Fc * 16.f; T.Roll = -Fc * 5.f; T.Zm = 0.9f; T.K = 0.22f; }
+		else if (P.st == gk::DRUSH || P.st == gk::RUN) { T.Yaw += -Fc * 11.f; T.Roll += -Fc * 2.5f; T.Fov = 4.f; T.K = 0.14f; }
+		else if (O.st == gk::AHIT && O.y > 46 * gk::F && P.st != gk::AHIT) { T.Yaw += (O.vx > 0 ? 1.f : -1.f) * 7.f; T.Pit = 0.f; }
+	}
+	if (!bDirected || S.phase == gk::PH_KO)
+	{
+		if (S.phase == gk::PH_KO && S.rw >= 0 && S.rw < 2 && Place == 1 && !bMenu)
+		{   // the knockout: round to the winner's side, then a slow drift as he takes his pose
+			const gk::Fighter& Wn = S.p[S.rw]; const gk::Fighter& Ls = S.p[1 - S.rw]; const float Side = Wn.x <= Ls.x ? -1.f : 1.f;
+			if (S.pt < 150) { T.Yaw = Side * (46.f * Ez(S.pt / 46.f) + FMath::Min(18.f, S.pt * 0.1f)); T.Roll = Side * 9.f * (1.f - FMath::Clamp(S.pt / 80.f, 0.f, 1.f)); T.Pit = -3.f; T.K = 0.2f; T.bSolo = true; }
+			else if (Wn.st == gk::WIN) { T.Yaw = -float(Wn.face) * (30.f - FMath::Min(52.f, (S.pt - 150) * 0.22f)); T.Pit = -4.f; T.K = 0.06f; T.bSolo = true; }
+		}
+		else if (S.freeze > 0 && Place == 1 && !bMenu) { T.Zm = 0.84f; T.Fov = 6.f; T.K = 0.3f; }   // the held beat of a perfect parry
+	}
+	if (Place == 0 || bMenu) { T = { 0.f, 4.f, 0.f, 1.f, 0.f, 0.2f, 0.f, false }; }
+	// ---- and the camera following it (camApply)
+	{
+		const float Rate = FMath::Clamp(Real * 60.f, 0.f, 4.f); auto Toward = [Rate](float k) { return 1.f - FMath::Pow(1.f - FMath::Clamp(k, 0.f, 0.95f), Rate); };
+		if (CamD.bSnap) { CamD.Yaw = T.Yaw; CamD.Pit = T.Pit; CamD.Roll = T.Roll; CamD.Zm = T.Zm; CamD.Fov = T.Fov; CamD.bSnap = false; }
+		CamD.Yaw += (T.Yaw - CamD.Yaw) * Toward(T.K); CamD.Pit += (T.Pit - CamD.Pit) * Toward(T.K); CamD.Roll += (T.Roll - CamD.Roll) * Toward(T.K);
+		CamD.Zm += (T.Zm - CamD.Zm) * Toward(FMath::Max(0.1f, T.K)); CamD.Fov += (T.Fov - CamD.Fov) * Toward(FMath::Max(0.12f, T.K));
+		CamD.KRoll *= FMath::Pow(0.86f, Rate); CamD.KZm *= FMath::Pow(0.84f, Rate); CamD.KFov *= FMath::Pow(0.86f, Rate); CamD.KYaw *= FMath::Pow(0.88f, Rate);
+		// the browser's lens is far wider than this one, so its swings and widenings are scaled to suit
+		const double Yaw = FMath::DegreesToRadians(double(CamD.Yaw + CamD.KYaw) * 0.8), Pit = FMath::DegreesToRadians(double(CamD.Pit) - 4.0);
+		const double Fov = FMath::Clamp(30.0 + double(CamD.Fov + CamD.KFov) * 0.4, 26.0, 40.0), Hk = FMath::Tan(FMath::DegreesToRadians(Fov * 0.5)), Hk0 = FMath::Tan(HalfFov);
+		double D = -CamPos.X * (Hk0 / Hk) * double(CamD.Zm) * (1.0 + double(CamD.KZm));
+		if (!T.bSolo) { const double A = (FMath::Abs(Ax - Bx) * 0.5 + 36.0 + T.Pad) * Unit; D = FMath::Max(D, A * (FMath::Cos(Yaw) / (0.84 * Hk) + FMath::Abs(FMath::Sin(Yaw)))); }
+		const FVector Look(0.0, CamPos.Y, CamPos.Z); const double R = D * FMath::Cos(Pit);
+		FVector Eye(-R * FMath::Cos(Yaw), Look.Y + R * FMath::Sin(Yaw), FMath::Max(14.0, Look.Z + D * FMath::Sin(Pit)));
+		Eye += FVector(0.0, FMath::Sin(Ticks * 1.7) * Shake, FMath::Cos(Ticks * 2.3) * Shake * 0.7);
+		FRotator Rot = (Look - Eye).Rotation(); Rot.Roll = -(CamD.Roll + CamD.KRoll);
+		if (Cam) { Cam->GetCameraComponent()->SetFieldOfView(float(Fov)); Cam->SetActorLocationAndRotation(Eye, Rot); }
+		Fx.Yaw = float(FMath::DegreesToRadians(Rot.Yaw));
+	}
 
 	// outside the editor the 3D picture is drawn no larger than 1080 lines, and smaller still if the machine cannot hold sixty
 	if (!GIsEditor && GEngine && GEngine->GameViewport)

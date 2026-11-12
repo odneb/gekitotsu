@@ -71,6 +71,11 @@ public:
 	double Acc = 0.0, LastReal = 0.0; float FrameMs = 16.7f, StepMs = 0.f; int32 OverTimer = 0, Ticks = 0;
 	// what the picture adds on top of the rules
 	float Shake = 0.f; FVector CamPos = FVector(-900.0, 0.0, 120.0);
+	// The camera's director, as in the browser game: it sits side-on while the fight is being read and swings round the
+	// action for the moments that deserve it. Yaw orbits the point looked at, Pit is elevation, Roll the dutch tilt, Zm
+	// the distance, Fov a widening; the K values are one-shot shoves from impacts that die away on their own.
+	struct FCamDir { float Yaw = 0.f, Pit = 4.f, Roll = 0.f, Zm = 1.f, Fov = 0.f, KRoll = 0.f, KZm = 0.f, KFov = 0.f, KYaw = 0.f; bool bSnap = true; } CamD; int32 FrzMax = 0;
+	void CamKick(float Roll, float Zm, float Fov, float Yaw = 0.f);
 	FString CallWord; int32 CallAge = 0, CallHold = 0;
 	int32 Combo[2] = { 0, 0 }, ComboDmg[2] = { 0, 0 }, ComboTimer[2] = { 0, 0 }; FString Note[2]; int32 NoteTimer[2] = { 0, 0 };
 	struct FSpark { FVector At; int32 Age; int32 Kind; }; TArray<FSpark> Sparks;

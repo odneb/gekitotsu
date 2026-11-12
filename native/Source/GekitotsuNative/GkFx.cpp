@@ -32,7 +32,7 @@ void FGkFx::Tick(float Dt)
 {
 	Dt = FMath::Clamp(Dt, 0.f, 0.05f);
 	int32 N[2] = { 0, 0 };
-	const FQuat Face(FVector(0, 1, 0), HALF_PI);   // the square stood up to face down the stage
+	const FQuat Turn(FVector(0, 0, 1), Yaw), Face = Turn * FQuat(FVector(0, 1, 0), HALF_PI);   // the square stood up to face the camera
 	for (int32 k = Ps.Num() - 1; k >= 0; k--)
 	{
 		FP& P = Ps[k]; P.Age += Dt; if (P.Life > 0.f && P.Age >= P.Life) { Ps.RemoveAtSwap(k, 1, EAllowShrinking::No); continue; }
@@ -48,7 +48,7 @@ void FGkFx::Tick(float Dt)
 		if (P.Stretch > 1.f)
 		{
 			const double Sp = FMath::Sqrt(P.Vel.Y * P.Vel.Y + P.Vel.Z * P.Vel.Z);
-			Q = FQuat(FVector(1, 0, 0), FMath::Atan2(P.Vel.Z, P.Vel.Y)) * Face; Sc.Y *= 1.f + (P.Stretch - 1.f) * FMath::Clamp(float(Sp) / 600.f, 0.f, 1.5f); Sc.X *= 0.5f;
+			Q = Turn * FQuat(FVector(1, 0, 0), FMath::Atan2(P.Vel.Z, P.Vel.Y)) * FQuat(FVector(0, 1, 0), HALF_PI); Sc.Y *= 1.f + (P.Stretch - 1.f) * FMath::Clamp(float(Sp) / 600.f, 0.f, 1.5f); Sc.X *= 0.5f;
 		}
 		C->UpdateInstanceTransform(n, FTransform(Q, P.Pos, Sc), true, false, true);
 		const float Data[4] = { P.Col.R, P.Col.G, P.Col.B, P.Alpha * Fade }; C->SetCustomData(n, MakeArrayView(Data, 4), false);
