@@ -7,6 +7,8 @@
 #include "Components/SkyLightComponent.h"
 #include "Components/SkyAtmosphereComponent.h"
 #include "Components/LightComponent.h"
+#include "Components/LightComponentBase.h"
+#include "UObject/UnrealType.h"
 #include "Engine/DirectionalLight.h"
 #include "Engine/ExponentialHeightFog.h"
 #include "Components/ExponentialHeightFogComponent.h"
@@ -96,8 +98,8 @@ void AGkMatch::BeginPlay()
 	{
 		UStaticMesh* Cone = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cone.Cone"));
 		auto Lit = [Flat](UStaticMeshComponent* C, const FLinearColor& Col, bool bShadow) { if (UMaterialInstanceDynamic* M = C->CreateDynamicMaterialInstance(0, Flat)) { M->SetVectorParameterValue(TEXT("Color"), Col); } C->SetCastShadow(bShadow); };
-		const FLinearColor Sand(0.52f, 0.31f, 0.16f), Rock(0.44f, 0.19f, 0.10f), Deep(0.27f, 0.11f, 0.07f);
-		Lit(Piece(Plane, FVector(6000.0, 0.0, -0.5), FVector(400.0, 600.0, 1.0)), Sand, false);
+		const FLinearColor Sand(0.62f, 0.36f, 0.17f), Rock(0.44f, 0.19f, 0.10f), Deep(0.27f, 0.11f, 0.07f);
+		Lit(Piece(Plane, FVector(16000.0, 0.0, -0.5), FVector(800.0, 900.0, 1.0)), Sand, false);
 		FRandomStream R(4411);
 		auto Shade = [&R, Rock, Deep]() { return FMath::Lerp(Deep, Rock, R.FRandRange(0.35f, 1.f)); };
 		auto Mesa = [&](double X, double Y, double W, double H, double D)
@@ -106,19 +108,23 @@ void AGkMatch::BeginPlay()
 			UStaticMeshComponent* Top = Piece(Cube, FVector(X, Y + W * R.FRandRange(-0.15f, 0.15f), H * 1.1), FVector(D * 0.8 / 100.0, W * R.FRandRange(0.5f, 0.8f) / 100.0, H * 0.28 / 100.0)); Top->SetWorldRotation(FRotator(0.0, R.FRandRange(-20.f, 20.f), 0.0)); Lit(Top, Shade(), true);
 			Lit(Piece(Cone, FVector(X - D * 0.2, Y, H * 0.14), FVector(D * 1.7 / 100.0, W * 1.5 / 100.0, H * 0.3 / 100.0)), FMath::Lerp(Sand, Rock, 0.5f), false);
 		};
-		auto Spire = [&](double X, double Y, double Wide, double H)
+		// The rock is GF Stylized's Desert Canyon set: small outcrops just behind the fight, cliffs in the middle distance,
+		// tall buttes beyond them and two mountains on the horizon. (If the set is missing, plain blocks stand in.)
+		auto Cliff = [&](const TCHAR* Name, double X, double Y, double Scale, bool bShadow)
 		{
-			UStaticMeshComponent* C = Piece(Cone, FVector(X, Y, H * 0.5), FVector(Wide / 100.0, Wide / 100.0, H / 100.0)); C->SetWorldRotation(FRotator(R.FRandRange(-4.f, 4.f), 0.0, R.FRandRange(-5.f, 5.f))); Lit(C, Shade(), true);
-			Lit(Piece(Cone, FVector(X, Y, H * 0.1), FVector(Wide * 2.2 / 100.0, Wide * 2.2 / 100.0, H * 0.2 / 100.0)), FMath::Lerp(Sand, Rock, 0.5f), false);
+			const FString Path = FString::Printf(TEXT("/Game/GF_Desert_Canyon/Assets/%s"), Name);
+			UStaticMesh* M = LoadObject<UStaticMesh>(nullptr, *Path);
+			if (!M) { Mesa(X, Y, 700.0 * Scale, 500.0 * Scale, 600.0 * Scale); return; }
+			UStaticMeshComponent* C = Piece(M, FVector(X, Y, -6.0 * Scale), FVector(Scale)); C->SetWorldRotation(FRotator(0.0, R.FRandRange(0.f, 360.f), 0.0)); C->SetCastShadow(bShadow);
 		};
-		for (int32 k = 0; k < 9; k++)   // boulders just behind the fight
-		{
-			const double Size = R.FRandRange(50.f, 150.f);
-			UStaticMeshComponent* C = Piece(Cube, FVector(R.FRandRange(330.f, 900.f), R.FRandRange(-2200.f, 2200.f), Size * 0.3), FVector(Size / 100.0, Size * R.FRandRange(0.8f, 1.6f) / 100.0, Size * 0.8 / 100.0));
-			C->SetWorldRotation(FRotator(R.FRandRange(-12.f, 12.f), R.FRandRange(0.f, 90.f), R.FRandRange(-12.f, 12.f))); Lit(C, Shade(), true);
-		}
-		for (int32 k = 0; k < 8; k++) { const double X = R.FRandRange(2200.f, 4600.f); if (k % 3 == 2) { Spire(X, R.FRandRange(-3600.f, 3600.f), R.FRandRange(140.f, 260.f), R.FRandRange(500.f, 1100.f)); } else { Mesa(X, R.FRandRange(-3800.f, 3800.f), R.FRandRange(400.f, 900.f), R.FRandRange(160.f, 420.f), R.FRandRange(400.f, 800.f)); } }
-		for (int32 k = 0; k < 9; k++) { const double X = R.FRandRange(7000.f, 13000.f); if (k % 4 == 3) { Spire(X, R.FRandRange(-8000.f, 8000.f), R.FRandRange(400.f, 700.f), R.FRandRange(1500.f, 2600.f)); } else { Mesa(X, R.FRandRange(-9000.f, 9000.f), R.FRandRange(1500.f, 3200.f), R.FRandRange(500.f, 1300.f), R.FRandRange(1500.f, 2500.f)); } }
+		static const TCHAR* Small[] = { TEXT("Cliffs/Cliff_06/SM_Cliff_6.SM_Cliff_6"), TEXT("Cliffs/Cliff_02/SM_Cliff_2.SM_Cliff_2"), TEXT("Cliffs/Cliff_08/SM_Cliff_8.SM_Cliff_8") };
+		static const TCHAR* Mid[] = { TEXT("Cliffs/Cliff_10/SM_Cliff_10.SM_Cliff_10"), TEXT("Cliffs/Cliff_16/SM_CLIFF_16.SM_CLIFF_16"), TEXT("Cliffs/Cliff_01/SM_CLIFF_1.SM_CLIFF_1"), TEXT("Cliffs/Cliff_07/SM_Cliff_7.SM_Cliff_7"), TEXT("Cliffs/Cliff_11/SM_Cliff_11.SM_Cliff_11"), TEXT("Cliffs/Cliff_02/SM_Cliff_2.SM_Cliff_2"), TEXT("Cliffs/Cliff_08/SM_Cliff_8.SM_Cliff_8") };
+		static const TCHAR* Tall[] = { TEXT("Cliffs/Cliff_03/SM_Cliff_3.SM_Cliff_3"), TEXT("Cliffs/Cliff_04/SM_Cliff_4.SM_Cliff_4"), TEXT("Cliffs/Cliff_05/SM_Cliff_5.SM_Cliff_5"), TEXT("Cliffs/Cliff_13/SM_Cliff_13.SM_Cliff_13"), TEXT("Cliffs/Cliff_15/SM_CLIFF_15.SM_CLIFF_15"), TEXT("Cliffs/Cliff_14/SM_CLIFF_14.SM_CLIFF_14"), TEXT("Cliffs/Cliff_09/SM_Cliff_9.SM_Cliff_9"), TEXT("Cliffs/Cliff_12/SM_Cliff_12.SM_Cliff_12") };
+		for (int32 k = 0; k < 8; k++) { Cliff(Small[k % 3], R.FRandRange(380.f, 1000.f), -2400.0 + k * 640.0 + R.FRandRange(-200.f, 200.f), R.FRandRange(0.18f, 0.34f), true); }
+		for (int32 k = 0; k < 9; k++) { Cliff(Mid[k % 7], R.FRandRange(2400.f, 5200.f), -5200.0 + k * 1300.0 + R.FRandRange(-400.f, 400.f), R.FRandRange(0.8f, 1.15f), true); }
+		for (int32 k = 0; k < 9; k++) { Cliff(Tall[k % 8], R.FRandRange(7500.f, 13000.f), -10500.0 + k * 2600.0 + R.FRandRange(-800.f, 800.f), R.FRandRange(1.0f, 1.5f), false); }
+		Cliff(TEXT("Mountain/Mountain_1/SM_Mountain_1.SM_Mountain_1"), 24000.0, -9500.0, 1.6, false);
+		Cliff(TEXT("Mountain/Mountain_2/SM_Mountain_2.SM_Mountain_2"), 27000.0, 8500.0, 1.5, false);
 	}
 	Into = nullptr;
 	Fx.Init(this, RootComponent);
@@ -129,6 +135,7 @@ void AGkMatch::BeginPlay()
 	{
 		if (ADirectionalLight* Sun = W->SpawnActor<ADirectionalLight>(FVector(0.0, 0.0, 800.0), FRotator(-31.0, 38.0, 0.0)))
 		{
+			RoomLights.Add(Sun);
 			if (ULightComponent* L = Sun->GetLightComponent()) { L->SetMobility(EComponentMobility::Movable); L->SetIntensity(8.f); L->SetLightColor(FLinearColor(1.f, 0.84f, 0.66f)); }
 			if (UDirectionalLightComponent* D = Cast<UDirectionalLightComponent>(Sun->GetLightComponent())) { D->SetAtmosphereSunLight(true); D->SetDynamicShadowDistanceMovableLight(6000.f); }
 		}
@@ -138,9 +145,10 @@ void AGkMatch::BeginPlay()
 			UExponentialHeightFogComponent* F = Fog->GetComponent(); F->SetMobility(EComponentMobility::Movable);
 			F->SetFogDensity(0.022f); F->SetFogHeightFalloff(0.08f); F->SetFogInscatteringColor(FLinearColor(0.85f, 0.47f, 0.25f)); F->SetStartDistance(1200.f); F->SetFogMaxOpacity(0.92f);
 		}
-		USkyAtmosphereComponent* Air = NewObject<USkyAtmosphereComponent>(this); Air->SetupAttachment(RootComponent); Air->RegisterComponent();
+		USkyAtmosphereComponent* Air = NewObject<USkyAtmosphereComponent>(this); Air->SetupAttachment(RootComponent); Air->RegisterComponent(); RoomAir = Air;
 		if (ASkyLight* Sky = W->SpawnActor<ASkyLight>(FVector(0.0, 0.0, 600.0), FRotator::ZeroRotator))
 		{
+			RoomLights.Add(Sky);
 			if (USkyLightComponent* L = Sky->GetLightComponent()) { L->SetMobility(EComponentMobility::Movable); L->SetRealTimeCapture(true); L->SetIntensity(1.f); }
 		}
 	}
@@ -204,6 +212,80 @@ void AGkMatch::BeginPlay()
 			if (APlayerController* PC = W->GetFirstPlayerController()) { PC->SetViewTarget(Cam); }
 		}
 	}
+	MakeSky();
+}
+
+// ------------------------------------------------------------------------------------------------ the sky and weather
+namespace
+{
+	/** Calls a Blueprint function by name, filling its inputs by kind: the first object input, numbers, and whole numbers. */
+	bool GkCall(UObject* On, const TCHAR* Name, UObject* Obj, double Num, int32 Whole = 0, double Num2 = 0.0)
+	{
+		UFunction* F = On ? On->FindFunction(FName(Name)) : nullptr; if (!F) { return false; }
+		uint8* Buf = static_cast<uint8*>(FMemory_Alloca(FMath::Max<int32>(F->ParmsSize, 1))); FMemory::Memzero(Buf, F->ParmsSize);
+		int32 Numbers = 0;
+		for (TFieldIterator<FProperty> It(F); It && It->HasAnyPropertyFlags(CPF_Parm); ++It)
+		{
+			It->InitializeValue_InContainer(Buf);
+			if (It->HasAnyPropertyFlags(CPF_ReturnParm | CPF_OutParm)) { continue; }
+			if (FObjectPropertyBase* O = CastField<FObjectPropertyBase>(*It)) { O->SetObjectPropertyValue_InContainer(Buf, Obj); }
+			else if (FDoubleProperty* D = CastField<FDoubleProperty>(*It)) { D->SetPropertyValue_InContainer(Buf, Numbers++ == 0 ? Num : Num2); }
+			else if (FFloatProperty* Fl = CastField<FFloatProperty>(*It)) { Fl->SetPropertyValue_InContainer(Buf, float(Numbers++ == 0 ? Num : Num2)); }
+			else if (FIntProperty* I = CastField<FIntProperty>(*It)) { I->SetPropertyValue_InContainer(Buf, Whole); }
+		}
+		On->ProcessEvent(F, Buf);
+		for (TFieldIterator<FProperty> It(F); It && It->HasAnyPropertyFlags(CPF_Parm); ++It) { It->DestroyValue_InContainer(Buf); }
+		return true;
+	}
+	void GkSetBool(UObject* On, const TCHAR* Name, bool bValue) { if (FBoolProperty* P = FindFProperty<FBoolProperty>(On->GetClass(), FName(Name))) { P->SetPropertyValue_InContainer(On, bValue); } else { UE_LOG(LogTemp, Warning, TEXT("GkSky: no switch named %s"), Name); } }
+}
+
+void AGkMatch::MakeSky()
+{
+	UWorld* W = GetWorld(); if (!W) { return; }
+	FString Preset = TEXT("Desert"); FParse::Value(FCommandLine::Get(), TEXT("-gksky="), Preset);
+	const FString Path = FString::Printf(TEXT("/Game/SoStylized/Environment/Sky/PRESETS/BP_StylizedSky_%s.BP_StylizedSky_%s_C"), *Preset, *Preset);
+	UClass* Cls = LoadObject<UClass>(nullptr, *Path);
+	if (!Cls) { UE_LOG(LogTemp, Warning, TEXT("GkSky: %s did not load; the plain sky stays"), *Path); return; }
+	static const TCHAR* Names[4] = { TEXT("DA_Weather_Clear"), TEXT("DA_Weather_Overcast"), TEXT("DA_Weather_Thunderstorm_Distant"), TEXT("DA_Weather_Thunderstorm") };
+	for (const TCHAR* N : Names) { Weathers.Add(LoadObject<UObject>(nullptr, *FString::Printf(TEXT("/Game/SoStylized/Environment/Sky/Weather/%s.%s"), N, N))); }
+	if (FParse::Param(FCommandLine::Get(), TEXT("gkskylog")))
+	{
+		for (TFieldIterator<UFunction> It(Cls, EFieldIteratorFlags::IncludeSuper); It; ++It)
+		{
+			if (It->GetOuter() && It->GetOuter()->GetName().StartsWith(TEXT("BP_StylizedSky")))
+			{
+				FString Sig; for (TFieldIterator<FProperty> P(*It); P && P->HasAnyPropertyFlags(CPF_Parm); ++P) { Sig += FString::Printf(TEXT(" %s:%s"), *P->GetName(), *P->GetClass()->GetName()); }
+				UE_LOG(LogTemp, Display, TEXT("GkSky fn %s (%s )"), *It->GetName(), *Sig);
+			}
+		}
+		for (TFieldIterator<FProperty> It(Cls, EFieldIteratorFlags::IncludeSuper); It; ++It)
+		{
+			if (It->GetOwnerClass() && It->GetOwnerClass()->GetName().StartsWith(TEXT("BP_StylizedSky")))
+			{
+				FString Val; It->ExportText_InContainer(0, Val, Cls->GetDefaultObject(), nullptr, nullptr, PPF_None); UE_LOG(LogTemp, Display, TEXT("GkSky var %s:%s = %s"), *It->GetName(), *It->GetClass()->GetName(), *Val.Left(120));
+			}
+		}
+	}
+	const FTransform At(FRotator::ZeroRotator, FVector::ZeroVector);
+	AActor* Sky = W->SpawnActorDeferred<AActor>(Cls, At, this, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+	if (!Sky) { return; }
+	// the fight drives the weather: no clock, no weather of its own choosing
+	GkSetBool(Sky, TEXT("DayCycleEnabled?"), false);
+	if (FArrayProperty* Cycle = FindFProperty<FArrayProperty>(Cls, TEXT("DynamicWeatherCycle"))) { FScriptArrayHelper H(Cycle, Cycle->ContainerPtrToValuePtr<void>(Sky)); H.EmptyValues(); }
+	Sky->FinishSpawning(At);
+	SkyActor = Sky;
+	// the sky's clock runs in seconds: a 600 second day, then a 480 second night. The fight is held at dusk.
+	double Time = 548.0; FParse::Value(FCommandLine::Get(), TEXT("-gktime="), Time);
+	if (!GkCall(Sky, TEXT("Set New Time"), nullptr, Time)) { UE_LOG(LogTemp, Warning, TEXT("GkSky: no Set New Time")); }
+	SetWeather(0, 0.5);
+}
+
+void AGkMatch::SetWeather(int32 Index, double BlendSeconds)
+{
+	if (!SkyActor || !Weathers.IsValidIndex(Index) || !Weathers[Index] || Index == WeatherAt) { return; }
+	WeatherAt = Index;
+	if (!GkCall(SkyActor, TEXT("Set New Static Weather"), Weathers[Index], BlendSeconds)) { UE_LOG(LogTemp, Warning, TEXT("GkSky: no Set New Static Weather")); }
 }
 
 void AGkMatch::EndPlay(const EEndPlayReason::Type Reason)
@@ -354,7 +436,7 @@ void AGkMatch::Tick(float DeltaSeconds)
 	Present(float(Real));
 	if (!StatusPath.IsEmpty() && (++StatusClock % 30) == 0)
 	{
-		FFileHelper::SaveStringToFile(FString::Printf(TEXT("fps %d\n%s\nbuttons %08x dirs %d input %d\nframe %d menu %d\n"), FMath::RoundToInt(1000.f / FMath::Max(1.f, FrameMs)), Pads ? *Pads->Debug() : TEXT(""), PadNow, PadDirs, InputNow, S.frame, bMenu ? 1 : 0), *StatusPath);
+		FFileHelper::SaveStringToFile(FString::Printf(TEXT("fps %d storm %.2f weather %d\n%s\nbuttons %08x dirs %d input %d\nframe %d menu %d\n"), FMath::RoundToInt(1000.f / FMath::Max(1.f, FrameMs)), Storm, WeatherAt, Pads ? *Pads->Debug() : TEXT(""), PadNow, PadDirs, InputNow, S.frame, bMenu ? 1 : 0), *StatusPath);
 	}
 }
 
@@ -512,10 +594,33 @@ void AGkMatch::Present(float Real)
 		ShownPlace = Place;
 		for (USceneComponent* C : GridParts) { if (C) { C->SetVisibility(Place == 0); } }
 		for (USceneComponent* C : StageParts) { if (C) { C->SetVisibility(Place == 1); } }
-		if (Fog && Fog->GetComponent()) { Fog->GetComponent()->SetVisibility(Place == 1); }
-		Fx.DustCol = Place == 1 ? FLinearColor(0.62f, 0.47f, 0.33f) : FLinearColor(0.45f, 0.47f, 0.52f);
+		const bool bSkyOwns = Place == 1 && SkyActor != nullptr;   // one system owns the sun, sky light and fog at a time
+		if (Fog && Fog->GetComponent()) { Fog->GetComponent()->SetVisibility(Place == 1 && !bSkyOwns); }
+		for (AActor* L : RoomLights) { if (L) { L->SetActorHiddenInGame(bSkyOwns); if (ULightComponentBase* C = L->FindComponentByClass<ULightComponentBase>()) { C->SetVisibility(!bSkyOwns); } } }
+		if (RoomAir) { RoomAir->SetVisibility(!bSkyOwns); }
+		if (SkyActor) { SkyActor->SetActorHiddenInGame(!bSkyOwns); TArray<USceneComponent*> Cs; SkyActor->GetComponents(Cs); for (USceneComponent* C : Cs) { C->SetVisibility(bSkyOwns); } }
 	}
-	Fx.Air(CamPos.Y, Real, Place == 1); Fx.Tick(Real);
+	// The weather follows the fight: a red dusk while both stand strong, a storm as one of them nears the end. It starts
+	// to build when either drops below 60% health, is at full strength at 25%, and never falls under 65% from round three.
+	{
+		const float HpMin = FMath::Min(S.p[0].hp, S.p[1].hp) / 1000.f;
+		float Want = FMath::Clamp((0.6f - HpMin) / 0.35f, 0.f, 1.f);
+		if (S.round >= 3) { Want = FMath::Max(Want, 0.65f); }
+		if (S.phase == gk::PH_INTRO && S.round < 3) { Want = 0.f; }
+		if (Place != 1) { Want = 0.f; }
+		Storm = FMath::Lerp(Storm, Want, FMath::Clamp(Real * 0.8f, 0.f, 1.f));
+		const int32 Stage = Want < 0.04f ? 0 : Want < 0.35f ? 1 : Want < 0.8f ? 2 : 3;
+		SetWeather(Stage, Stage == 0 ? 2.0 : 5.0);
+		// a super dims the world behind the fighters for as long as it holds the screen; the weather's own light is untouched
+		Dim = FMath::Lerp(Dim, S.freeze > 0 ? 1.f : 0.f, FMath::Clamp(Real * 14.f, 0.f, 1.f));
+		if (Cam)
+		{
+			FPostProcessSettings& PP = Cam->GetCameraComponent()->PostProcessSettings; const double G = 1.0 - 0.55 * Dim;
+			PP.bOverride_ColorGain = true; PP.ColorGain = FVector4(G, G, G * (1.0 + 0.08 * Dim), 1.0);
+		}
+		Fx.DustCol = Place == 1 ? FMath::Lerp(FLinearColor(0.62f, 0.47f, 0.33f), FLinearColor(0.36f, 0.38f, 0.48f), Storm) : FLinearColor(0.45f, 0.47f, 0.52f);
+	}
+	Fx.Air(CamPos.Y, Real, Place == 1 && Storm < 0.5f); Fx.Tick(Real);
 	for (int32 k = 0; k < 4; k++)
 	{
 		if (!ShotMesh[k]) { continue; }

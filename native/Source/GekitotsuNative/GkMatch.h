@@ -54,6 +54,14 @@ public:
 	UPROPERTY() TArray<TObjectPtr<USceneComponent>> StageParts;
 	UPROPERTY() TObjectPtr<AExponentialHeightFog> Fog;
 	FGkFx Fx; int32 ShownPlace = -1;
+	// The sky and weather over the wasteland (SoStylized's Stylized Dynamic Sky & Weather): it owns the sun, sky light and
+	// fog there. The plain lights below are the training room's.
+	UPROPERTY() TObjectPtr<AActor> SkyActor;
+	UPROPERTY() TArray<TObjectPtr<UObject>> Weathers;
+	UPROPERTY() TArray<TObjectPtr<AActor>> RoomLights;
+	UPROPERTY() TObjectPtr<USceneComponent> RoomAir;
+	float Storm = 0.f, Dim = 0.f; int32 WeatherAt = -1;
+	void MakeSky(); void SetWeather(int32 Index, double BlendSeconds);
 	// the browser game's animation and the two skeletons it is solved onto
 	FGkPoses Poses; FGkBody Rig[2]; TArray<FName> MoveClip; int32 HitKind[2] = { 1, 1 };
 
