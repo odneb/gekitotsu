@@ -112,10 +112,21 @@ void AGkMatch::BeginPlay()
 		C->SetUsingAbsoluteLocation(true); C->SetUsingAbsoluteRotation(true); C->SetUsingAbsoluteScale(true); C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		C->RegisterComponent();
 		if (USkeletalMesh* M = LoadObject<USkeletalMesh>(nullptr, Meshes[i])) { C->SetSkinnedAssetAndUpdate(M); }
-		// player one is red, the other blue
-		for (int32 k = 0; k < C->GetNumMaterials(); k++)
+		// Player one is red, the other blue. The surfaces are MeshBites' Stylized Anime Shader (cel shading read from the
+		// sun's direction) with its outline shell laid over the mesh; the instances are made by tools/make_materials.py.
 		{
-			if (UMaterialInstanceDynamic* Tint = C->CreateDynamicMaterialInstance(k)) { Tint->SetVectorParameterValue(TEXT("Paint Tint"), i ? FLinearColor(0.05f, 0.22f, 0.95f) : FLinearColor(0.9f, 0.07f, 0.04f)); }
+			const TCHAR* Side = i ? TEXT("P2") : TEXT("P1"); bool bAnime = true;
+			for (int32 k = 0; k < C->GetNumMaterials(); k++)
+			{
+				const FString Path = FString::Printf(TEXT("/Game/GkMat/MI_Gk_%s_%s.MI_Gk_%s_%s"), Side, k == 0 ? TEXT("A") : TEXT("B"), Side, k == 0 ? TEXT("A") : TEXT("B"));
+				if (UMaterialInterface* Cel = LoadObject<UMaterialInterface>(nullptr, *Path)) { C->SetMaterial(k, Cel); }
+				else
+				{
+					bAnime = false; UE_LOG(LogTemp, Warning, TEXT("Gekitotsu: the anime material %s did not load"), *Path);
+					if (UMaterialInstanceDynamic* Tint = C->CreateDynamicMaterialInstance(k)) { Tint->SetVectorParameterValue(TEXT("Paint Tint"), i ? FLinearColor(0.05f, 0.22f, 0.95f) : FLinearColor(0.9f, 0.07f, 0.04f)); }
+				}
+			}
+			if (bAnime) { if (UMaterialInterface* Ink = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/GkMat/MI_Gk_Outline.MI_Gk_Outline"))) { C->SetOverlayMaterial(Ink); } }
 		}
 		C->SetBoundsScale(30.f); C->bNeverDistanceCull = true;
 		Body[i] = C; Rig[i].Init(C);
@@ -126,6 +137,12 @@ void AGkMatch::BeginPlay()
 		if (Cam)
 		{
 			Cam->GetCameraComponent()->SetFieldOfView(30.f); Cam->GetCameraComponent()->SetConstraintAspectRatio(false);
+			// A fixed exposure: the cel shader's colours are painted values, and the eye adapting to a dark room washed them out.
+			{ FPostProcessSettings& PP = Cam->GetCameraComponent()->PostProcessSettings;
+			  PP.bOverride_AutoExposureMethod = true; PP.AutoExposureMethod = AEM_Manual;
+			  PP.bOverride_AutoExposureBias = true; PP.AutoExposureBias = 0.f;
+			  PP.bOverride_AutoExposureApplyPhysicalCameraExposure = true; PP.AutoExposureApplyPhysicalCameraExposure = false;
+			  Cam->GetCameraComponent()->PostProcessBlendWeight = 1.f; }
 			if (APlayerController* PC = W->GetFirstPlayerController()) { PC->SetViewTarget(Cam); }
 		}
 	}
