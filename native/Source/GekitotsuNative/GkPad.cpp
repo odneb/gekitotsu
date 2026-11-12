@@ -13,7 +13,7 @@ THIRD_PARTY_INCLUDES_START
 THIRD_PARTY_INCLUDES_END
 
 struct FGkPadDev { IOHIDDeviceRef Ref = nullptr; FString Name; int32 Vid = 0, Pid = 0; uint32 Buttons = 0; int32 Hat = 0; float X = 0.f, Y = 0.f; };
-struct FGkPadImpl { IOHIDManagerRef Mgr = nullptr; TArray<FGkPadDev> Devs; int32 Access = -1, Keyboardish = 0, Events = 0, Used = 0, LastPage = 0, LastUsage = 0, LastValue = 0, OpenResult = 0, Reports = 0, LastReportLen = 0; uint8 LastReport[16] = { 0 }; };
+struct FGkPadImpl { IOHIDManagerRef Mgr = nullptr; TArray<FGkPadDev> Devs; int32 Access = -1, Keyboardish = 0, Events = 0, Used = 0, LastPage = 0, LastUsage = 0, LastValue = 0, OpenResult = 0, Reports = 0, LastReportLen = 0; uint8 LastReport[16] = { 0 }; uint8 Now[16] = { 0 }, Prev[16] = { 0 }; int32 Ids[4] = { -1, -1, -1, -1 }, Changes = 0, NowLen = 0; };
 
 // The system calls back on the main thread; the game reads on its own. One lock guards both, and a callback that
 // arrives for a reader that has gone away finds this pointer changed and does nothing.
@@ -41,6 +41,15 @@ static void GkPadReport(void* Ctx, IOReturn, void* Sender, IOHIDReportType, uint
 {
 	FScopeLock Lock(&GGkPadLock); FGkPadImpl* I = (FGkPadImpl*)Ctx; if (!I || I != GGkPadLive || !Report) { return; }
 	I->Reports++;
+	// keep the newest report, note which kinds arrive, and write down every one whose first ten bytes differ from the last (a press, on any layout)
+	for (int32 k = 0; k < 4; k++) { if (I->Ids[k] == Report[0]) { break; } if (I->Ids[k] < 0) { I->Ids[k] = Report[0]; break; } }
+	bool bDiff = false; for (int32 k = 0; k < 10 && k < Len; k++) { if (Report[k] != I->Prev[k]) { bDiff = true; } }
+	I->NowLen = int32(Len); for (int32 k = 0; k < 16; k++) { I->Now[k] = k < Len ? Report[k] : 0; I->Prev[k] = I->Now[k]; }
+	if (bDiff && I->Changes < 400)
+	{
+		I->Changes++; FString Hex; for (int32 k = 0; k < 16 && k < Len; k++) { Hex += FString::Printf(TEXT("%02x "), Report[k]); }
+		UE_LOG(LogTemp, Display, TEXT("GkPad report changed (len %d): %s"), int32(Len), *Hex);
+	}
 	// A PS4-style board (which is what a Brook is in PS4 mode) sends report 1 in a fixed, well-known layout. It is read
 	// directly here: sticks at bytes 1-2, the d-pad in the low half of byte 5, the buttons in the rest of bytes 5-7.
 	if (Len < 8 || Report[0] != 0x01) { return; }
@@ -175,9 +184,10 @@ int32 FGkPads::Read(uint32& OutButtons, int32& OutDirs, FString* OutNames) const
 FString FGkPads::Debug() const
 {
 	FScopeLock Lock(&GGkPadLock); if (!Impl) { return FString(); }
-	FString Hex; for (int32 k = 0; k < FMath::Min(12, FMath::Abs(Impl->LastReportLen)); k++) { Hex += FString::Printf(TEXT("%02x "), Impl->LastReport[k]); }
+	FString Hex; for (int32 k = 0; k < FMath::Min(12, Impl->NowLen); k++) { Hex += FString::Printf(TEXT("%02x "), Impl->Now[k]); }
+	Hex += FString::Printf(TEXT("| kinds %d %d %d | changes %d"), Impl->Ids[0], Impl->Ids[1], Impl->Ids[2], Impl->Changes);
 	if (Impl->OpenResult != 0 && Impl->Devs.Num() > 0) { return FString::Printf(TEXT("macOS is blocking the stick (%08x, access %d). Allow GekitotsuNative in System Settings > Privacy & Security > Input Monitoring, then reopen the game."), uint32(Impl->OpenResult), Impl->Access); }
-	return FString::Printf(TEXT("USB: open %08x   values %d   presses heard %d   last value: page %d usage %d value %d   reports %d, last pressed [%s]"), uint32(Impl->OpenResult), Impl->Events, Impl->Used, Impl->LastPage, Impl->LastUsage, Impl->LastValue, Impl->Reports, *Hex);
+	return FString::Printf(TEXT("USB: open %08x   values %d   presses heard %d   last value: page %d usage %d value %d   reports %d, now [%s]"), uint32(Impl->OpenResult), Impl->Events, Impl->Used, Impl->LastPage, Impl->LastUsage, Impl->LastValue, Impl->Reports, *Hex);
 }
 
 #else
