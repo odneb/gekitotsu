@@ -1665,7 +1665,7 @@ void AGkMatch::Present(float Real)
 				double By = CamPos.Y + Fx.Rng.FRandRange(-900.f, 900.f), Bz = 900.0;
 				for (int32 Seg = 0; Seg < 7; Seg++) { const double Ny = By + Fx.Rng.FRandRange(-90.f, 90.f); FGkFx::FP& Bt = Fx.Add(0, FVector(260.0, (By + Ny) * 0.5, Bz - 60.0), FVector(0.0, (Ny - By) * 0.02, -1.0), 0.22f, 26.f, 14.f, FLinearColor(9.f, 10.f, 14.f)); Bt.Stretch = 9.f; By = Ny; Bz -= 120.0; }
 			}
-			if (BoltDue <= 0.f && Storm > 0.55f) { Snd(TEXT("ImpactFar_01"), 0.45f, 0.7f); Flash = FMath::Max(Flash, 0.55f + 0.5f * Storm); Shake = FMath::Max(Shake, 2.f + 3.f * Storm); BoltDue = Fx.Rng.FRandRange(1.6f, 5.f) / Storm; }
+			if (BoltDue <= 0.f && Storm > 0.55f) { Snd(TEXT("Thunder_01"), 0.5f + 0.4f * Storm); Flash = FMath::Max(Flash, 0.55f + 0.5f * Storm); Shake = FMath::Max(Shake, 2.f + 3.f * Storm); BoltDue = Fx.Rng.FRandRange(1.6f, 5.f) / Storm; }
 		}
 		// the rain is heard as well as seen, and the menus have their own pulse
 		{
@@ -1674,7 +1674,13 @@ void AGkMatch::Present(float Real)
 				if (Vol > 0.01f && !C) { if (const TArray<USoundBase*>* T = SndSets.Find(FName(Set))) { if (T->Num()) { C = UGameplayStatics::SpawnSound2D(this, (*T)[0], Vol, 1.f, 0.f, nullptr, false, false); } } }
 				if (C) { if (Vol <= 0.01f) { C->Stop(); C = nullptr; } else { C->SetVolumeMultiplier(Vol); } }
 			};
-			Loop(RainLoop, TEXT("LoopRain_01"), (Place != 0 && Screen == 3 && !bScript) ? FMath::Clamp((Storm - 0.3f) * 1.6f, 0.f, 1.f) : 0.f);
+			// outdoors: a thin wind always, a rising gale and rain that goes from light to a downpour as the storm builds; the training room hears rain on its roof
+			const bool bOut = Place != 0 && !bScript; const float Duck = Screen == 3 ? 1.f : 0.6f;
+			Loop(WindLoop, TEXT("LoopWindLight_01"), bOut ? 0.28f * (1.f - 0.6f * Storm) * Duck : 0.f);
+			Loop(GaleLoop, TEXT("LoopWindHeavy_01"), bOut ? FMath::Clamp((Storm - 0.2f) * 1.1f, 0.f, 0.75f) * Duck : 0.f);
+			Loop(RainLoop, TEXT("LoopRainLight_01"), bOut ? FMath::Clamp((Storm - 0.3f) * 3.f, 0.f, 1.f) * FMath::Clamp(1.5f - Storm * 1.2f, 0.25f, 1.f) * 0.7f * Duck : 0.f);
+			Loop(PourLoop, TEXT("LoopRainHeavy_01"), bOut ? FMath::Clamp((Storm - 0.55f) * 2.6f, 0.f, 0.85f) * Duck : 0.f);
+			Loop(RoomLoop, TEXT("LoopRainInside_01"), (Place == 0 && !bScript) ? 0.16f : 0.f);
 			// the songs play one after another in a random order for as long as the game is open, a little lower under a fight
 			if (!bScript && Songs.Num() > 0)
 			{

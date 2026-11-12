@@ -92,7 +92,7 @@ public:
 	UPROPERTY() TMap<FName, TObjectPtr<UNiagaraSystem>> Vfx;
 	UPROPERTY() TObjectPtr<class UNiagaraComponent> ShotFx[4]; int32 ShotKind[4] = { 0, 0, 0, 0 };
 	UPROPERTY() TMap<FName, TObjectPtr<USoundBase>> Sfx;
-	UPROPERTY() TObjectPtr<class UAudioComponent> RainLoop; UPROPERTY() TObjectPtr<class UAudioComponent> Music; UPROPERTY() TArray<TObjectPtr<USoundBase>> Songs; int32 LastSong = -1; float MusicVol = 0.5f; int32 StepT[2] = { 0, 0 };
+	UPROPERTY() TObjectPtr<class UAudioComponent> RainLoop; UPROPERTY() TObjectPtr<class UAudioComponent> WindLoop; UPROPERTY() TObjectPtr<class UAudioComponent> GaleLoop; UPROPERTY() TObjectPtr<class UAudioComponent> PourLoop; UPROPERTY() TObjectPtr<class UAudioComponent> RoomLoop; UPROPERTY() TObjectPtr<class UAudioComponent> Music; UPROPERTY() TArray<TObjectPtr<USoundBase>> Songs; int32 LastSong = -1; float MusicVol = 0.5f; int32 StepT[2] = { 0, 0 };
 	UPROPERTY() TArray<TObjectPtr<USoundBase>> SndKeep; TMap<FName, TArray<USoundBase*>> SndSets; void Snd(const TCHAR* Set, float Volume = 1.f, float Pitch = 1.f); void EventSound(const gk::Event& E);
 	void LoadVfx(); bool PlayVfx(const TCHAR* Name, const FVector& Local, float Scale, float Dir, const TCHAR* Sound, float Volume = 1.f);
 	UPROPERTY() TObjectPtr<ACameraActor> Cam;
