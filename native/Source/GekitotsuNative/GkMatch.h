@@ -90,6 +90,7 @@ public:
 	void LabOpen(); void LabClose(); void LabClick(int32 Id); void LabPick(int32 ClipIndex); void LabSave(); void LoadPicks(); FString PicksFile(bool bProject) const;
 	// hit, guard and dust effects and their sounds (Vefects' Combat Flipbook VFX)
 	UPROPERTY() TMap<FName, TObjectPtr<UNiagaraSystem>> Vfx;
+	UPROPERTY() TObjectPtr<class UNiagaraComponent> ShotFx[4]; int32 ShotKind[4] = { 0, 0, 0, 0 };
 	UPROPERTY() TMap<FName, TObjectPtr<USoundBase>> Sfx;
 	void LoadVfx(); bool PlayVfx(const TCHAR* Name, const FVector& Local, float Scale, float Dir, const TCHAR* Sound, float Volume = 1.f);
 	UPROPERTY() TObjectPtr<ACameraActor> Cam;

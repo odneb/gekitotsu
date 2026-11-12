@@ -12,6 +12,7 @@
 #include "AssetRegistry/IAssetRegistry.h"
 #include "NiagaraSystem.h"
 #include "NiagaraFunctionLibrary.h"
+#include "NiagaraComponent.h"
 #include "Sound/SoundBase.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SceneComponent.h"
@@ -957,7 +958,13 @@ void AGkMatch::OnEvent(const gk::Event& E)
 			  CamKick(Dr * (bKo ? 8.f : bFin ? 9.f : E.a >= 2 ? 3.f : 1.2f), bKo ? -0.14f : bFin ? -0.16f : E.a >= 2 ? -0.05f : -0.02f, bKo ? 12.f : bFin ? 14.f : E.a >= 2 ? 4.f : 0.f, bKo ? Dr * 8.f : bFin ? Dr * 6.f : 0.f); }
 			Combo[Who] = E.c; ComboDmg[Who] = E.d; ComboTimer[Who] = 80;
 			Lean[1 - Who] = (E.f & gk::H_KO) ? 22.f : 6.f + 5.f * FMath::Clamp(E.a, 0, 2); Flash = FMath::Max(Flash, (E.f & gk::H_KO) ? 1.f : E.a >= 2 ? 0.22f : 0.f);
-			if (E.f & gk::H_SPECIAL) { Shake = FMath::Max(Shake, 7.f); Flash = FMath::Max(Flash, 0.3f); }
+			if (E.f & gk::H_SPECIAL) { Shake = FMath::Max(Shake, 7.f); Flash = FMath::Max(Flash, 0.3f); PlayVfx(TEXT("NS_Hit"), At(E.x, E.y, -30.0), 1.f, 0.f, nullptr); }
+			if ((E.f & gk::H_FINISH) && S.p[Who].st == gk::ATK && S.p[Who].mv >= 0 && gk::move(S.p[Who].mv).sup)
+			{   // a super ends on the kit's beam, fired from the chest through the other fighter, and a shockwave under him
+				const gk::Fighter& Wp = S.p[Who]; const gk::Fighter& Lp = S.p[1 - Who];
+				PlayVfx(TEXT("NS_Beam"), At(Wp.x + Wp.face * 30 * gk::F, Wp.y, -10.0) + FVector(0.0, 0.0, 115.0), 2.6f, float(Wp.face), nullptr);
+				PlayVfx(TEXT("NS_Ground_ShockWave"), At(Lp.x, 0, -10.0), 1.6f, 0.f, nullptr); PlayVfx(TEXT("NS_Thunder"), At(Lp.x, Lp.y, -10.0), 1.4f, 0.f, nullptr);
+			}
 			if (E.f & gk::H_IMPACT) { Remark(Who, (E.f & gk::H_CRUMPLE) ? TEXT("CRUMPLE!") : TEXT("BREACH!")); }
 			else if (E.f & gk::H_FREE) { Remark(Who, TEXT("CHASE")); }
 			else if (E.f & gk::H_LOW) { Remark(Who, TEXT("LOW!")); }
@@ -982,8 +989,8 @@ void AGkMatch::OnEvent(const gk::Event& E)
 		case gk::E_EX: case gk::E_DI: case gk::E_HOME: if (E.type == gk::E_HOME) { CamKick(0.f, 0.f, 9.f); } Fx.Aura(Feet, Ki, 0.7f); break;
 		case gk::E_RUSH: Fx.Aura(Feet, Ki, 0.9f); Remark(Who, TEXT("GHOST STEP")); break;
 		case gk::E_BURNOUT: Remark(Who, TEXT("BURNOUT")); Say(TEXT("BURNOUT"), 45); Shake = FMath::Max(Shake, 8.f); Fx.Aura(Feet, FLinearColor(0.5f, 0.55f, 0.5f), 1.3f); Fx.Dust(Feet, 1.6f, 0.f); break;
-		case gk::E_SPECIAL: Fx.Aura(Feet, Ki, 0.9f); CamKick(0.f, -0.04f, 6.f); Shake = FMath::Max(Shake, 2.5f); break;
-		case gk::E_SUPER: Fx.Aura(Feet, Ki, 2.6f); Flash = FMath::Max(Flash, 0.9f); BoltDue = 0.35f; Say(*FString(UTF8_TO_TCHAR(gk::moveName(E.c))).ToUpper(), 70); Shake = FMath::Max(Shake, 6.f); break;
+		case gk::E_SPECIAL: PlayVfx(TEXT("NS_Aura2"), Feet + FVector(-10.0, 0.0, 0.0), 1.f, 0.f, nullptr); Fx.Aura(Feet, Ki, 0.9f); CamKick(0.f, -0.04f, 6.f); Shake = FMath::Max(Shake, 2.5f); break;
+		case gk::E_SUPER: PlayVfx(TEXT("NS_Aura"), Feet + FVector(-10.0, 0.0, 0.0), 1.5f, 0.f, nullptr); Fx.Aura(Feet, Ki, 2.6f); Flash = FMath::Max(Flash, 0.9f); BoltDue = 0.35f; Say(*FString(UTF8_TO_TCHAR(gk::moveName(E.c))).ToUpper(), 70); Shake = FMath::Max(Shake, 6.f); break;
 		case gk::E_ROUND:
 		{
 			const bool bFinal = E.a > 1 && E.a >= S.cfg.rounds * 2 - 1 && S.p[0].wins == S.p[1].wins;
@@ -1391,6 +1398,8 @@ void AGkMatch::LoadVfx()
 	for (const TCHAR* N : { TEXT("NS_Hit_01_Once"), TEXT("NS_Hit_04_Once"), TEXT("NS_Hit_06_Directional_Once"), TEXT("NS_Radial_Spiky_Hit_01"), TEXT("NS_Block_Radial_01_Once"), TEXT("NS_Radial_Burst") }) { Sys(H, N); }
 	for (const TCHAR* N : { TEXT("NS_Directional_Dust_Jump_01_Once"), TEXT("NS_Directional_Dust_01_Once"), TEXT("NS_Directional_Dust_03_Once_Fast"), TEXT("NS_Directional_Dust_03_Once_Fast_Flip") }) { Sys(D, N); }
 	for (const TCHAR* N : { TEXT("SFX_Vefects_Hit_01_Cue"), TEXT("SFX_Vefects_Hit_04_Cue"), TEXT("SFX_Vefects_Hit_07_Cue"), TEXT("SFX_Vefects_Radial_Spiky_Hit_01_Cue"), TEXT("SFX_Vefects_Block_01_Cue"), TEXT("SFX_Vefects_Jump_Dust_01_Cue"), TEXT("SFX_Vefects_Directional_Dust_01_Cue") }) { Snd(N); }
+	// the Special Moves kit's own energy effects: its shot, its beam, its auras
+	for (const TCHAR* N : { TEXT("NS_Beam"), TEXT("NS_EnergyShot"), TEXT("NS_Aura"), TEXT("NS_Aura2"), TEXT("NS_HandAura"), TEXT("NS_Hit"), TEXT("NS_Ground_ShockWave"), TEXT("NS_Thunder") }) { Sys(TEXT("/Game/SpecialMoves_Energy/Demo/VFX/Niagara/"), N); }
 	UE_LOG(LogTemp, Display, TEXT("GkVfx: %d effects, %d sounds"), Vfx.Num(), Sfx.Num());
 }
 
@@ -1462,12 +1471,23 @@ void AGkMatch::Present(float Real)
 	Fx.Air(CamPos.Y, Real, Place != 0 && Storm < 0.5f); Fx.Tick(Real);
 	for (int32 k = 0; k < 4; k++)
 	{
-		if (!ShotMesh[k]) { continue; }
-		const bool bOn = k < S.nshots; ShotMesh[k]->SetVisibility(false);
-		if (bOn && !bMenu)
-		{   // a shot is a ball of light: a white-hot heart, a wide glow in its owner's colour, and sparks trailing off it
-			const FVector Sp = At(S.shot[k].x, S.shot[k].y, -10.0); const FLinearColor Kc = (S.shot[k].o & 1) ? FLinearColor(1.5f, 3.5f, 8.f) : FLinearColor(7.f, 3.6f, 0.9f); const float Beat = 1.f + 0.15f * FMath::Sin(Ticks * 0.9f);
-			Fx.Add(0, Sp, FVector::ZeroVector, 0.04f, 54.f * Beat, 46.f, FLinearColor(3.6f, 3.4f, 3.f)); Fx.Add(0, Sp, FVector::ZeroVector, 0.05f, 120.f * Beat, 104.f, Kc * 0.22f); Fx.Add(0, Sp + FVector(0.0, -float(S.shot[k].dir) * 40.0, 0.0), FVector::ZeroVector, 0.1f, 80.f, 20.f, Kc * 0.12f);
+		if (ShotMesh[k]) { ShotMesh[k]->SetVisibility(false); }
+		const bool bOn = k < S.nshots && !bMenu; const int32 Want = !bOn ? 0 : S.shot[k].mod ? 2 : 1;
+		if (ShotKind[k] != Want)
+		{
+			if (ShotFx[k]) { ShotFx[k]->Deactivate(); ShotFx[k]->DestroyComponent(); ShotFx[k] = nullptr; }
+			ShotKind[k] = Want;
+			// the kit's energy shot; the overdrive one is the kit's beam
+			if (TObjectPtr<UNiagaraSystem>* Sy = Want ? Vfx.Find(FName(Want == 2 ? TEXT("NS_Beam") : TEXT("NS_EnergyShot"))) : nullptr)
+			{
+				ShotFx[k] = UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, *Sy, Wd(At(S.shot[k].x, S.shot[k].y, -10.0)), FRotator::ZeroRotator, FVector(Want == 2 ? 1.5f : 1.2f), false, true, ENCPoolMethod::None);
+			}
+		}
+		if (bOn)
+		{
+			const FVector Sp = At(S.shot[k].x, S.shot[k].y, -10.0); const FLinearColor Kc = (S.shot[k].o & 1) ? FLinearColor(1.5f, 3.5f, 8.f) : FLinearColor(7.f, 3.6f, 0.9f);
+			if (ShotFx[k]) { ShotFx[k]->SetWorldLocationAndRotation(Wd(Sp), Anchor.GetRotation() * FRotator(0.0, S.shot[k].dir > 0 ? 90.0 : -90.0, 0.0).Quaternion()); }
+			else { Fx.Add(0, Sp, FVector::ZeroVector, 0.04f, 54.f, 46.f, FLinearColor(3.6f, 3.4f, 3.f)); Fx.Add(0, Sp, FVector::ZeroVector, 0.05f, 120.f, 104.f, Kc * 0.22f); }
 			{ FGkFx::FP& Tr = Fx.Add(0, Sp, FVector(0.0, Fx.Rng.FRandRange(-160.f, 160.f), Fx.Rng.FRandRange(-160.f, 160.f)), 0.3f, 7.f, 2.f, Kc * 1.2f); Tr.Drag = 2.f; }
 		}
 	}
