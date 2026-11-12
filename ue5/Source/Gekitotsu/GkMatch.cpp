@@ -274,7 +274,7 @@ int32 AGkMatch::FighterHealth(int32 Index) const { return State.p[Index & 1].hp;
 void AGkHUD::DrawHUD()
 {
 	Super::DrawHUD();
-	AGkMatch* M = nullptr; for (TActorIterator<AGkMatch> It(GetWorld()); It; ++It) { M = *It; break; }
+	AGkMatch* M = nullptr; TActorIterator<AGkMatch> It(GetWorld()); if (It) { M = *It; }
 	if (!M || !Canvas) { return; }
 	const gk::State& S = M->State; const float W = Canvas->SizeX, H = Canvas->SizeY, U = H / 1080.f;
 	const FLinearColor Ink(0.02f, 0.01f, 0.02f, 0.85f), Bone(0.96f, 0.93f, 0.86f, 1.f), Red(0.95f, 0.12f, 0.1f, 1.f), Pale(0.62f, 0.8f, 1.f, 1.f), Gold(1.f, 0.78f, 0.2f, 1.f);
