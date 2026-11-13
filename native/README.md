@@ -48,8 +48,9 @@ use `-gkscript` with `Saved/script.txt`. The script command `palette|0` through
 `palette|5` selects a palette and `palette|-1` restores gameplay control.
 Screenshots go to the project's `Saved/shots`.
 
-The forest keeps the existing fighter cel and outline materials. Its post-process
-material bands the apparent illumination on nearby scenery. The environment
+The forest uses directional cel shading on the two armored fighters and keeps their
+existing outline overlay. The angular HUD uses portraits captured from those Unreal
+fighter meshes. The forest post-process bands the apparent illumination on nearby scenery. The environment
 keeps its original textures, lights and fog components. This path uses the existing
 Metal SM6 renderer. Unreal 5.8's experimental Substrate Toon BSDF requires a
 different material path and was left disabled.

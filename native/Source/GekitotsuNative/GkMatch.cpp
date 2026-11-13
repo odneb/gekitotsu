@@ -329,6 +329,7 @@ void AGkMatch::StageLook()
 	{
 		FParse::Value(FCommandLine::Get(), TEXT("-gkpalette="), PaletteOverride);
 		PaletteOverride = FMath::Clamp(PaletteOverride, -1, 5);
+		ForestFighterCel = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/GkFx/M_GkFighterCel.M_GkFighterCel"));
 		ForestCel = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/GkFx/M_GkForestCel.M_GkForestCel"));
 	}
 	if (!bForestLook && !EdgeMid) { if (UMaterialInterface* EM = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/GkFx/M_GkRim.M_GkRim"))) { EdgeMid = UMaterialInstanceDynamic::Create(EM, this); } }
@@ -458,7 +459,7 @@ void AGkMatch::DressFighter(int32 i)
 				const FString Path = FString::Printf(TEXT("/Game/GkMat/MI_Gk_%s_%s.MI_Gk_%s_%s"), Side, k == 0 ? TEXT("A") : TEXT("B"), Side, k == 0 ? TEXT("A") : TEXT("B"));
 				if (UMaterialInterface* Cel = LoadObject<UMaterialInterface>(nullptr, *Path))
 				{
-					UMaterialInstanceDynamic* Dy = UMaterialInstanceDynamic::Create(Cel, this); C->SetMaterial(k, Dy ? static_cast<UMaterialInterface*>(Dy) : Cel);
+					UMaterialInstanceDynamic* Dy = UMaterialInstanceDynamic::Create(ForestFighterCel ? ForestFighterCel.Get() : Cel, this); C->SetMaterial(k, Dy ? static_cast<UMaterialInterface*>(Dy) : Cel);
 					if (Dy && k < 4)
 					{
 						Mids.Add(Dy); BodyMid[i][k] = Dy; BaseCol[i][k] = FLinearColor(0.8f, 0.8f, 0.8f); ShadeCol[i][k] = FLinearColor(0.4f, 0.4f, 0.4f);
@@ -1520,7 +1521,7 @@ void AGkMatch::LookFighter(int32 i)
 {
 	if (!InkMid[i]) { return; }
 	const gk::Fighter& P = S.p[i]; const bool bLab = Screen == 4; const gk::Move* M = (!bLab && P.st == gk::ATK && P.mv >= 0) ? &gk::move(P.mv) : nullptr;
-	FLinearColor Edge(0.01f, 0.01f, 0.015f), Wash(0.f, 0.f, 0.f); float Thick = 1.f, Amt = 0.f; const float Pulse = 0.5f + 0.5f * FMath::Sin(Ticks * 0.55f);
+	FLinearColor Edge(0.01f, 0.01f, 0.015f), Wash(0.f, 0.f, 0.f); float Thick = bForestLook ? 0.58f : 1.f, Amt = 0.f; const float Pulse = 0.5f + 0.5f * FMath::Sin(Ticks * 0.55f);
 	const FLinearColor Ki = i ? FLinearColor(0.5f, 1.6f, 5.f) : FLinearColor(5.f, 2.2f, 0.4f);
 	if (!bLab)
 	{
@@ -1542,7 +1543,7 @@ void AGkMatch::LookFighter(int32 i)
 		}
 	}
 	// lightning behind them: for a few frames they are black shapes cut out of the white sky
-	if (!bLab && BoltT > 0.f) { const float K = FMath::Clamp(BoltT / 4.f, 0.f, 1.f); Wash = FMath::Lerp(Wash, FLinearColor(0.f, 0.f, 0.01f), K); Amt = FMath::Lerp(Amt, 0.96f, K); Edge = FMath::Lerp(Edge, FLinearColor(9.f, 10.f, 13.f), K); Thick = FMath::Max(Thick, 2.6f * K); }
+	if (!bLab && BoltT > 0.f) { const float K = FMath::Clamp(BoltT / 4.f, 0.f, 1.f); Wash = FMath::Lerp(Wash, FLinearColor(0.f, 0.f, 0.01f), K); Amt = FMath::Lerp(Amt, bForestLook ? 0.28f : 0.96f, K); Edge = FMath::Lerp(Edge, bForestLook ? FLinearColor(0.27f, 0.20f, 0.55f) : FLinearColor(9.f, 10.f, 13.f), K); Thick = FMath::Max(Thick, (bForestLook ? 0.78f : 2.6f) * K); }
 	InkMid[i]->SetVectorParameterValue(TEXT("Outlines Color"), Edge); InkMid[i]->SetScalarParameterValue(TEXT("Outlines_Thickness"), Thick);
 	// the rim: the colour of the lamp behind them, brighter in a storm's flashes and dimmed with the world under a super
 	const bool bRim = Kind != 0 || bLab; const FLinearColor Rim = (bForestLook ? ForestRim : RimCol) * ((bRim ? 1.f : 0.35f) * (1.f + 3.f * FMath::Min(Flash, 1.f)) * (1.f + 0.6f * Storm));
@@ -1550,6 +1551,24 @@ void AGkMatch::LookFighter(int32 i)
 	for (int32 k = 0; k < 4; k++)
 	{
 		if (!BodyMid[i][k]) { continue; }
+		if (ForestFighterCel && BodyMid[i][k]->Parent == ForestFighterCel)
+		{
+			const bool bArmor = k == 0;
+			const FLinearColor Paint = bArmor
+				? (i ? FLinearColor(0.085f, 0.20f, 0.43f) : FLinearColor(0.47f, 0.065f, 0.06f))
+				: FLinearColor(0.65f, 0.65f, 0.59f);
+			const FLinearColor Shadow = bArmor
+				? (i ? FLinearColor(0.018f, 0.040f, 0.13f) : FLinearColor(0.13f, 0.018f, 0.031f))
+				: FLinearColor(0.17f, 0.19f, 0.24f);
+			const FVector Key = ForestSun.IsValid() ? -ForestSun->GetForwardVector() : FVector(-0.4, -0.5, 0.75);
+			const FLinearColor Tint = FMath::Lerp(FLinearColor::White, SceneT, 0.38f);
+			BodyMid[i][k]->SetVectorParameterValue(TEXT("Key"), FLinearColor(Key.X, Key.Y, Key.Z));
+			BodyMid[i][k]->SetVectorParameterValue(TEXT("KeyTint"), Tint);
+			BodyMid[i][k]->SetVectorParameterValue(TEXT("Paint"), FMath::Lerp(Paint, Wash, Amt));
+			BodyMid[i][k]->SetVectorParameterValue(TEXT("Shadow"), FMath::Lerp(Shadow, Wash * 0.55f, Amt));
+			BodyMid[i][k]->SetVectorParameterValue(TEXT("Rim"), Rim * 0.52f);
+			continue;
+		}
 		BodyMid[i][k]->SetVectorParameterValue(TEXT("Rimlight Color"), Rim); BodyMid[i][k]->SetScalarParameterValue(TEXT("Rimlight Thickness"), RimTune[0]); BodyMid[i][k]->SetScalarParameterValue(TEXT("Rimlight Opacity"), RimTune[1]); BodyMid[i][k]->SetScalarParameterValue(TEXT("Rim Brightness"), RimTune[2]);
 		BodyMid[i][k]->SetVectorParameterValue(TEXT("Base  color"), FMath::Lerp(BaseCol[i][k] * SceneT, Wash, Amt)); BodyMid[i][k]->SetVectorParameterValue(TEXT("Shadow_Base"), FMath::Lerp(ShadeCol[i][k] * SceneT * SceneS, Wash * 0.55f, Amt));
 	}
@@ -1780,7 +1799,7 @@ void AGkMatch::RunScript()
 		else if (Op == TEXT("palette")) { PaletteOverride = FMath::Clamp(Num(1, -1), -1, 5); }
 		else if (Op == TEXT("storm")) { ScriptStorm = Num(1) / 100.f; }
 		else if (Op == TEXT("wait")) { ScriptWait = Num(1, 1); return; }
-		else if (Op == TEXT("shot")) { if (Cam) { const FVector CL = Cam->GetActorLocation(); const FRotator CR = Cam->GetActorRotation(); UE_LOG(LogTemp, Display, TEXT("GkCam %s %.0f,%.0f,%.0f p%.1f y%.1f fov %.1f"), *A[1], CL.X, CL.Y, CL.Z, CR.Pitch, CR.Yaw, Cam->GetCameraComponent()->FieldOfView); } IFileManager::Get().MakeDirectory(*Root, true); FScreenshotRequest::RequestScreenshot(Root + A[1] + TEXT(".png"), false, false); ScriptWait = 3; return; }
+		else if (Op == TEXT("shot")) { if (Cam) { const FVector CL = Cam->GetActorLocation(); const FRotator CR = Cam->GetActorRotation(); UE_LOG(LogTemp, Display, TEXT("GkCam %s %.0f,%.0f,%.0f p%.1f y%.1f fov %.1f"), *A[1], CL.X, CL.Y, CL.Z, CR.Pitch, CR.Yaw, Cam->GetCameraComponent()->FieldOfView); } IFileManager::Get().MakeDirectory(*Root, true); FScreenshotRequest::RequestScreenshot(Root + A[1] + TEXT(".png"), !bNoHud, false); ScriptWait = 3; return; }
 		else if (Op == TEXT("quit")) { break; }
 	}
 	GkScriptResume = 0; bScript = false; if (GkFlyOn()) { return; } FFileHelper::SaveStringToFile(TEXT("done\n"), *(Root + TEXT("done.txt"))); FPlatformMisc::RequestExit(false);
@@ -1931,7 +1950,7 @@ void AGkMatch::Present(float Real)
 			{   // lines of wind
 				WindDue += 0.05f / Storm;
 				FGkFx::FP& Wl = Fx.Add(0, FVector(Fx.Rng.FRandRange(-500.f, 60.f), CamPos.Y + Fx.Rng.FRandRange(-300.f, 1500.f), Fx.Rng.FRandRange(20.f, 520.f)), FVector(0.0, -Fx.Rng.FRandRange(2200.f, 3600.f), Fx.Rng.FRandRange(-60.f, 60.f)), Fx.Rng.FRandRange(0.18f, 0.34f), Fx.Rng.FRandRange(3.f, 6.f), 2.f, FLinearColor(1.5f, 1.7f, 2.1f) * (0.5f + Storm), 0.7f); Wl.Stretch = 60.f; Wl.bSwell = true;
-				if (Storm > 0.3f) { FGkFx::FP& Mi = Fx.Add(1, FVector(Fx.Rng.FRandRange(-380.f, 120.f), CamPos.Y + Fx.Rng.FRandRange(0.f, 1500.f), Fx.Rng.FRandRange(10.f, 120.f)), FVector(0.0, -Fx.Rng.FRandRange(500.f, 900.f) * Storm, Fx.Rng.FRandRange(0.f, 30.f)), Fx.Rng.FRandRange(1.6f, 2.6f), Fx.Rng.FRandRange(200.f, 320.f), Fx.Rng.FRandRange(360.f, 520.f), FLinearColor(0.5f, 0.56f, 0.68f), 0.1f + 0.08f * Storm); Mi.bSwell = true; }
+				if (Storm > 0.3f) { FGkFx::FP& Mi = Fx.Add(1, FVector(Fx.Rng.FRandRange(-380.f, 120.f), CamPos.Y + Fx.Rng.FRandRange(0.f, 1500.f), Fx.Rng.FRandRange(10.f, 120.f)), FVector(0.0, -Fx.Rng.FRandRange(500.f, 900.f) * Storm, Fx.Rng.FRandRange(0.f, 30.f)), Fx.Rng.FRandRange(1.6f, 2.6f), Fx.Rng.FRandRange(200.f, 320.f), Fx.Rng.FRandRange(360.f, 520.f), bForestLook ? FLinearColor(0.40f, 0.35f, 0.64f) : FLinearColor(0.5f, 0.56f, 0.68f), 0.1f + 0.08f * Storm); Mi.bSwell = true; }
 			}
 		}
 		if (Place != 0 && Storm > 0.35f)
@@ -1957,12 +1976,12 @@ void AGkMatch::Present(float Real)
 				for (int32 Seg = 0; Seg < 9; Seg++)
 				{
 					const double Ny = By + Fx.Rng.FRandRange(-110.f, 110.f);
-					FGkFx::FP& Bt = Fx.Add(0, FVector(Bx, (By + Ny) * 0.5, Bz - 55.0), FVector(0.0, (Ny - By) * 0.02, -1.0), 0.26f, 34.f, 16.f, FLinearColor(11.f, 12.f, 16.f)); Bt.Stretch = 8.f;
+					FGkFx::FP& Bt = Fx.Add(0, FVector(Bx, (By + Ny) * 0.5, Bz - 55.0), FVector(0.0, (Ny - By) * 0.02, -1.0), 0.26f, 9.f, 5.f, FLinearColor(11.f, 9.f, 20.f)); Bt.Streak = FVector(0.0, Ny - By, -110.0) * 1.15; Bt.Vel = FVector::ZeroVector;
 					Fx.Add(0, FVector(Bx + 5.0, (By + Ny) * 0.5, Bz - 55.0), FVector::ZeroVector, 0.2f, 190.f, 150.f, FLinearColor(0.7f, 0.85f, 1.5f), 0.5f);
 					if (Seg >= 2 && Fx.Rng.FRand() < 0.4f)
 					{   // a fork
 						double Fy = Ny, Fz = Bz - 110.0; const double Side = Fx.Rng.FRand() < 0.5f ? -1.0 : 1.0;
-						for (int32 F2 = 0; F2 < 3; F2++) { const double Gy = Fy + Side * Fx.Rng.FRandRange(50.f, 130.f); FGkFx::FP& Fk = Fx.Add(0, FVector(Bx, (Fy + Gy) * 0.5, Fz - 40.0), FVector(0.0, (Gy - Fy) * 0.03, -1.0), 0.2f, 18.f, 8.f, FLinearColor(8.f, 9.f, 13.f)); Fk.Stretch = 7.f; Fy = Gy; Fz -= 80.0; }
+						for (int32 F2 = 0; F2 < 3; F2++) { const double Gy = Fy + Side * Fx.Rng.FRandRange(50.f, 130.f); FGkFx::FP& Fk = Fx.Add(0, FVector(Bx, (Fy + Gy) * 0.5, Fz - 40.0), FVector(0.0, (Gy - Fy) * 0.03, -1.0), 0.2f, 5.f, 3.f, FLinearColor(8.f, 9.f, 13.f)); Fk.Streak = FVector(0.0, Gy - Fy, -80.0) * 1.15; Fk.Vel = FVector::ZeroVector; Fy = Gy; Fz -= 80.0; }
 					}
 					By = Ny; Bz -= 110.0;
 				}
@@ -2001,7 +2020,7 @@ void AGkMatch::Present(float Real)
 		Flash *= FMath::Pow(0.0008f, Real);
 		if (Cam)
 		{
-			FPostProcessSettings& PP = Cam->GetCameraComponent()->PostProcessSettings; const double G = (1.0 - 0.55 * Dim) * (1.0 - 0.2 * Storm * Storm) + 1.5 * Flash;
+			FPostProcessSettings& PP = Cam->GetCameraComponent()->PostProcessSettings; const double G = (1.0 - 0.55 * Dim) * (1.0 - 0.2 * Storm * Storm) + (bForestLook ? 0.55 : 1.5) * Flash;
 			PP.bOverride_ColorGain = true; PP.ColorGain = FVector4(G * ForestGrade.R * (1.0 - 0.1 * Storm), G * ForestGrade.G, G * ForestGrade.B * (1.0 + 0.08 * Dim + 0.1 * Storm), 1.0);
 			PP.bOverride_ColorSaturation = true; const double Sat = 1.0 - 0.3 * Storm; PP.ColorSaturation = FVector4(Sat, Sat, Sat, 1.0);
 		}
@@ -2183,12 +2202,13 @@ void AGkMatch::Present(float Real)
 		{
 			const double GroundZ = 0.5 * (FloorPoint(At(S.p[0].x, 0)).Z + FloorPoint(At(S.p[1].x, 0)).Z);
 			ForestCameraGround = FMath::FInterpTo(ForestCameraGround, GroundZ, Real, 5.0);
-			LookZ += ForestCameraGround - 24.0;
+			LookZ += ForestCameraGround - 37.0;
 		}
+		if (bForestLook && Screen == 3) { D *= 1.08; }
 		const FVector Look(0.0, CamPos.Y, LookZ); const double R = D * FMath::Cos(Pit);
 		FVector Eye(-R * FMath::Cos(Yaw), Look.Y + R * FMath::Sin(Yaw), FMath::Max(14.0 + ForestCameraGround, Look.Z + D * FMath::Sin(Pit)));
 		Eye += FVector(0.0, FMath::Sin(Ticks * 1.7) * Shake, FMath::Cos(Ticks * 2.3) * Shake * 0.7);
-		FRotator Rot = (Look - Eye).Rotation(); Rot.Roll = -(CamD.Roll + CamD.KRoll);
+		FRotator Rot = (Look - Eye).Rotation(); Rot.Roll = -(CamD.Roll + CamD.KRoll) - (bForestLook && Screen == 3 ? 3.5 : 0.0);
 		if (Cam) { Cam->GetCameraComponent()->SetFieldOfView(float(Fov)); Cam->SetActorLocationAndRotation(Wd(Eye), Anchor.GetRotation() * Rot.Quaternion()); }
 		if (Cam)
 		{   // the lens: the fighters are held sharp, the far ground goes soft behind them (not in the training room, where the grid is read)
@@ -2206,7 +2226,8 @@ void AGkMatch::Present(float Real)
 		FVector2D Size; GEngine->GameViewport->GetViewportSize(Size); float Want2 = ScreenPct;
 		if (ScreenPct <= 0.f && Size.Y > 0.0) { Want2 = FMath::Clamp(108000.f / float(Size.Y), 35.f, 100.f); }
 		if (FrameMs > 19.f) { SlowSeconds += Real; } else { SlowSeconds = FMath::Max(0.f, SlowSeconds - Real * 0.5f); }
-		if (SlowSeconds > 2.f && ScreenPct > 35.f) { Want2 = FMath::Max(35.f, ScreenPct - 10.f); SlowSeconds = 0.f; }
+		const float MinPct = bForestLook ? 75.f : 35.f;
+		if (SlowSeconds > 2.f && ScreenPct > MinPct) { Want2 = FMath::Max(MinPct, ScreenPct - 10.f); SlowSeconds = 0.f; }
 		if (Want2 > 0.f && Want2 != ScreenPct)
 		{
 			ScreenPct = Want2;

@@ -6,6 +6,8 @@
 #include "Styling/CoreStyle.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Engine/Font.h"
+#include "Engine/Texture2D.h"
+#include "TextureResource.h"
 
 // A plain working HUD for the first milestone, drawn straight onto the canvas: the gauges, the calls, the training
 // read-outs, the hit and hurt boxes, and the menu.
@@ -15,6 +17,25 @@ static void GkRect(UCanvas* Cv, float X, float Y, float W, float H, const FLinea
 	if (W <= 0.f || H <= 0.f || Col.A <= 0.f) { return; }
 	FCanvasTileItem Item(FVector2D(X, Y), GWhiteTexture, FVector2D(W, H), Col); Item.BlendMode = SE_BLEND_Translucent; Cv->DrawItem(Item);
 }
+static void GkHudPanel(UCanvas* Canvas, float X, float Y, float Width, float Height, float Slant,
+	const FLinearColor& Color)
+{
+	const FVector2D TL(X + Slant, Y), TR(X + Width, Y), BL(X, Y + Height), BR(X + Width - Slant, Y + Height);
+	auto DrawTriangle = [&](const FVector2D& A, const FVector2D& B, const FVector2D& C)
+	{
+		FCanvasUVTri Triangle;
+		Triangle.V0_Pos = A;
+		Triangle.V1_Pos = B;
+		Triangle.V2_Pos = C;
+		Triangle.V0_Color = Triangle.V1_Color = Triangle.V2_Color = Color;
+		FCanvasTriangleItem Item(Triangle, GWhiteTexture);
+		Item.BlendMode = SE_BLEND_Translucent;
+		Canvas->DrawItem(Item);
+	};
+	DrawTriangle(TL, TR, BL);
+	DrawTriangle(TR, BR, BL);
+}
+
 static void GkText(UCanvas* Cv, const FString& Str, float X, float Y, float Size, const FLinearColor& Col, bool bCentre = false, int32 Outline = 2)
 {
 	static TWeakObjectPtr<UFont> Carrier;
@@ -144,7 +165,7 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 	}
 
 	// a marker over each fighter, so two of the same character can be told apart
-	if (Screen == 3 && bPlaced)
+	if (Screen == 3 && bPlaced && !bForestLook)
 	{
 		for (int32 i = 0; i < 2; i++)
 		{
@@ -162,16 +183,49 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 	static const TCHAR* DummyName[] = { TEXT("STANDS"), TEXT("CROUCHES"), TEXT("JUMPS"), TEXT("BLOCKS ALL"), TEXT("FIGHTS BACK") };
 	if (Screen == 3)
 	{
-	const float BarW = 700.f * U, BarH = 26.f * U, Top = 56.f * U, Gap = 80.f * U;
+	const float Gap = (bForestLook ? 62.f : 80.f) * U;
+	const float BarW = FMath::Min(700.f * U, Mid - Gap - 30.f * U), BarH = 26.f * U, Top = (bForestLook ? 40.f : 56.f) * U;
 	for (int32 i = 0; i < 2; i++)
 	{
 		const gk::Fighter& P = S.p[i]; const float K = FMath::Clamp(P.hp / 1000.f, 0.f, 1.f), Lag = FMath::Clamp(P.red / 1000.f, K, 1.f);
 		const float X0 = i ? Mid + Gap : Mid - Gap - BarW;
-		GkRect(Cv, X0 - 4.f * U, Top - 4.f * U, BarW + 8.f * U, BarH + 8.f * U, Ink); GkRect(Cv, X0, Top, BarW, BarH, Ash);
+		if (bForestLook)
+		{
+			GkHudPanel(Cv, X0 - 24.f * U, Top - 7.f * U, BarW + 48.f * U, BarH + 15.f * U, 16.f * U, Ink);
+			GkRect(Cv, X0, Top, BarW, BarH, Ash);
+			if (Setup.Char[i] >= 2)
+			{
+				static TWeakObjectPtr<UTexture2D> Portraits[2];
+				if (!Portraits[i].IsValid())
+				{
+					Portraits[i] = LoadObject<UTexture2D>(nullptr, i
+						? TEXT("/Game/GkFx/T_GkBluePortrait.T_GkBluePortrait")
+						: TEXT("/Game/GkFx/T_GkRedPortrait.T_GkRedPortrait"));
+				}
+				if (Portraits[i].IsValid() && Portraits[i]->GetResource())
+				{
+					const float Size = 100.f * U;
+					const float X = i ? W - Size - 14.f * U : 14.f * U;
+					GkHudPanel(Cv, X - 4.f * U, 5.f * U, Size + 8.f * U, Size + 8.f * U, 4.f * U, Tint[i]);
+					FCanvasTileItem Portrait(FVector2D(X, 9.f * U), Portraits[i]->GetResource(), FVector2D(Size), FLinearColor::White);
+					Cv->DrawItem(Portrait);
+				}
+			}
+		}
+		else
+		{
+			GkRect(Cv, X0 - 4.f * U, Top - 4.f * U, BarW + 8.f * U, BarH + 8.f * U, Ink);
+			GkRect(Cv, X0, Top, BarW, BarH, Ash);
+		}
 		// health empties away from the clock; the pale part is damage still being taken
-		if (i) { GkRect(Cv, X0, Top, BarW * Lag, BarH, Bone); GkRect(Cv, X0, Top, BarW * K, BarH, K <= 0.25f ? Gold : Tint[i]); }
-		else { GkRect(Cv, X0 + BarW * (1.f - Lag), Top, BarW * Lag, BarH, Bone); GkRect(Cv, X0 + BarW * (1.f - K), Top, BarW * K, BarH, K <= 0.25f ? Gold : Tint[i]); }
-		GkText(Cv, Names[i], i ? X0 + BarW - 150.f * U : X0, Top + BarH + 30.f * U, 20.f * U, Bone);
+		if (i) { GkRect(Cv, X0, Top, BarW * Lag, BarH, Bone); GkRect(Cv, X0, Top, BarW * K, BarH, bForestLook ? FLinearColor(0.98f, 0.52f, 0.09f) : K <= 0.25f ? Gold : Tint[i]); }
+		else { GkRect(Cv, X0 + BarW * (1.f - Lag), Top, BarW * Lag, BarH, Bone); GkRect(Cv, X0 + BarW * (1.f - K), Top, BarW * K, BarH, bForestLook ? FLinearColor(0.98f, 0.52f, 0.09f) : K <= 0.25f ? Gold : Tint[i]); }
+		if (bForestLook)
+		{
+			const float Shine = BarW * K;
+			GkRect(Cv, i ? X0 : X0 + BarW - Shine, Top, Shine, 5.f * U, FLinearColor(1.f, 0.85f, 0.40f));
+		}
+		GkText(Cv, bForestLook ? (i ? TEXT("P2") : TEXT("P1")) : Names[i], i ? X0 + BarW - 150.f * U : X0, Top + BarH + 30.f * U, 20.f * U, Bone);
 		// the Drive gauge: six bars
 		for (int32 b = 0; b < 6; b++)
 		{
@@ -184,14 +238,15 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 		for (int32 b = 0; b < 3; b++)
 		{
 			const float Part = FMath::Clamp((P.sa - b * 1000) / 1000.f, 0.f, 1.f), Sw = 150.f * U, Sx = i ? W - 60.f * U - (b + 1) * (Sw + 10.f * U) : 60.f * U + b * (Sw + 10.f * U), Sy = H - 70.f * U;
-			GkRect(Cv, Sx, Sy, Sw, 16.f * U, Ash); if (i) { GkRect(Cv, Sx + Sw * (1.f - Part), Sy, Sw * Part, 16.f * U, Part >= 1.f ? Gold : Tint[i]); } else { GkRect(Cv, Sx, Sy, Sw * Part, 16.f * U, Part >= 1.f ? Gold : Tint[i]); }
+			GkRect(Cv, Sx, Sy, Sw, 16.f * U, Ash); if (i) { GkRect(Cv, Sx + Sw * (1.f - Part), Sy, Sw * Part, 16.f * U, Part >= 1.f && !bForestLook ? Gold : Tint[i]); } else { GkRect(Cv, Sx, Sy, Sw * Part, 16.f * U, Part >= 1.f && !bForestLook ? Gold : Tint[i]); }
 		}
-		GkText(Cv, FString::Printf(TEXT("SUPER %d"), P.sa / 1000), i ? W - 180.f * U : 60.f * U, H - 104.f * U, 18.f * U, P.sa >= 1000 ? Gold : Bone);
+		GkText(Cv, (bForestLook ? FString::FromInt(P.sa / 1000) : FString::Printf(TEXT("SUPER %d"), P.sa / 1000)), i ? W - 180.f * U : 60.f * U, H - 111.f * U, (bForestLook ? 32.f : 18.f) * U, bForestLook ? Tint[i] : P.sa >= 1000 ? Gold : Bone);
 		const float Cx = i ? W - 240.f * U : 240.f * U;
 		if (ComboTimer[i] > 0 && Combo[i] >= 2) { GkText(Cv, FString::Printf(TEXT("%d HITS"), Combo[i]), Cx, 300.f * U, 54.f * U, Bone, true, 3); GkText(Cv, FString::Printf(TEXT("%d"), ComboDmg[i]), Cx, 372.f * U, 26.f * U, Tint[i], true); }
 		if (NoteTimer[i] > 0) { GkText(Cv, Note[i], Cx, 420.f * U, 28.f * U, GkFade(Gold, NoteTimer[i] / 12.f), true); }
 	}
-	GkRect(Cv, Mid - 56.f * U, Top - 22.f * U, 112.f * U, 76.f * U, Ink);
+	if (bForestLook) { GkHudPanel(Cv, Mid - 66.f * U, Top - 22.f * U, 132.f * U, 76.f * U, 20.f * U, Ink); }
+	else { GkRect(Cv, Mid - 56.f * U, Top - 22.f * U, 112.f * U, 76.f * U, Ink); }
 	GkText(Cv, FString::Printf(TEXT("%02d"), FMath::Clamp((S.time + 59) / 60, 0, 99)), Mid, Top - 20.f * U, 50.f * U, Bone, true);
 	GkText(Cv, ModeName[FMath::Clamp(Mode, 0, 2)], Mid, Top + 60.f * U, 16.f * U, Gold, true);
 
@@ -202,7 +257,8 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 		GkText(Cv, S.winner == 0 || S.winner == 1 ? Names[S.winner] + TEXT(" WINS") : FString(TEXT("DRAW GAME")), Mid, H * 0.36f + 14.f * U, 76.f * U, Bone, true, 4);
 		if (OverTimer > 50) { GkText(Cv, TEXT("press any attack button for the next match"), Mid, H * 0.36f + 112.f * U, 20.f * U, Bone, true); }
 	}
-	// what the controls are sending right now: the way to check a stick
+	// Keep the input readout available in training.
+	if (!bForestLook || Mode == 1)
 	{
 		static const TCHAR* Lab[] = { TEXT("L"), TEXT("M"), TEXT("H"), TEXT("SP"), TEXT("AS"), TEXT("PA"), TEXT("DI"), TEXT("HM") };
 		static const int32 Bit[] = { gk::IN_LT, gk::IN_MD, gk::IN_HV, gk::IN_SP, gk::IN_AS, gk::IN_PA, gk::IN_DI, gk::IN_HM };
@@ -224,7 +280,7 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 		if (Adv > -900) { GkText(Cv, FString::Printf(TEXT("FRAME ADVANTAGE  %+d"), Adv), Mid, Top + 120.f * U, 22.f * U, Adv >= 0 ? Jade : FLinearColor(1.f, 0.55f, 0.5f, 1.f), true); }
 		GkText(Cv, FString::Printf(TEXT("DUMMY  %s"), DummyName[FMath::Clamp(Dummy, 0, 4)]), W - 300.f * U, 240.f * U, 17.f * U, Bone);
 	}
-	GkText(Cv, FString::Printf(TEXT("%d fps"), FMath::RoundToInt(1000.f / FMath::Max(1.f, FrameMs))), W - 90.f * U, 8.f * U, 15.f * U, FrameMs < 18.f ? Jade : Gold);
+	if (!bForestLook || Mode == 1) { GkText(Cv, FString::Printf(TEXT("%d fps"), FMath::RoundToInt(1000.f / FMath::Max(1.f, FrameMs))), W - 90.f * U, 8.f * U, 15.f * U, FrameMs < 18.f ? Jade : Gold); }
 	if (Mode == 1 || bMenu) { GkText(Cv, TEXT("TAB / START  menu      R / SELECT  restart      B  boxes"), Mid, H - 28.f * U, 13.f * U, GkFade(Bone, 0.7f), true); }
 	// exactly what is arriving from the stick, so a controller that is seen but not heard can be told apart from one that is mapped wrongly
 	if (Pads && Mode == 1 && bBoxes) { GkText(Cv, FString::Printf(TEXT("%s   buttons %08x  dirs %d"), *Pads->Debug(), PadNow, PadDirs), Mid, H - 48.f * U, 12.f * U, Gold, true); }

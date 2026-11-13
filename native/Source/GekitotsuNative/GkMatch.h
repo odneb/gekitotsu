@@ -127,6 +127,7 @@ public:
 	int32 PaletteOverride = INDEX_NONE;
 	float PaletteWeights[6] = { 1.f };
 	UPROPERTY() TObjectPtr<UMaterialInterface> ForestCel;
+	UPROPERTY() TObjectPtr<UMaterialInterface> ForestFighterCel;
 	TWeakObjectPtr<class UDirectionalLightComponent> ForestSun;
 	TWeakObjectPtr<class UExponentialHeightFogComponent> ForestFog;
 	FRotator ForestSunRotation;

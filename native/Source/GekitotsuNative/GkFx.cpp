@@ -24,7 +24,7 @@ void FGkFx::Init(AActor* Owner, USceneComponent* Root)
 FGkFx::FP& FGkFx::Add(int32 Layer, const FVector& Pos, const FVector& Vel, float Life, float Size0, float Size1, const FLinearColor& Col, float Alpha)
 {
 	if (Ps.Num() >= Pool * 2 - 4) { Ps.RemoveAt(0, 16, EAllowShrinking::No); }
-	FP& P = Ps.AddDefaulted_GetRef(); P.Pos = Pos; P.Vel = Vel; P.Age = 0.f; P.Life = Life; P.Size0 = Size0; P.Size1 = Size1; P.Stretch = 1.f; P.Grav = 0.f; P.Drag = 0.f; P.Alpha = Alpha; P.Col = Col; P.Layer = Layer; P.bSwell = false; P.bCanyonHaze = false;
+	FP& P = Ps.AddDefaulted_GetRef(); P.Pos = Pos; P.Vel = Vel; P.Streak = FVector::ZeroVector; P.Age = 0.f; P.Life = Life; P.Size0 = Size0; P.Size1 = Size1; P.Stretch = 1.f; P.Grav = 0.f; P.Drag = 0.f; P.Alpha = Alpha; P.Col = Col; P.Layer = Layer; P.bSwell = false; P.bCanyonHaze = false;
 	return P;
 }
 
@@ -45,7 +45,13 @@ void FGkFx::Tick(float Dt)
 		const float t = P.Life > 0.f ? P.Age / P.Life : 0.f, Size = FMath::Lerp(P.Size0, P.Size1, t);
 		const float Fade = P.Life <= 0.f ? 1.f : P.bSwell ? FMath::Sin(t * PI) : (1.f - t) * (1.f - t);
 		FQuat Q = Face; FVector Sc(Size / 100.f, Size / 100.f, 1.f);
-		if (P.Stretch > 1.f)
+		if (!P.Streak.IsNearlyZero())
+		{
+			Q = FRotationMatrix::MakeFromXY(FVector::ForwardVector, P.Streak).ToQuat() *
+				FQuat(FVector(0, 1, 0), HALF_PI);
+			Sc.Y = P.Streak.Size() / 100.0;
+		}
+		else if (P.Stretch > 1.f)
 		{
 			const double Sp = FMath::Sqrt(P.Vel.Y * P.Vel.Y + P.Vel.Z * P.Vel.Z);
 			Q = Turn * FQuat(FVector(1, 0, 0), FMath::Atan2(P.Vel.Z, P.Vel.Y)) * FQuat(FVector(0, 1, 0), HALF_PI); Sc.Y *= 1.f + (P.Stretch - 1.f) * FMath::Clamp(float(Sp) / 600.f, 0.f, 1.5f); Sc.X *= 0.5f;
