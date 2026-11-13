@@ -17,6 +17,7 @@
 #include "Components/AudioComponent.h"
 #include "AudioMixerBlueprintLibrary.h"
 #include "Sound/SoundBase.h"
+#include "Sound/SoundWave.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/DirectionalLightComponent.h"
@@ -1852,6 +1853,10 @@ void AGkMatch::RunScript()
    if(A[1]==TEXT("start"))UAudioMixerBlueprintLibrary::StartRecordingOutput(this,60.f);
    else if(A[1]==TEXT("stop"))UAudioMixerBlueprintLibrary::StopRecordingOutput(this,EAudioRecordingExportType::WavFile,A.IsValidIndex(2)?A[2]:TEXT("FilmAudio"),FPaths::ConvertRelativePathToFull(FPaths::ProjectSavedDir()/TEXT("FilmAudio")));
   }
+  else if(Op==TEXT("audiodump")) {
+   UE_LOG(LogTemp,Display,TEXT("GkAudio playing: music=%d wind=%d gale=%d rain=%d pour=%d; loaded=%d sets/%d songs/%d cues"),
+    Music&&Music->IsPlaying(),WindLoop&&WindLoop->IsPlaying(),GaleLoop&&GaleLoop->IsPlaying(),RainLoop&&RainLoop->IsPlaying(),PourLoop&&PourLoop->IsPlaying(),SndSets.Num(),Songs.Num(),Sfx.Num());
+  }
   else if (Op == TEXT("fogdump")) { DumpFilmFog(); }
 		else if (Op == TEXT("dummy")) { Dummy = Num(1); }
 		else if (Op == TEXT("sky")) { GkSkyForce = A.IsValidIndex(1) ? A[1] : FString(); GkTimeForce = A.IsValidIndex(2) ? FCString::Atod(*A[2]) : -1.0; }
@@ -1966,15 +1971,27 @@ void AGkMatch::LoadVfx()
 	for (const TCHAR* N : { TEXT("NS_Directional_Dust_Jump_01_Once"), TEXT("NS_Directional_Dust_01_Once"), TEXT("NS_Directional_Dust_03_Once_Fast"), TEXT("NS_Directional_Dust_03_Once_Fast_Flip") }) { Sys(D, N); }
 	// the sounds: every take of the old-school shonen pack that was brought in, grouped by its sound ("Melee_06" holds Melee_06_1 to _6)
 	{
-		TArray<FAssetData> Found; FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get().GetAssetsByPath(FName(TEXT("/Game/GkSfx")), Found, false);
+		IAssetRegistry& Registry=FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+        // In an uncooked -game launch, the background registry scan can still be
+        // empty at BeginPlay. Complete these small audio folders before querying.
+        Registry.ScanPathsSynchronous({TEXT("/Game/GkSfx"),TEXT("/Game/GkMusic")});
+        TArray<FAssetData> Found; Registry.GetAssetsByPath(FName(TEXT("/Game/GkSfx")), Found, true);
 		for (const FAssetData& A : Found)
 		{
 			FString Name = A.AssetName.ToString(); int32 Cut = INDEX_NONE; if (!Name.FindLastChar(TEXT('_'), Cut)) { continue; }
-			if (USoundBase* Wv = Cast<USoundBase>(A.GetAsset())) { SndKeep.Add(Wv); SndSets.FindOrAdd(FName(*Name.Left(Cut))).Add(Wv); }
+			if (USoundBase* Wv = Cast<USoundBase>(A.GetAsset())) {
+                if(Name.StartsWith(TEXT("Loop")))if(USoundWave* Wave=Cast<USoundWave>(Wv))Wave->bLooping=true;
+                SndKeep.Add(Wv); SndSets.FindOrAdd(FName(*Name.Left(Cut))).Add(Wv);
+            }
 		}
-		TArray<FAssetData> Tunes; FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get().GetAssetsByPath(FName(TEXT("/Game/GkMusic")), Tunes, false);
+		TArray<FAssetData> Tunes; Registry.GetAssetsByPath(FName(TEXT("/Game/GkMusic")), Tunes, true);
 		for (const FAssetData& A : Tunes) { if (USoundBase* Wv = Cast<USoundBase>(A.GetAsset())) { Songs.Add(Wv); } }
 		UE_LOG(LogTemp, Display, TEXT("GkSfx: %d sounds in %d sets, %d songs"), SndKeep.Num(), SndSets.Num(), Songs.Num());
+        if(SndSets.IsEmpty() || Songs.IsEmpty())UE_LOG(LogTemp,Error,TEXT("GkAudio: required music/SFX are missing; check Content/GkMusic and Content/GkSfx"));
+        for(const TCHAR* Name:{TEXT("SFX_Vefects_Block_01_Cue"),TEXT("SFX_Vefects_Directional_Dust_01_Cue"),TEXT("SFX_Vefects_Jump_Dust_01_Cue")}) {
+            const FString Path=FString::Printf(TEXT("/Game/Vefects/Combat_Flipbook_VFX/Audio/WAV/Fer/One_Shot/%s.%s"),Name,Name);
+            if(USoundBase* Sound=LoadObject<USoundBase>(nullptr,*Path))Sfx.Add(FName(Name),Sound);
+        }
 	}
 	// the Special Moves kit's own energy effects: its shot, its beam, its auras
 	for (const TCHAR* N : { TEXT("NS_Beam"), TEXT("NS_EnergyShot"), TEXT("NS_Aura"), TEXT("NS_Aura2"), TEXT("NS_HandAura"), TEXT("NS_Hit"), TEXT("NS_Ground_ShockWave"), TEXT("NS_Thunder") }) { Sys(TEXT("/Game/SpecialMoves_Energy/Demo/VFX/Niagara/"), N); }
@@ -2092,22 +2109,23 @@ void AGkMatch::Present(float Real)
 			auto Loop = [this](TObjectPtr<UAudioComponent>& C, const TCHAR* Set, float Vol)
 			{
 				if (Vol > 0.01f && !C) { if (const TArray<USoundBase*>* T = SndSets.Find(FName(Set))) { if (T->Num()) { C = UGameplayStatics::SpawnSound2D(this, (*T)[0], Vol, 1.f, 0.f, nullptr, false, false); } } }
-				if (C) { if (Vol <= 0.01f) { C->Stop(); C = nullptr; } else { C->SetVolumeMultiplier(Vol); } }
+				if (C) { if (Vol <= 0.01f) { C->Stop(); C->DestroyComponent(); C = nullptr; } else { C->SetVolumeMultiplier(Vol); if(!C->IsPlaying())C->Play(); } }
 			};
 			// outdoors: a thin wind always, a rising gale and rain that goes from light to a downpour as the storm builds; the training room hears rain on its roof
-			const bool bOut = Place != 0 && !bScript; const float Duck = Screen == 3 ? 1.f : 0.6f;
+			const bool bFullAudio=!bScript || FParse::Param(FCommandLine::Get(),TEXT("gkfullaudio"));
+            const bool bOut = Place != 0 && bFullAudio; const float Duck = Screen == 3 ? 1.f : 0.6f;
 			Loop(WindLoop, TEXT("LoopWindLight_01"), bOut ? 0.6f * (1.f - 0.6f * Storm) * Duck : 0.f);
 			Loop(GaleLoop, TEXT("LoopWindHeavy_01"), bOut ? FMath::Clamp((Storm - 0.2f) * 0.2f, 0.f, 0.13f) * Duck : 0.f);
 			Loop(RainLoop, TEXT("LoopRainLight_01"), bOut ? FMath::Clamp((Storm - 0.3f) * 3.f, 0.f, 1.f) * FMath::Clamp(1.5f - Storm * 1.2f, 0.25f, 1.f) * 0.45f * Duck : 0.f);
 			Loop(PourLoop, TEXT("LoopRainHeavy_01"), bOut ? FMath::Clamp((Storm - 0.55f) * 0.5f, 0.f, 0.17f) * Duck : 0.f);
-			Loop(RoomLoop, TEXT("LoopRainInside_01"), (Place == 0 && !bScript) ? 0.5f : 0.f);
+			Loop(RoomLoop, TEXT("LoopRainInside_01"), (Place == 0 && bFullAudio) ? 0.5f : 0.f);
 			// the songs play one after another in a random order for as long as the game is open, a little lower under a fight
-			if (!bScript && Songs.Num() > 0)
+			if (bFullAudio && Songs.Num() > 0)
 			{
 				if (!Music || !Music->IsPlaying())
 				{
 					int32 Next = Fx.Rng.RandRange(0, Songs.Num() - 1); if (Songs.Num() > 1 && Next == LastSong) { Next = (Next + 1 + Fx.Rng.RandRange(0, Songs.Num() - 2)) % Songs.Num(); }
-					LastSong = Next; SongGain = Songs[Next]->GetName().Contains(TEXT("Song2")) ? 1.28f : Songs[Next]->GetName().Contains(TEXT("Song6")) ? 0.96f : 1.f; if (Music) { Music->Stop(); } Music = UGameplayStatics::SpawnSound2D(this, Songs[Next], 0.5f, 1.f, 0.f, nullptr, false, false);
+					LastSong = Next; SongGain = Songs[Next]->GetName().Contains(TEXT("Song2")) ? 1.28f : Songs[Next]->GetName().Contains(TEXT("Song6")) ? 0.96f : 1.f; if (Music) { Music->Stop(); Music->DestroyComponent(); } Music = UGameplayStatics::SpawnSound2D(this, Songs[Next], 0.5f, 1.f, 0.f, nullptr, false, false);
 				}
 				if (Music) {
                     const bool bSpeaking=(Announcer&&Announcer->IsPlaying()) || (FighterVoices[0]&&FighterVoices[0]->IsPlaying()) || (FighterVoices[1]&&FighterVoices[1]->IsPlaying());

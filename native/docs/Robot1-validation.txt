@@ -80,3 +80,9 @@ The separate WAV is the native audio mix from a real-time combat test.
 No generated scene image, repaint or web view is substituted for gameplay.
 The generated bitmap is only a landscape base-colour asset; its full prompt
 and provenance accompany the source asset.
+
+AUDIO FOLLOW-UP
+The initial live build loaded no music/SFX because asset discovery was not
+finished at startup. This has been repaired and verified with full-mix native
+recordings. See Audio-validation.txt (repository) or Audio repair and testing.txt
+(delivery) for the follow-up results.

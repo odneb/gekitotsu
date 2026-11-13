@@ -1,0 +1,25 @@
+AUDIO STARTUP REPAIR — 2026-11-13
+
+The earlier live build logged zero SFX and zero songs. Its one-time asset
+registry query ran before discovery completed. Directly loaded Male 6 and
+announcer voices worked, masking the missing music/effects in voice-only tests.
+
+The repair synchronously scans only the two audio folders before loading them,
+loads the three referenced Vefects sound cues, enables ambience looping and
+releases stopped audio components. Voice assets are included in the packaging
+asset list; a packaged Shipping build remains unverified.
+
+Native UE 5.8.4 Mac build: succeeded (work/audio-build01.log).
+Native full-mix test: work/audio-acceptance01.log; normal exit.
+Loaded: 530 SFX, 75 sets, six music tracks, three cues, 29 voice takes.
+Daylight: music and wind playing.
+Storm: music, wind, gale, rain and downpour playing, including after forced GC.
+Return to daylight: rain/gale/downpour stop; music and wind continue.
+Native recordings: music/ambience 5.61 s, peak -13.6 dBFS;
+full combat mix 17.19 s, peak -1.5 dBFS, no clipped peak in this sample.
+Hardware listening and subjective mix balance still depend on playback setup.
+
+Reproduce: copy native/tools/scripts/audio_acceptance.txt to Saved/script.txt;
+launch the native game with -gkscript -gkfullaudio, sound enabled.
+Earlier scripted captures intentionally omitted the music/ambience bed;
+-gkfullaudio now allows full-mix regression checks.

@@ -1,0 +1,24 @@
+# Run native -game -gkscript -gkfullaudio, with sound enabled.
+fight|0
+hud|1
+palette|0
+wait|240
+audiodump
+audio|start
+wait|360
+audio|stop|Robot1-Music-Ambience
+audiodump
+palette|2
+wait|240
+audio|start
+match|2
+run|900|-1|0
+audio|stop|Robot1-Full-Mix
+audiodump
+exec|obj gc
+wait|120
+audiodump
+palette|0
+wait|240
+audiodump
+quit
