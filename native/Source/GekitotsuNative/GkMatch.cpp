@@ -157,7 +157,7 @@ void AGkMatch::BeginPlay()
 		if (Is == INDEX_NONE) { for (int32 k = Stages.Num() - 1; k >= 0; k--) { if (Stages[k].Map == Here && (Stages[k].Kind != 0 || Is == INDEX_NONE)) { Is = k; } } }
 		if (Is == INDEX_NONE) { Is = 1; Kind = Here == TEXT("/Engine/Maps/Entry") ? 1 : 2; } else { Kind = Stages[Is].Kind; }
 		Setup.Stage = Is; StageAt = Is; Mode = Setup.Mode; Level = Setup.Level; Dummy = Setup.Dummy;
-		Screen = Setup.bGo ? 3 : 0; Setup.bGo = false; bMenu = false; Anchor = GetActorTransform(); bPlaced = Kind != 2;
+		Screen = Setup.bGo ? 3 : 5; PaletteOverride=Setup.Palette; Setup.bGo = false; bMenu = false; Anchor = GetActorTransform(); bPlaced = Kind != 2;
 		if (FParse::Param(FCommandLine::Get(), TEXT("gkfight"))) { Screen = 3; }
 		if (FParse::Param(FCommandLine::Get(), TEXT("gkscript")) || GkFlyOn())
 		{
@@ -287,6 +287,8 @@ void AGkMatch::BeginPlay()
 		Anim[i] = A;
 	}
 	LoadClips(); LoadVfx(); LoadVoices();
+ FilmProjectileMaterial=LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/GkFx/M_GkFilmProjectile.M_GkFilmProjectile"));
+ for(int32 k=0;k<4;++k)DrawFireball(k,false);
 	for (int32 i = 0; i < 2; i++) { DressFighter(i); if(bForestLook){Beam(FVector::ZeroVector,1.f,8.f,1.f,FLinearColor::White,i);FilmBeamLife[i]=0;if(FilmBeam[i])FilmBeam[i]->SetVisibility(false);EnergyOrb(i,1.f);if(FilmOrb[i])FilmOrb[i]->SetVisibility(false);if(FilmEnergyLight[i])FilmEnergyLight[i]->SetVisibility(false);} }
 	if (W)
 	{
@@ -603,7 +605,7 @@ void AGkMatch::LabOpen()
 void AGkMatch::LabClose()
 {
 	if (APlayerController* PC = GetWorld()->GetFirstPlayerController()) { PC->bShowMouseCursor = false; PC->SetInputMode(FInputModeGameOnly()); }
-	bLabDrop = false; LabTryAt = -2; Screen = 0; MenuAt = 6; Restart();
+	bLabDrop = false; LabTryAt = -2; Screen = 3; bMenu=true; bDebugMenu=true; MenuAt=9; Restart();
 }
 
 /** Puts a clip (or none: the hand pose) on the chosen move, and saves. */
@@ -843,6 +845,8 @@ void AGkMatch::Restart()
 	gk::newMatch(S, Mode == 1 && Screen == 3, 2); gk::aiMake(Cpu[0], Level); gk::aiMake(Cpu[1], Level);
 	OverTimer = 0; CallHold = 0; Hist.Reset(); LastIn = -1; Adv = -999; bExchange = false; Sparks.Reset();
 	for (int32 i = 0; i < 2; i++) { Combo[i] = 0; ComboTimer[i] = 0; NoteTimer[i] = 0; ActFrame[i] = 0; bWasIdle[i] = true; }
+ // newMatch emits the first round cue before the first simulation step clears it.
+ if(Screen==3 && !bMenu && bPlaced)for(int32 Event=0;Event<S.nev;++Event)OnEvent(S.ev[Event]);
 }
 void AGkMatch::CamKick(float Roll, float Zm, float Fov, float Yaw)
 {
@@ -920,15 +924,15 @@ int32 AGkMatch::DummyInput()
 void AGkMatch::MenuInput()
 {
 	UWorld* W = GetWorld(); APlayerController* PC = W ? W->GetFirstPlayerController() : nullptr; if (!PC) { return; }
-	auto Hit = [PC](const FKey& Key) { return PC->WasInputKeyJustPressed(Key); };
-	const uint32 Fresh = PadNow & ~PadPrev; const int32 FreshDir = PadDirs & ~PadDirPrev;
+	auto Hit = [this,PC](const FKey& Key) { return ScriptMenuKey.IsValid()?Key==ScriptMenuKey:PC->WasInputKeyJustPressed(Key); };
+	const uint32 Fresh = ScriptMenuKey.IsValid()?0:PadNow & ~PadPrev; const int32 FreshDir = ScriptMenuKey.IsValid()?0:PadDirs & ~PadDirPrev;
 	auto Raw = [this, Fresh](int32 Action) { return PadBind[Action] >= 0 && PadBind[Action] < 32 && ((Fresh >> PadBind[Action]) & 1u) != 0; };
-	const bool bStart = ((Fresh >> 9) & 1u) != 0, bSelect = ((Fresh >> 8) & 1u) != 0;
+	const bool bStart = ((Fresh >> 9) & 1u) != 0 || Hit(EKeys::Gamepad_Special_Right), bSelect = ((Fresh >> 8) & 1u) != 0;
 	const bool bToggle = Hit(EKeys::Tab) || Hit(EKeys::Gamepad_Special_Right) || (bStart && MenuPage == 0);
 	if (MenuPage == 1)
 	{
 		// the next button pressed becomes the action being asked for
-		if (Hit(EKeys::Tab) || Hit(EKeys::Escape)) { MenuPage = 0; LoadBinds(); return; }
+		if (Hit(EKeys::Tab) || Hit(EKeys::Escape)) { MenuSound(2); MenuPage = 0; LoadBinds(); return; }
 		bool bGot = false;
 		if (PadCount > 0) { for (int32 b = 0; b < 32 && !bGot; b++) { if ((Fresh >> b) & 1u) { PadBind[BindAt] = b; bGot = true; } } }
 		else
@@ -937,6 +941,7 @@ void AGkMatch::MenuInput()
 				EKeys::Gamepad_LeftTrigger, EKeys::Gamepad_RightTrigger, EKeys::Gamepad_LeftThumbstick, EKeys::Gamepad_RightThumbstick };
 			for (const FKey& Key : Pad) { if (Hit(Key)) { Bind[BindAt] = Key; bGot = true; break; } }
 		}
+		if(bGot)MenuSound(1);
 		if (bGot && ++BindAt >= 8) { BindAt = 0; MenuPage = 0; SaveBinds(); }
 		return;
 	}
@@ -944,16 +949,32 @@ void AGkMatch::MenuInput()
 	{
 		if (Hit(EKeys::R) || Hit(EKeys::Gamepad_Special_Left) || bSelect) { Restart(); }
 		if (Hit(EKeys::B)) { bBoxes = !bBoxes; }
-		if (bToggle) { bMenu = true; MenuAt = 0; MenuPage = 0; }
+		if (bToggle || Hit(EKeys::Escape)) { MenuSound(2); bDebugMenu=Hit(EKeys::Tab); bMenu = true; MenuAt = 0; MenuPage = 0; }
 		return;
 	}
 	const bool bUp = Hit(EKeys::W) || Hit(EKeys::Up) || Hit(EKeys::Gamepad_DPad_Up) || (FreshDir & gk::IN_U), bDown = Hit(EKeys::S) || Hit(EKeys::Down) || Hit(EKeys::Gamepad_DPad_Down) || (FreshDir & gk::IN_D);
 	const bool bNext = Hit(EKeys::D) || Hit(EKeys::Right) || Hit(EKeys::Gamepad_DPad_Right) || (FreshDir & gk::IN_R), bPrev = Hit(EKeys::A) || Hit(EKeys::Left) || Hit(EKeys::Gamepad_DPad_Left) || (FreshDir & gk::IN_L);
 	const bool bOk = Hit(EKeys::Enter) || Hit(EKeys::J) || Hit(EKeys::Gamepad_FaceButton_Bottom) || Raw(0) || Raw(1) || (bStart && Screen != 3);
 	const bool bBack = Hit(EKeys::Escape) || Hit(EKeys::BackSpace) || Hit(EKeys::L) || Hit(EKeys::Gamepad_FaceButton_Right) || Raw(2);
+	if (bOk) MenuSound(1); else if(bBack || bToggle) MenuSound(2); else if(bUp || bDown || bNext || bPrev) MenuSound(0);
 	const int32 Way = bPrev ? -1 : ((bNext || bOk) ? 1 : 0);
 	auto Move = [&](int32 Count) { if (bUp) { MenuAt = (MenuAt + Count - 1) % Count; } if (bDown) { MenuAt = (MenuAt + 1) % Count; } };
-	if (Screen == 4)
+	if(Screen==5) {if(bOk || Hit(EKeys::SpaceBar)){Screen=0;MenuAt=0;}return;}
+ if(Screen==7)return;
+ if(Screen==6) {
+  Move(4);
+  if(bOk){if(MenuAt==0){Screen=7;}else if(MenuAt==1){Screen=1;SelWho=0;}else if(MenuAt==2){Screen=0;MenuAt=0;}else UKismetSystemLibrary::QuitGame(this,PC,EQuitPreference::Quit,false);}
+  return;
+ }
+ if(MenuPage==3){if(bBack||bOk){MenuPage=0;MenuAt=0;}return;}
+ if(MenuPage==2) {
+  Move(6);
+  float* Values[]={&MusicGain,&EffectsGain,&VoiceGain,&ShakeGain,&FlashGain};
+  if(MenuAt<5 && Way!=0) { *Values[MenuAt]=FMath::Clamp(*Values[MenuAt]+Way*.1f,0.f,1.f); SavePresentation(); }
+  if(bBack || (MenuAt==5 && bOk)) { MenuPage=0; MenuAt=0; }
+  return;
+ }
+ if (Screen == 4)
 	{   // the animation lab: the pointer does everything, and so do the keys (arrows, ENTER, TAB for the next page, ESC back)
 		TArray<int32> Show; if (bLabDrop) { for (int32 k = 0; k < LabList.Num(); k++) { if (LabList[k].Cat == LabDropCat) { Show.Add(k); } } }
 		const bool bDownNow = PC->IsInputKeyDown(EKeys::LeftMouseButton), bClick = Hit(EKeys::LeftMouseButton) || (bDownNow && !bLabMouse); bLabMouse = bDownNow;
@@ -988,29 +1009,49 @@ void AGkMatch::MenuInput()
 	}
 	if (Screen == 0)
 	{   // the front menu: VERSUS CPU, TRAINING, WATCH, CPU LEVEL, SET UP BUTTONS, QUIT
-		Move(7);
-		if (MenuAt == 6 && bOk) { LabOpen(); return; }
+		if(bBack){Screen=5;return;}
+		Move(8);
+		if(MenuAt==6 && bOk) {MenuPage=2;MenuAt=0;return;}
+		if (MenuAt == 5 && bOk) { MenuPage=3; return; }
 		if (MenuAt <= 2 && bOk) { Mode = MenuAt; Setup.Mode = Mode; SelWho = 0; Screen = 1; MenuAt = 0; }
 		else if (MenuAt == 3 && Way != 0) { Level = 1 + (Level - 1 + Way + 3) % 3; Setup.Level = Level; gk::aiMake(Cpu[0], Level); gk::aiMake(Cpu[1], Level); }
 		else if (MenuAt == 4 && bOk) { MenuPage = 1; BindAt = 0; }
-		else if (MenuAt == 5 && bOk) { UKismetSystemLibrary::QuitGame(this, PC, EQuitPreference::Quit, false); }
+		else if (MenuAt == 7 && bOk) { UKismetSystemLibrary::QuitGame(this, PC, EQuitPreference::Quit, false); }
 	}
 	else if (Screen == 1)
 	{   // choosing fighters: player one, then the other side
 		Setup.Char[0] = Setup.Char[1] = 2;
-		if (bOk) { if (SelWho == 0) { SelWho = 1; } else { Screen = 2; StageAt = Mode == 1 ? 0 : FMath::Max(1, Setup.Stage); } }
+  if(bNext || bPrev)Setup.Costume[SelWho]=(Setup.Costume[SelWho]+(bNext?1:7))%8;
+  if(bOk)FighterVoice(SelWho,TEXT("R6_Intro"),3);
+		if (bOk) { if (SelWho == 0) { SelWho = 1; } else { Screen = 2; StageAt = Setup.Stage; MenuPalette=0; } }
 		else if (bBack) { if (SelWho == 1) { SelWho = 0; } else { Screen = 0; MenuAt = Mode; } }
 	}
 	else if (Screen == 2)
 	{
-		const int32 N = Stages.Num();
-		if (bUp || bPrev) { StageAt = (StageAt + N - 1) % N; } if (bDown || bNext) { StageAt = (StageAt + 1) % N; }
-		if (bOk) { StartStage(StageAt); } else if (bBack) { Screen = 1; SelWho = 1; }
+  for(int32 k=0;k<Stages.Num();++k)if(Stages[k].Get(TEXT("look"))==TEXT("anime-forest"))StageAt=k;
+  if(bUp||bPrev)MenuPalette=(MenuPalette+6)%7;if(bDown||bNext)MenuPalette=(MenuPalette+1)%7;
+  PaletteOverride=MenuPalette==0?0:MenuPalette-1;
+  if(bOk){Setup.Palette=MenuPalette==0?-1:MenuPalette-1;PaletteOverride=Setup.Palette;Screen=7;}
+  else if(bBack){Screen=1;SelWho=1;PaletteOverride=Setup.Palette;}
+
 	}
 	else
 	{   // the pause menu: RESUME, RESTART MATCH, CHARACTER SELECT, STAGE SELECT, MAIN MENU, TRAINING DUMMY, HIT BOXES, SET UP BUTTONS
 		if (bToggle || bBack) { bMenu = false; return; }
-		Move(8);
+		if(!bDebugMenu){
+   Move(7);
+   if(bOk)switch(MenuAt){
+    case 0:bMenu=false;break;
+    case 1:bMenu=false;Screen=7;break;
+    case 2:MenuPage=3;break;
+    case 3:MenuPage=2;MenuAt=0;break;
+    case 4:bMenu=false;Screen=1;SelWho=0;break;
+    case 5:bMenu=false;Screen=0;MenuAt=0;break;
+    case 6:UKismetSystemLibrary::QuitGame(this,PC,EQuitPreference::Quit,false);break;
+   }
+   return;
+  }
+  Move(10);
 		switch (MenuAt)
 		{
 			case 0: if (bOk) { bMenu = false; } break;
@@ -1020,7 +1061,9 @@ void AGkMatch::MenuInput()
 			case 4: if (bOk) { bMenu = false; Screen = 0; MenuAt = 0; } break;
 			case 5: if (Way != 0) { Dummy = (Dummy + Way + 5) % 5; Setup.Dummy = Dummy; } break;
 			case 6: if (Way != 0) { bBoxes = !bBoxes; } break;
-			default: if (bOk) { MenuPage = 1; BindAt = 0; } break;
+			case 7: if(bOk) {MenuPage=2;MenuAt=0;} break;
+			case 8: if (bOk) { MenuPage = 1; BindAt = 0; } break;
+   case 9: if(bOk)LabOpen();break;
 		}
 	}
 }
@@ -1057,7 +1100,7 @@ void AGkMatch::Tick(float DeltaSeconds)
 	{
 		Acc -= Step; Steps++; Ticks++;
 		if (Screen == 4) { const int32 Count = LabSlots.IsValidIndex(LabSlot) ? FMath::Max(1, Poses.Length(LabSlots[LabSlot].Slot)) : 1; LabFrame = (LabFrame + 1) % (Count + 25); LabClock += 1.f / 60.f; if (LabNoteTimer > 0) { LabNoteTimer--; } }
-		else if (!bMenu && bPlaced) { StepOnce(); }
+		else if (!bMenu && bPlaced && Screen==3) { StepOnce(); }
 		AnimClock++;
 	}
 	if (Acc > Step) { Acc = 0.0; }
@@ -1083,8 +1126,8 @@ void AGkMatch::StepOnce(int32 Force0, int32 Force1)
 	for (int32 i = 0; i < 2; i++) { if (ComboTimer[i] > 0) { ComboTimer[i]--; } if (NoteTimer[i] > 0) { NoteTimer[i]--; } }
 	for (int32 k = Sparks.Num() - 1; k >= 0; k--) { if (++Sparks[k].Age > 12) { Sparks.RemoveAtSwap(k); } }
 	for (int32 i = 0; i < 2; i++) { if (ImpactT[i] > 0) { ImpactT[i]--; } if (PerfectT[i] > 0) { PerfectT[i]--; } Lean[i] *= 0.84f; Squash[i] *= 0.72f; StateFx(i); }
-	// the match is decided: any attack button, or a few seconds, starts the next
-	if (S.phase == gk::PH_OVER) { if (++OverTimer > 420 || (OverTimer > 50 && Screen == 3 && (Human & 0xFF0))) { Restart(); } } else { OverTimer = 0; }
+	// A decided match stops at results; rematch requires an explicit menu choice.
+	if (S.phase == gk::PH_OVER) { if (++OverTimer > 90 && Screen==3) { Screen=6;MenuAt=0; } } else { OverTimer = 0; }
 }
 
 /** Training: the last inputs with how long each was held, and who recovered first after the last exchange (as the browser shows it). */
@@ -1101,7 +1144,7 @@ void AGkMatch::Track(int32 In)
 void AGkMatch::Snd(const TCHAR* Set, float Volume, float Pitch)
 {
 	if (Screen != 3 || bMenu) { return; }
-	if (const TArray<USoundBase*>* Takes = SndSets.Find(FName(Set))) { if (Takes->Num() > 0) { UGameplayStatics::PlaySound2D(this, (*Takes)[Fx.Rng.RandRange(0, Takes->Num() - 1)], Volume * 0.8f, Pitch * Fx.Rng.FRandRange(0.96f, 1.04f)); } }
+	if (const TArray<USoundBase*>* Takes = SndSets.Find(FName(Set))) { if (Takes->Num() > 0) { UGameplayStatics::PlaySound2D(this, (*Takes)[Fx.Rng.RandRange(0, Takes->Num() - 1)], Volume * EffectsGain * 0.8f, Pitch * Fx.Rng.FRandRange(0.96f, 1.04f)); } }
 }
 
 /** What each thing that happens in the fight sounds like. */
@@ -1156,6 +1199,12 @@ void AGkMatch::EventSound(const gk::Event& E)
 void AGkMatch::OnEvent(const gk::Event& E)
 {
 	EventSound(E); VoiceEvent(E);
+ if(E.type==gk::E_PARRY || E.type==gk::E_PPARRY){
+  const int32 Defender=E.who&1;ParryBeat[Defender]=AnimClock;
+  const bool Low=E.y-S.p[Defender].y<35*gk::F;
+  ParryVariant[Defender]=Low?3:(ParryCount[Defender]++%3);
+  UE_LOG(LogTemp,Display,TEXT("GkParry defender=%d variant=%d perfect=%d"),Defender,ParryVariant[Defender],E.type==gk::E_PPARRY);
+ }
 	const int32 Who = E.who >= 0 ? (E.who & 1) : 0;
 	const FVector Feet = At(S.p[Who].x, S.p[Who].y); const FLinearColor Ki = Who ? FLinearColor(1.5f, 3.5f, 8.f) : FLinearColor(7.f, 3.6f, 0.9f);
 	switch (E.type)
@@ -1205,12 +1254,12 @@ void AGkMatch::OnEvent(const gk::Event& E)
 			const float Dr = float(S.p[Who].face); const FVector Ch = Feet + FVector(-20.0, 0.0, 95.0);
 			CamKick(Dr * 5.f, -0.2f, 16.f, Dr * 5.f); Shake = FMath::Max(Shake, 7.f); Flash = FMath::Max(Flash, 0.45f); Remark(Who, TEXT("DRIVE IMPACT")); ImpactT[Who] = 40;
 			static const FLinearColor Paint[4] = { FLinearColor(9.f, 0.6f, 5.f), FLinearColor(0.5f, 6.f, 8.f), FLinearColor(9.f, 6.f, 0.5f), FLinearColor(4.f, 0.8f, 9.f) };
-			for (int32 k = 0; k < 28; k++)
+			for (int32 k = 0; k < (bForestLook?12:28); k++)
 			{
 				const float A = Fx.Rng.FRandRange(-1.2f, 1.2f), Sp = Fx.Rng.FRandRange(700.f, 1900.f);
-				FGkFx::FP& St = Fx.Add(0, Ch, FVector(0.0, -Dr * FMath::Cos(A) * Sp, FMath::Sin(A) * Sp), Fx.Rng.FRandRange(0.25f, 0.5f), Fx.Rng.FRandRange(14.f, 30.f), 4.f, Paint[k & 3]); St.Stretch = 10.f; St.Drag = 3.f;
+				FGkFx::FP& St = Fx.Add(0, Ch, FVector(0.0, -Dr * FMath::Cos(A) * Sp, FMath::Sin(A) * Sp), Fx.Rng.FRandRange(0.25f, 0.5f), Fx.Rng.FRandRange(bForestLook?5.f:14.f,bForestLook?12.f:30.f), 2.f, bForestLook?Paint[k&1]*.3f:Paint[k & 3]); St.Stretch = 10.f; St.Drag = 3.f;
 			}
-			Fx.Add(0, Ch, FVector::ZeroVector, 0.3f, 80.f, 520.f, FLinearColor(5.f, 0.5f, 3.5f)); Fx.Aura(Feet, FLinearColor(8.f, 0.8f, 5.f), 1.8f);
+			if(!bForestLook)Fx.Add(0, Ch, FVector::ZeroVector, 0.3f, 80.f, 520.f, FLinearColor(5.f, 0.5f, 3.5f)); else PlayVfx(TEXT("NS_Directional_Dust_01_Once"),FloorPoint(Feet),.5f,Dr,nullptr); Fx.Aura(Feet, FLinearColor(8.f, 0.8f, 5.f), 1.8f);
 			Snd(TEXT("ImpactBurst_01"), 0.9f); Snd(TEXT("WindUp_01"), 0.6f, 1.4f);
 			break;
 		}
@@ -1366,7 +1415,7 @@ void AGkMatch::ShowFighter(int32 i)
 		case gk::AHIT: Clip = TEXT("ahit"); T = 0; Roll = -30.f - FMath::Clamp((700.f - P.vy) / 16.f, 0.f, 80.f); Turn = P.sf * 7.f; break;
 		case gk::KDOWN: Clip = TEXT("kd"); T = 0; break;
 		case gk::GETUP_: Clip = TEXT("getup"); T = P.sf; break;
-		case gk::WIN: Clip = TEXT("win"); T = P.sf; break;
+		case gk::WIN: Clip = TEXT("win"); T = Screen==6?P.sf+int32(PageAge*60.f):P.sf; break;
 		case gk::THROWING:
 			if (P.tk == 0) { if (P.sf < 10) { Clip = TEXT("grab"); T = P.sf; } else if (P.pmT > 0) { Clip = TEXT("bite"); T = 9 - P.pmT; } else { Clip = TEXT("grab"); T = 10; } }
 			else { static const TCHAR* Throws[4] = { TEXT("throw1"), TEXT("throw2"), TEXT("throw3"), TEXT("throw4") }; Clip = Throws[FMath::Clamp(P.tk, 1, 4) - 1]; T = P.tf; }
@@ -1376,7 +1425,8 @@ void AGkMatch::ShowFighter(int32 i)
 		{
 			const gk::Move& M = gk::move(P.mv);
 			if (MoveClip.IsValidIndex(P.mv)) { Clip = MoveClip[P.mv]; T = P.mf; MoveId = P.mv; }
-			// a Slipstream that did not land cleanly loses its shape and tumbles
+			if(M.has_home && P.mf>=M.home[0] && !P.hmE)Roll=FMath::Clamp(35.f-FMath::RadiansToDegrees(FMath::Atan2(float(P.vy),FMath::Abs(float(P.vx))+1.f)),-10.f,75.f);
+   // a Slipstream that did not land cleanly loses its shape and tumbles
 			if (M.has_home && P.mf >= M.home[0] && ((P.contact && !P.fr) || P.hmE)) { Clip = TEXT("ahit"); T = 0; Roll = -60.f - 30.f * FMath::Sin(P.mf * 0.5f); MoveId = -1; }
 			break;
 		}
@@ -1396,7 +1446,13 @@ void AGkMatch::ShowFighter(int32 i)
 		SuperEnd=Hit+1<M.nhits ? (M.hits[Hit].e+M.hits[Hit+1].s)/2 : M.lastAct+18;
 		T=P.mf;
 	}
-	const bool bLeft = !bLab && P.face < 0;
+	if(!bLab && (P.st==gk::PARRY || (P.st==gk::IDLE && PerfectT[i]>0)) && AnimClock-ParryBeat[i]<22){
+  static const TCHAR* Deflections[]={TEXT("parryL"),TEXT("parryR"),TEXT("parryLean"),TEXT("blockC")};
+  Clip=Deflections[ParryVariant[i]];T=FMath::Max(0,AnimClock-ParryBeat[i]);Raw=T;MoveId=-1;
+ }
+ const bool bShowcase = Screen==0 || Screen==1 || Screen==5 || Screen==7;
+ if(bShowcase) { Clip=TEXT("win");T=int32(UiTime*60.f) % 240;MoveId=-1;Roll=Turn=0; }
+ const bool bLeft = !bLab && P.face < 0;
 	FVector Jit = FVector::ZeroVector;
 	if (P.hs > 0 && (P.st == gk::HIT || P.st == gk::AHIT || P.st == gk::BLOCK)) { Jit.Y = ((Ticks & 1) ? 1.0 : -1.0) * FMath::Min(4.0, P.hs * 0.6); }
 	// The skeleton faces its own +Y, which is the rules' "right"; the camera looks along +X. Facing left he is the mirrored
@@ -1434,7 +1490,17 @@ void AGkMatch::ShowFighter(int32 i)
 		const float Len = Use->Anim->GetPlayLength(), A0 = Use->From * Len, A1 = FMath::Max(Use->To * Len, A0 + 0.01f); float Sec = A0; const int32 Count = FMath::Max(2, Poses.Length(Clip));
 		const FString Cn = Clip.ToString();
 		if (bTry || (bLab && (!bScript || bLabUi) && (Use->bLoop || Poses.Length(Clip) <= 2))) { const float Span = A1 - A0; Sec = A0 + FMath::Min(Span, FMath::Fmod(LabClock, Span + 0.4f)); }
-		else if (Use->bLoop) { const float Span = FMath::Max(0.05f, A1 - A0); Sec = A0 + FMath::Fmod((bLab ? LabFrame * 4 : S.frame + i * 17) / 60.f, Span); }
+		else if(Cn==TEXT("crouch") || Cn==TEXT("blockC")) {
+   float* Low=CrouchSample.Find(Use->Anim);
+   if(!Low){float MinZ=1e9f,BestSec=Len*.5f;TArray<FTransform> Sample;
+    for(int32 k=0;k<=30;++k){float AtSec=Len*k/30.f;EvalClip(i,Use->Anim,AtSec,Sample);if(Sample.IsValidIndex(KeyBone[i][0]) && Sample[KeyBone[i][0]].GetTranslation().Z<MinZ){MinZ=Sample[KeyBone[i][0]].GetTranslation().Z;BestSec=AtSec;}}
+    CrouchSample.Add(Use->Anim,BestSec);Low=CrouchSample.Find(Use->Anim);
+   }
+   Sec=FMath::Lerp(A0,*Low,FMath::Clamp(float(Raw)/5.f,0.f,1.f));if(Cn==TEXT("blockC"))Sec=*Low;
+  }
+  else if(Cn.StartsWith(TEXT("parry")) && Cn!=TEXT("parry")) {Sec=FMath::Lerp(A0,A1,FMath::Clamp(.20f+float(T)/30.f,0.f,1.f));}
+  else if(Cn==TEXT("win")) {float Show=FMath::SmoothStep(0.f,55.f,float(T));if(bShowcase)Show*=1.f-FMath::SmoothStep(180.f,235.f,float(T));Sec=FMath::Lerp(A0,A1,Show);}
+		else if (Use->bLoop) { const float Span = FMath::Max(0.05f, A1 - A0); Sec = A0 + FMath::Fmod((bLab ? LabFrame * 4 : bShowcase ? int32(UiTime*60.f) : S.frame + i * 17) / 60.f, Span); }
 		else if (SuperImpact>=0)
 		{
 			const float Impact=FMath::Clamp(ImpactOf(i,*Use,false)*Len,A0,A1);
@@ -1456,6 +1522,12 @@ void AGkMatch::ShowFighter(int32 i)
 		else { Sec = FMath::Lerp(A0, A1, FMath::Clamp(float(T) / float(Count - 1), 0.f, 1.f)); }
 		if(!bLab && S.freeze>0 && S.frzWho==i && MoveId>=0 && gk::move(MoveId).sup){const auto& M=gk::move(MoveId);const float u=1.f-float(S.freeze)/FMath::Max(1,M.frz);Sec=FMath::Lerp(A0+(A1-A0)*.10f,A0+(A1-A0)*.23f,u);}
 		EvalClip(i, Use->Anim, FMath::Clamp(Sec, 0.f, Len), Tg);
+  if(Clip==TEXT("blockC"))if(const FGkClip* Guard=Clips[2].Find(TEXT("blockS"))) {
+   TArray<FTransform> Upper;EvalClip(i,Guard->Anim,Guard->Anim->GetPlayLength()*.25f,Upper);
+   const int32 Spine=RS.FindBoneIndex(TEXT("spine_01"));
+   for(int32 Bone=0;Bone<N;++Bone){int32 Parent=Bone;while(Parent>=0 && Parent!=Spine)Parent=RS.GetParentIndex(Parent);if(Parent==Spine && Upper.IsValidIndex(Bone))Tg[Bone]=Upper[Bone];}
+  }
+  ApplyPersonality(i,Clip,float(T),Tg);
 		// the rules own where he stands: the hips may shift their weight but not walk off
 		if (KeyBone[i][0] > 0)
 		{
@@ -1507,7 +1579,14 @@ void AGkMatch::ShowFighter(int32 i)
 	// a blow rocks him back on his heels; a landing squashes him for an instant
 	if (!bLab && FMath::Abs(Lean[i]) > 0.3f) { Fq = Fq * FQuat(FVector(1, 0, 0), FMath::DegreesToRadians(Lean[i])); }
 	const float Sq = bLab ? 0.f : Squash[i]; C->SetWorldScale3D(FVector(1.0 + 0.07 * Sq, 1.0 + 0.07 * Sq, 1.0 - 0.12 * Sq));
-	C->SetWorldLocationAndRotation(Wh, Fq);
+	if(bShowcase) {
+  const FVector Spot=At((i?115:-115)*gk::F,0,i?8:-8);
+  Wh=Wd(Spot);if(bForestLook)Wh.Z+=Wd(FloorPoint(Spot)).Z-Wd(Spot).Z;
+  Fq=Anchor.GetRotation()*FRotator(0,i?115:55,0).Quaternion();
+ }
+ if(Screen==6)Fq=Anchor.GetRotation()*FRotator(0,i?115:55,0).Quaternion();
+ C->SetWorldLocationAndRotation(Wh, Fq);
+ C->SetVisibility(Screen!=2 && !((Screen==0 || Screen==5) && i==1));
 	LookFighter(i);
 	Afterimage(i);
 }
@@ -1582,7 +1661,7 @@ void AGkMatch::LookFighter(int32 i)
 	}
 	InkMid[i]->SetVectorParameterValue(TEXT("Outlines Color"), Edge); InkMid[i]->SetScalarParameterValue(TEXT("Outlines_Thickness"), Thick);
 	// the rim: the colour of the lamp behind them, brighter in a storm's flashes and dimmed with the world under a super
-	const bool bRim = Kind != 0 || bLab; const FLinearColor Rim = (bForestLook ? ForestRim : RimCol) * ((bRim ? 1.f : 0.35f) * (1.f + 3.f * FMath::Min(Flash, 1.f)) * (1.f + 0.6f * Storm));
+	const bool bRim = Kind != 0 || bLab; const FLinearColor Rim = (bForestLook ? ForestRim : RimCol) * ((bRim ? 1.f : 0.35f) * (1.f + 3.f * FMath::Min(Flash*FlashGain, 1.f)) * (1.f + 0.6f * Storm));
 	float SceneDir = 0.f; const FLinearColor SceneT = GkSceneTint(GetWorld(), SceneDir); const FLinearColor SceneS = FLinearColor(0.92f, 0.95f, 1.f);
 	for (int32 k = 0; k < 4; k++)
 	{
@@ -1591,11 +1670,11 @@ void AGkMatch::LookFighter(int32 i)
 		{
 			const bool bArmor = k == 0;
 			const FLinearColor Paint = bArmor
-				? (i ? FLinearColor(0.085f, 0.20f, 0.43f) : FLinearColor(0.47f, 0.065f, 0.06f))
-				: FLinearColor(0.65f, 0.65f, 0.59f);
+				? CostumeColor(Setup.Costume[i])
+				: CostumeColor(Setup.Costume[i],true);
 			const FLinearColor Shadow = bArmor
-				? (i ? FLinearColor(0.018f, 0.040f, 0.13f) : FLinearColor(0.13f, 0.018f, 0.031f))
-				: FLinearColor(0.17f, 0.19f, 0.24f);
+				? Paint*FLinearColor(.25f,.28f,.42f)
+				: Paint*FLinearColor(.26f,.29f,.41f);
 			const FVector Key = ForestSun.IsValid() ? -ForestSun->GetForwardVector() : FVector(-0.4, -0.5, 0.75);
 			const FLinearColor Tint = FMath::Lerp(FLinearColor::White, SceneT, 0.38f);
 			BodyMid[i][k]->SetVectorParameterValue(TEXT("Key"), FLinearColor(Key.X, Key.Y, Key.Z));
@@ -1606,7 +1685,7 @@ void AGkMatch::LookFighter(int32 i)
 			continue;
 		}
 		BodyMid[i][k]->SetVectorParameterValue(TEXT("Rimlight Color"), Rim); BodyMid[i][k]->SetScalarParameterValue(TEXT("Rimlight Thickness"), RimTune[0]); BodyMid[i][k]->SetScalarParameterValue(TEXT("Rimlight Opacity"), RimTune[1]); BodyMid[i][k]->SetScalarParameterValue(TEXT("Rim Brightness"), RimTune[2]);
-		BodyMid[i][k]->SetVectorParameterValue(TEXT("Base  color"), FMath::Lerp(BaseCol[i][k] * SceneT, Wash, Amt)); BodyMid[i][k]->SetVectorParameterValue(TEXT("Shadow_Base"), FMath::Lerp(ShadeCol[i][k] * SceneT * SceneS, Wash * 0.55f, Amt));
+		BodyMid[i][k]->SetVectorParameterValue(TEXT("Base  color"), FMath::Lerp(CostumeColor(Setup.Costume[i],k!=0) * SceneT, Wash, Amt)); BodyMid[i][k]->SetVectorParameterValue(TEXT("Shadow_Base"), FMath::Lerp(CostumeColor(Setup.Costume[i],k!=0)*.3f * SceneT * SceneS, Wash * 0.55f, Amt));
 	}
 }
 
@@ -1711,7 +1790,7 @@ void AGkMatch::StateFx(int32 i)
 		}
 		else { StepT[i] = 16; }
 	}
-	if (P.st == gk::PARRY && (Ticks % 3) == 0)
+	if (!bForestLook && P.st == gk::PARRY && (Ticks % 3) == 0)
 	{
 		for (int32 k = 0; k < 8; k++)
 		{
@@ -1728,8 +1807,8 @@ void AGkMatch::StateFx(int32 i)
 	if (M && M->di)
 	{   // all the way through a drive impact he drags bright streaks behind him
 		static const FLinearColor Paint[3] = { FLinearColor(9.f, 0.6f, 5.f), FLinearColor(0.5f, 6.f, 8.f), FLinearColor(9.f, 6.f, 0.5f) };
-		for (int32 k = 0; k < 3; k++) { FGkFx::FP& St = Fx.Add(0, Chest + FVector(0.0, -P.face * 20.0, Fx.Rng.FRandRange(-80.f, 70.f)), FVector(0.0, -P.face * Fx.Rng.FRandRange(500.f, 1100.f), Fx.Rng.FRandRange(-60.f, 60.f)), 0.3f, Fx.Rng.FRandRange(12.f, 24.f), 3.f, Paint[(Ticks + k) % 3]); St.Stretch = 12.f; }
-		Fx.Add(0, Chest, FVector::ZeroVector, 0.1f, 170.f, 210.f, FLinearColor(1.6f, 0.15f, 1.f));
+		for (int32 k = 0; k < 3; k++) { FGkFx::FP& St = Fx.Add(0, Chest + FVector(0.0, -P.face * 20.0, Fx.Rng.FRandRange(-80.f, 70.f)), FVector(0.0, -P.face * Fx.Rng.FRandRange(500.f, 1100.f), Fx.Rng.FRandRange(-60.f, 60.f)), 0.3f, Fx.Rng.FRandRange(bForestLook?4.f:12.f,bForestLook?9.f:24.f), 1.f, Paint[(Ticks + k) % 3]*(bForestLook?.30f:1.f)); St.Stretch = 12.f; }
+		if(!bForestLook)Fx.Add(0, Chest, FVector::ZeroVector, 0.1f, 170.f, 210.f, FLinearColor(1.6f, 0.15f, 1.f));
 	}
 	if (M && (P.mv == gk::moveByKey("SA3") || P.mv == gk::moveByKey("CA") || P.mv == gk::moveByKey("ABEAM")))
 	{   // Maximum Overkill: light gathers between the hands, then the wave runs the length of the stage
@@ -1807,16 +1886,16 @@ float AGkMatch::ImpactOf(int32 i, const FGkClip& C, bool bThrust)
 void AGkMatch::RunScript()
 {
 	const FString Root = FPaths::ProjectSavedDir() / TEXT("shots/");
-	if (ScriptWait > 0) { ScriptWait--; return; }
+	if (ScriptWait > 0) { ScriptWait--; if(Screen!=3)++AnimClock; return; }
 	if (!bPlaced) { return; }
 	// Export actual HUD-on viewport frames at one deterministic simulation step per frame.
  if(ScriptCaptureLeft>0){
-  StepOnce(ScriptIn[0],ScriptIn[1]);++AnimClock;
+  if(Screen==3 && !bMenu)StepOnce(ScriptIn[0],ScriptIn[1]);++AnimClock;
   IFileManager::Get().MakeDirectory(*(Root+ScriptCaptureName),true);
   FScreenshotRequest::RequestScreenshot(Root+ScriptCaptureName+FString::Printf(TEXT("/%04d.png"),ScriptCaptureFrame++),!bNoHud,false);
   --ScriptCaptureLeft;return;
  }
- if (ScriptRunLeft > 0) { ScriptRunLeft--; StepOnce(ScriptIn[0], ScriptIn[1]); AnimClock++; return; }
+ if (ScriptRunLeft > 0) { ScriptRunLeft--; if(Screen==3 && !bMenu)StepOnce(ScriptIn[0], ScriptIn[1]); AnimClock++; return; }
 	while (ScriptAt < Script.Num())
 	{
 		TArray<FString> A; Script[ScriptAt++].ParseIntoArray(A, TEXT("|")); if (A.Num() == 0 || A[0].StartsWith(TEXT("#"))) { continue; }
@@ -1835,9 +1914,19 @@ void AGkMatch::RunScript()
 			ScriptNote = FString::Printf(TEXT("%s  f%d"), *A[1], LabFrame);
 		}
 		else if (Op == TEXT("labui")) { bLabUi = true; LabOpen(); if (Num(1, -1) >= 0) { LabClick(1000 + Num(1)); } if (Num(2, -1) >= 0) { LabHot = 10000 + Num(2); } ScriptNote.Reset(); }
-		else if (Op == TEXT("menu")) { Screen = Num(1); bMenu = Num(2) != 0; MenuAt = Num(3); Mode = 0; ScriptNote.Reset(); }
-		else if (Op == TEXT("fight")) { Screen = 3; bMenu = false; Mode = Num(1, 1); Restart(); for (int32 k = 0; k < 400 && S.phase != gk::PH_FIGHT; k++) { gk::step(S, 0, 0); } ScriptNote.Reset(); CamD.bSnap = true; bBoxes = false; }
-		else if (Op == TEXT("match")) { Screen=3;bMenu=false;Mode=Num(1,0);Restart();ScriptNote.Reset();CamD.bSnap=true;bBoxes=false;for(int32 Ev=0;Ev<S.nev;++Ev)OnEvent(S.ev[Ev]); }
+		else if (Op == TEXT("menu")) { Screen = Num(1); bMenu = Num(2) != 0; MenuAt = Num(3);MenuPage=Num(4);bDebugMenu=Num(5)!=0; Mode = 0; ScriptNote.Reset(); }
+		else if(Op==TEXT("call") && A.IsValidIndex(1)){Say(*A[1],Num(2,100));CallAge=Num(3,12);}
+  else if(Op==TEXT("costume")){Setup.Costume[Num(1)&1]=FMath::Clamp(Num(2),0,7);}
+  else if(Op==TEXT("result")){Screen=6;bMenu=false;MenuPage=0;S.winner=Num(1);S.p[S.winner].st=gk::WIN;S.p[S.winner].sf=50;S.p[1-S.winner].st=gk::KDOWN;}
+  else if(Op==TEXT("nav") && A.IsValidIndex(1)){ScriptMenuKey=FKey(FName(*A[1]));MenuInput();ScriptMenuKey=FKey();}
+  else if(Op==TEXT("assertui")){
+   const bool Good=Screen==Num(1) && int32(bMenu)==Num(2) && MenuPage==Num(3) && int32(bDebugMenu)==Num(4);
+   UE_LOG(LogTemp,Display,TEXT("GkUI %s screen=%d pause=%d page=%d debug=%d"),Good?TEXT("PASS"):TEXT("FAIL"),Screen,int32(bMenu),MenuPage,int32(bDebugMenu));
+   if(!Good){UE_LOG(LogTemp,Error,TEXT("GkUI assertion failed"));FPlatformMisc::RequestExit(false);return;}
+  }
+  else if(Op==TEXT("uisound")){MenuSound(Num(1));}
+  else if (Op == TEXT("fight")) { Screen = 3; bMenu = false; MenuPage=0; Mode = Num(1, 1); Restart(); for (int32 k = 0; k < 400 && S.phase != gk::PH_FIGHT; k++) { gk::step(S, 0, 0); } ScriptNote.Reset(); CamD.bSnap = true; bBoxes = false; }
+		else if (Op == TEXT("match")) { Screen=3;bMenu=false;Mode=Num(1,0);Restart();ScriptNote.Reset();CamD.bSnap=true;bBoxes=false; }
 		else if(Op==TEXT("record") && A.IsValidIndex(2)){
    ScriptCaptureName=FPaths::GetCleanFilename(A[2]);ScriptCaptureFrame=0;ScriptCaptureLeft=FMath::Clamp(Num(1),1,600);
    ScriptIn[0]=Num(3);ScriptIn[1]=Num(4);return;
@@ -1847,7 +1936,7 @@ void AGkMatch::RunScript()
 		else if (Op == TEXT("set"))
 		{
 			gk::Fighter& P = S.p[Num(1) & 1]; const int32 V = Num(3);
-			if (A[2] == TEXT("bo")) { P.bo = V; if (V) { P.dr = 0; } } else if (A[2] == TEXT("hp")) { P.hp = V; } else if (A[2] == TEXT("dr")) { P.dr = V; } else if (A[2] == TEXT("sa")) { P.sa = V; } else if (A[2] == TEXT("y")) { P.y = V * gk::F; } else if (A[2] == TEXT("x")) { P.x = V * gk::F; } else if (A[2] == TEXT("face")) { P.face = V; }
+			if(A[2]==TEXT("wins")){P.wins=FMath::Clamp(V,0,2);}else if (A[2] == TEXT("bo")) { P.bo = V; if (V) { P.dr = 0; } } else if (A[2] == TEXT("hp")) { P.hp = V; } else if (A[2] == TEXT("dr")) { P.dr = V; } else if (A[2] == TEXT("sa")) { P.sa = V; } else if (A[2] == TEXT("y")) { P.y = V * gk::F; } else if (A[2] == TEXT("x")) { P.x = V * gk::F; } else if (A[2] == TEXT("face")) { P.face = V; }
 		}
 		else if(Op==TEXT("audio") && A.IsValidIndex(1)){
    if(A[1]==TEXT("start"))UAudioMixerBlueprintLibrary::StartRecordingOutput(this,60.f);
@@ -1914,8 +2003,12 @@ void AGkMatch::LoadClips()
 	static const FPick Picks[] = {
 		{ "idle", GK_FA "Base/A_Idle_Active", true, 0.00f, 1.00f }, { "walkf", GK_FA "Base/Walk/A_Move_F", true, 0.00f, 1.00f }, { "walkb", GK_FA "Base/Walk/A_Move_B", true, 0.00f, 1.00f },
 		{ "crouch", GK_V4 "Squat_IP", false, 0.00f, 1.00f }, { "jump", GK_V4 "Jump_IP", false, 0.15f, 0.85f }, { "dashf", GK_FA "Base/Dodge/A_Dodge_F", false, 0.00f, 1.00f },
-		{ "dashb", GK_FA "Base/Dodge/A_Dodge_B", false, 0.00f, 1.00f }, { "run", GK_V3 "Run_Fw_IP", true, 0.00f, 1.00f }, { "drush", GK_S2 "Anim_SC_Move_Forward_V2", true, 0.00f, 1.00f },
-		{ "blockS", GK_FA "Block/InPlace/A_BlockHit_F_IP", false, 0.00f, 1.00f }, { "parry", GK_V3 "Block2_IP", true, 0.00f, 1.00f }, { "hitL", GK_FA "Hit/InPlace/A_HitHead_F_IP", false, 0.00f, 1.00f },
+		{ "dashb", GK_FA "Base/Dodge/A_Dodge_B", false, 0.00f, 1.00f }, { "run", GK_FA "Base/Run/A_Run_F", true, 0.00f, 1.00f }, { "win", GK_SP "007_03_Finish_IP", false, 0.00f, 0.24f }, { "drush", GK_S2 "Anim_SC_Move_Forward_V2", true, 0.00f, 1.00f },
+		{ "blockC", GK_V4 "Squat_IP", false, 0.00f, 1.00f },
+  { "parryL", GK_FA "Block/InPlace/A_BlockHit_L_IP", false, 0.00f, 1.00f },
+  { "parryR", GK_FA "Block/InPlace/A_BlockHit_R_IP", false, 0.00f, 1.00f },
+  { "parryLean", GK_FA "Base/Dodge/A_Dodge_B", false, 0.10f, 0.55f },
+  { "blockS", GK_FA "Block/InPlace/A_BlockHit_F_IP", false, 0.00f, 1.00f }, { "parry", GK_FA "Block/A_Block_Idle", true, 0.00f, 1.00f }, { "hitL", GK_FA "Hit/InPlace/A_HitHead_F_IP", false, 0.00f, 1.00f },
 		{ "hitM", GK_FA "Hit/InPlace/A_HitBody_F_IP", false, 0.00f, 1.00f }, { "hitH", GK_FA "Hit/InPlace/A_HitHead_Up_IP", false, 0.00f, 1.00f }, { "hitLow", GK_FA "Hit/InPlace/A_HitLeg_L_IP", false, 0.00f, 1.00f },
 		{ "hitCr", GK_FA "Crouch/Hit/A_Crourch_Hit_F", false, 0.00f, 1.00f }, { "ahit", GK_FA "Fall/A_FallBack", false, 0.08f, 0.42f }, { "kd", GK_FA "Fall/A_FallBack", false, 0.70f, 1.00f },
 		{ "getup", GK_FA "Fall/StandUp/A_StandUp_Back", false, 0.00f, 1.00f }, { "mv_5LP", GK_FA "Punch/InPlace/Head/A_JabHead_L_IP", false, 0.00f, 1.00f }, { "mv_5MP", GK_FA "Punch/InPlace/Head/A_PunchHead_R_IP", false, 0.00f, 1.00f },
@@ -1928,11 +2021,11 @@ void AGkMatch::LoadClips()
 		{ "mv_njHK", GK_V4 "Jump_Kick_IP", false, 0.25f, 0.80f }, { "mv_jUP", GK_S1 "Anim_SC_Kick_Up", false, 0.00f, 1.00f }, { "mv_AUP", GK_S2 "Anim_SC_Punch_up", false, 0.00f, 1.00f },
 		{ "mv_ABK", GK_S2 "Anim_SC_Kick_v2", false, 0.00f, 1.00f }, { "mv_jDN", GK_S2 "Anim_SC_Kick_down_v2", false, 0.00f, 1.00f }, { "mv_jBK", GK_S1 "Anim_SC_Kick", false, 0.00f, 1.00f },
 		{ "mv_ASPK", GK_S2 "Anim_SC_Kick_down_v2", false, 0.00f, 1.00f }, { "mv_ATAT", GK_S2 "Anim_SC_Kick_Double", false, 0.00f, 1.00f }, { "mv_ATAT_OD", GK_S2 "Anim_SC_Kick_Double", false, 0.00f, 1.00f },
-		{ "mv_HOME", GK_S1 "Anim_SC_Move_Forward", true, 0.00f, 1.00f }, { "mv_HOME_OD", GK_S1 "Anim_SC_Move_Forward", true, 0.00f, 1.00f }, { "mv_AHOME", GK_S1 "Anim_SC_Move_Forward", true, 0.00f, 1.00f },
-		{ "mv_AHOME_OD", GK_S1 "Anim_SC_Move_Forward", true, 0.00f, 1.00f }, { "mv_DI", GK_FA "Punch/Special/A_SuperMan_Punch_R", false, 0.00f, 1.00f }, { "mv_DREV", GK_FA "Punch/Special/A_SuperMan_Elbow_R", false, 0.00f, 1.00f },
+		{ "mv_HOME", GK_S2 "Anim_SC_Move_Forward_V2", true, 0.00f, 1.00f }, { "mv_HOME_OD", GK_S2 "Anim_SC_Move_Forward_V2", true, 0.00f, 1.00f }, { "mv_AHOME", GK_S2 "Anim_SC_Move_Forward_V2", true, 0.00f, 1.00f },
+		{ "mv_AHOME_OD", GK_S2 "Anim_SC_Move_Forward_V2", true, 0.00f, 1.00f }, { "mv_DI", GK_FA "Punch/Special/A_BackFist_SuperMan_R", false, 0.00f, 1.00f }, { "mv_DREV", GK_FA "Punch/Special/A_SuperMan_Elbow_R", false, 0.00f, 1.00f },
 		{ "mv_TK", GK_FA "Kick/A_HightKick_L", false, 0.00f, 1.00f }, { "mv_FSK", GK_FA "Kick/A_Round_SideKick_Mid", false, 0.00f, 1.00f }, { "mv_HAD_H", GK_SP "004_00_All_IP", false, 0.00f, 1.00f },
-		{ "mv_HAD_OD", GK_SP "004_00_All_IP", false, 0.00f, 1.00f }, { "mv_SRK_L", GK_V4 "Shoryuken_IP", false, 0.00f, 1.00f }, { "mv_SRK_M", GK_V4 "Shoryuken_IP", false, 0.00f, 1.00f },
-		{ "mv_SRK_H", GK_V4 "Shoryuken_IP", false, 0.00f, 1.00f }, { "mv_SRK_OD", GK_V4 "Shoryuken_IP", false, 0.00f, 1.00f }, { "mv_QSRK", GK_V4 "Shoryuken_IP", false, 0.00f, 1.00f },
+		{ "mv_HAD_OD", GK_SP "004_00_All_IP", false, 0.00f, 1.00f }, { "mv_SRK_L", GK_S2 "Anim_SC_Punch_up", false, 0.10f, 0.90f }, { "mv_SRK_M", GK_S2 "Anim_SC_Punch_up", false, 0.10f, 0.90f },
+		{ "mv_SRK_H", GK_S2 "Anim_SC_Punch_up", false, 0.10f, 0.90f }, { "mv_SRK_OD", GK_S2 "Anim_SC_Punch_up", false, 0.10f, 0.90f }, { "mv_QSRK", GK_S2 "Anim_SC_Punch_up", false, 0.10f, 0.90f },
 		{ "mv_TAT_L", GK_FA "Kick/A_HightKick_Round_R", false, 0.00f, 1.00f }, { "mv_TAT_M", GK_FA "Kick/A_HightKick_Round_R", false, 0.00f, 1.00f }, { "mv_TAT_H", GK_FA "Kick/A_HightKick_Round_R", false, 0.00f, 1.00f },
 		{ "mv_TAT_OD", GK_FA "Kick/A_HightKick_Round_R", false, 0.00f, 1.00f }, { "mv_QTAT", GK_FA "Kick/A_HightKick_Round_R", false, 0.00f, 1.00f }, { "mv_DL_H", GK_FA "Kick/A_LowKick_R_Round_v2", false, 0.00f, 1.00f },
 		{ "mv_DL_OD", GK_FA "Kick/A_LowKick_R_Round_v2", false, 0.00f, 1.00f }, { "mv_QDL", GK_FA "Kick/A_LowKick_R_Round_v2", false, 0.00f, 1.00f }, { "mv_JIN_L", GK_FA "Kick/A_FrontKick_Havy", false, 0.00f, 1.00f },
@@ -2001,7 +2094,7 @@ void AGkMatch::LoadVfx()
 /** Plays one effect at a place in the fight's own space, turned to the way the blow travels (Dir +1 or -1 along the stage, 0 for none), with its sound. False if the effect is not there. */
 bool AGkMatch::PlayVfx(const TCHAR* Name, const FVector& Local, float Scale, float Dir, const TCHAR* Sound, float Volume)
 {
-	if (Sound && Screen == 3) { if (TObjectPtr<USoundBase>* Sn = Sfx.Find(FName(Sound))) { UGameplayStatics::PlaySound2D(this, *Sn, Volume); } }
+	if (Sound && Screen == 3) { if (TObjectPtr<USoundBase>* Sn = Sfx.Find(FName(Sound))) { UGameplayStatics::PlaySound2D(this, *Sn, Volume * EffectsGain); } }
 	TObjectPtr<UNiagaraSystem>* Sy = Vfx.Find(FName(Name)); if (!Sy || !*Sy) { return false; }
 	const FQuat Turn = Anchor.GetRotation() * FRotator(0.0, Dir > 0.f ? 90.0 : Dir < 0.f ? -90.0 : 0.0, 0.0).Quaternion();
 	UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, *Sy, Wd(Local), Turn.Rotator(), FVector(Scale), true, true, ENCPoolMethod::AutoRelease);
@@ -2010,12 +2103,16 @@ bool AGkMatch::PlayVfx(const TCHAR* Name, const FVector& Local, float Scale, flo
 
 void AGkMatch::Present(float Real)
 {
+ UpdatePresentation(Real);
+ if(Screen==7 && PageAge>1.8f) {StartStage(StageAt);return;}
 	for (int32 i=0; i<2; ++i)
 	{
 		const gk::Fighter& P=S.p[i];
-		const bool Energy=Screen==3 && !bMenu && P.st==gk::ATK && (P.mv==gk::moveByKey("SA3") || P.mv==gk::moveByKey("CA") || P.mv==gk::moveByKey("ABEAM")) && P.mf<=gk::move(P.mv).lastAct+3;
-		if (FilmOrb[i]) FilmOrb[i]->SetVisibility(Energy);
-		if (FilmEnergyLight[i]) FilmEnergyLight[i]->SetVisibility(Energy);
+		const bool Charge=P.st==gk::ATK && P.mv>=0 && gk::move(P.mv).has_proj && P.mf<gk::move(P.mv).pf;
+  if(Charge && Screen==3 && !bMenu)EnergyOrb(i,8.f+14.f*P.mf/FMath::Max(1,gk::move(P.mv).pf));
+  const bool Energy=Screen==3 && !bMenu && P.st==gk::ATK && (P.mv==gk::moveByKey("SA3") || P.mv==gk::moveByKey("CA") || P.mv==gk::moveByKey("ABEAM")) && P.mf<=gk::move(P.mv).lastAct+3;
+		if (FilmOrb[i]) FilmOrb[i]->SetVisibility(Energy || (Charge && Screen==3 && !bMenu));
+		if (FilmEnergyLight[i]) FilmEnergyLight[i]->SetVisibility(Energy || (Charge && Screen==3 && !bMenu));
 		if (!FilmBeam[i]) continue;
         const bool bSustained=Energy && P.mf>=gk::move(P.mv).hits[0].s;
         if(bSustained)FilmBeamLife[i]=.09f;
@@ -2109,7 +2206,7 @@ void AGkMatch::Present(float Real)
 			auto Loop = [this](TObjectPtr<UAudioComponent>& C, const TCHAR* Set, float Vol)
 			{
 				if (Vol > 0.01f && !C) { if (const TArray<USoundBase*>* T = SndSets.Find(FName(Set))) { if (T->Num()) { C = UGameplayStatics::SpawnSound2D(this, (*T)[0], Vol, 1.f, 0.f, nullptr, false, false); } } }
-				if (C) { if (Vol <= 0.01f) { C->Stop(); C->DestroyComponent(); C = nullptr; } else { C->SetVolumeMultiplier(Vol); if(!C->IsPlaying())C->Play(); } }
+				if (C) { if (Vol <= 0.01f) { C->Stop(); C->DestroyComponent(); C = nullptr; } else { C->SetVolumeMultiplier(Vol * EffectsGain); if(!C->IsPlaying())C->Play(); } }
 			};
 			// outdoors: a thin wind always, a rising gale and rain that goes from light to a downpour as the storm builds; the training room hears rain on its roof
 			const bool bFullAudio=!bScript || FParse::Param(FCommandLine::Get(),TEXT("gkfullaudio"));
@@ -2130,7 +2227,7 @@ void AGkMatch::Present(float Real)
 				if (Music) {
                     const bool bSpeaking=(Announcer&&Announcer->IsPlaying()) || (FighterVoices[0]&&FighterVoices[0]->IsPlaying()) || (FighterVoices[1]&&FighterVoices[1]->IsPlaying());
                     const float TargetMusic=(Screen==3&&!bMenu)?(bSpeaking?.32f:S.freeze>0?.42f:.64f):.85f;
-                    MusicVol=FMath::Lerp(MusicVol,TargetMusic,FMath::Clamp(Real*5.f,0.f,1.f));Music->SetVolumeMultiplier(MusicVol*SongGain);
+                    MusicVol=FMath::Lerp(MusicVol,TargetMusic,FMath::Clamp(Real*5.f,0.f,1.f));Music->SetVolumeMultiplier(MusicGain * MusicVol*SongGain);
                 }
 			}
 		}
@@ -2140,7 +2237,7 @@ void AGkMatch::Present(float Real)
 		Flash *= FMath::Pow(0.0008f, Real);
 		if (Cam)
 		{
-			FPostProcessSettings& PP = Cam->GetCameraComponent()->PostProcessSettings; const double G = (1.0 - 0.55 * Dim) * (1.0 - 0.2 * Storm * Storm) + (bForestLook ? 0.55 : 1.5) * Flash;
+			FPostProcessSettings& PP = Cam->GetCameraComponent()->PostProcessSettings; const double G = (1.0 - 0.55 * Dim) * (1.0 - 0.2 * Storm * Storm) + (bForestLook ? 0.55 : 1.5) * Flash * FlashGain;
 			PP.bOverride_ColorGain = true; PP.ColorGain = FVector4(G * ForestGrade.R * (1.0 - 0.1 * Storm), G * ForestGrade.G, G * ForestGrade.B * (1.0 + 0.08 * Dim + 0.1 * Storm), 1.0);
 			PP.bOverride_ColorSaturation = true; const double Sat = 1.0 - 0.3 * Storm; PP.ColorSaturation = FVector4(Sat, Sat, Sat, 1.0);
 		}
@@ -2256,7 +2353,9 @@ void AGkMatch::Present(float Real)
 	for (int32 k = 0; k < 4; k++)
 	{
 		if (ShotMesh[k]) { ShotMesh[k]->SetVisibility(false); }
-		const bool bOn = k < S.nshots && !bMenu; const int32 Want = !bOn ? 0 : S.shot[k].k == gk::moveByKey("HAD_OD") ? 2 : 1;
+		const bool bOn = k < S.nshots && !bMenu && Screen==3;
+  if(bForestLook){DrawFireball(k,bOn);if(ShotFx[k]){ShotFx[k]->DeactivateImmediate();ShotFx[k]->SetVisibility(false);}continue;}
+  const int32 Want = !bOn ? 0 : S.shot[k].k == gk::moveByKey("HAD_OD") ? 2 : 1;
 		if (ShotKind[k] != Want)
 		{
 			// Keep projectile renderers alive across shots instead of destroying one at every impact.
@@ -2385,7 +2484,7 @@ void AGkMatch::Present(float Real)
   }
   const double R = D * FMath::Cos(Pit);
 		FVector Eye(Look.X-R * FMath::Cos(Yaw), Look.Y + R * FMath::Sin(Yaw), FMath::Max(14.0 + ForestCameraGround, Look.Z + D * FMath::Sin(Pit)));
-		Eye += FVector(0.0, FMath::Sin(Ticks * 1.7) * Shake, FMath::Cos(Ticks * 2.3) * Shake * 0.7);
+		Eye += FVector(0.0, FMath::Sin(Ticks * 1.7) * Shake * ShakeGain, FMath::Cos(Ticks * 2.3) * Shake * ShakeGain * 0.7);
 		FRotator Rot = (Look - Eye).Rotation(); Rot.Roll = -(CamD.Roll + CamD.KRoll);
 		if (Cam) { Cam->GetCameraComponent()->SetFieldOfView(float(Fov)); Cam->SetActorLocationAndRotation(Wd(Eye), Anchor.GetRotation() * Rot.Quaternion()); }
 		if (Cam)
@@ -2395,6 +2494,15 @@ void AGkMatch::Present(float Real)
 			PP.bOverride_DepthOfFieldSensorWidth = true; PP.DepthOfFieldSensorWidth = 36.f; PP.bOverride_DepthOfFieldFocalDistance = true; PP.DepthOfFieldFocalDistance = bSoft ? float((Look - Eye).Size()) : 0.f;
 			if (bScout) { Cam->GetCameraComponent()->SetFieldOfView(ScoutFov); Cam->SetActorLocationAndRotation(ScoutPos, ScoutRot); }
 		}
+  if(Cam && bPlaced && (Screen==0 || Screen==1 || Screen==2 || Screen==5 || Screen==6 || Screen==7 || (Screen==3 && S.phase==gk::PH_OVER && !bMenu))) {
+   FVector Focus; float Distance=620.f; float Side=0.f;
+   if(Screen==2) {Focus=Wd(FVector(0,440,ForestCameraGround+115));Distance=1200;}
+   else if(Screen==1 || Screen==7) {Focus=Wd(FVector(0,0,0));Focus.Z=(Body[0]->GetComponentLocation().Z+Body[1]->GetComponentLocation().Z)*.5+90;Distance=1050;}
+   else {int32 Who=(Screen==0 || Screen==5)?0:FMath::Clamp(S.winner,0,1);Focus=Body[Who]->GetBoneLocationByName(TEXT("spine_03"),EBoneSpaces::WorldSpace);Focus.Z-=14;Side=-110.f;}
+   const FVector Offset=Anchor.TransformVectorNoScale(FVector(-Distance,Side+FMath::Sin(UiTime*.25f)*12.f,18));
+   const FVector Aim=Focus+Anchor.TransformVectorNoScale(FVector(0,(Screen==0 || Screen==5 || Screen==6 || Screen==3)?-90.f:0.f,0));
+   Cam->SetActorLocationAndRotation(Focus+Offset,(Aim-Focus-Offset).Rotation());Cam->GetCameraComponent()->SetFieldOfView(35.f);
+  }
 		Fx.Yaw = float(FMath::DegreesToRadians(Rot.Yaw));
 	}
 

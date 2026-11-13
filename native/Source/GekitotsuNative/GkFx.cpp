@@ -104,7 +104,9 @@ void FGkFx::Guard(const FVector& At, float Dir)
 void FGkFx::Parry(const FVector& At, bool bPerfect)
 {
 	const FVector P = At + FVector(-25, 0, 0); const FLinearColor C = bPerfect ? FLinearColor(3, 8, 9) : FLinearColor(1.5f, 5, 6);
-	Add(0, P, FVector::ZeroVector, 0.16f, 60.f, bPerfect ? 300.f : 190.f, C);
+	if(!bFilm)Add(0, P, FVector::ZeroVector, 0.16f, 60.f, bPerfect ? 300.f : 190.f, C);
+ else for(int k=0;k<2;++k){FP& Cut=Add(0,P,FVector::ZeroVector,.10f,5.f,.3f,FLinearColor(1.5,1.8,2));Cut.Streak=FVector(0,k?30:60,k?-60:30);}
+
 	const int32 Count = bPerfect ? 22 : 12;
 	for (int32 i = 0; i < Count; i++)
 	{

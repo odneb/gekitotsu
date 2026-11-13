@@ -1,0 +1,75 @@
+ROBOT 1 — native presentation and personality pass
+
+The game boots to a title screen. Start/Enter opens the main menu. Choose Versus CPU,
+Training or Watch, confirm Robot 1's colour for each side, choose Dreadmarsh's weather,
+then enter the versus intro and round. A finished match stops at results with rematch,
+character select, main menu and quit choices. There is no automatic rematch.
+
+Start (or Escape during a fight) opens the normal pause menu. Tab opens the developer's
+quick debug menu. The normal menu offers resume, restart, move list, sound/presentation,
+character select, main menu and quit. Debug retains dummy controls, hit boxes, button
+binding and the animation lab. Escape/Heavy goes back. The interface is native Canvas
+geometry and typography over the live 3D stage. HUD portraits capture the actual animated
+fighter meshes at reduced resolution and update rate; no portrait artwork is substituted.
+
+There is one roster character, Robot 1, with eight two-tone material costumes:
+Crimson, Cobalt, Sunburst, Emerald, Amethyst, Obsidian, Pearl and Candy Volt.
+Left/right in character selection previews colours on the real mesh. Both sides use the
+same moves, name, model and Male 6 voice. Colours do not change gameplay.
+
+Animation changes:
+- Anti-air uses the rising superhero punch, timed to the existing hit window.
+- Homing uses swept-back arms and banks toward the movement direction.
+- Run uses an athletic leg cycle and swept-back arm overlay.
+- Drive Impact uses the turning airborne backfist, with smaller directional streaks.
+- Victory uses a trimmed open-arm flourish, a sustained pose and a dedicated results camera.
+- Crouch samples the actual lowest pelvis pose; crouch guard combines those grounded legs
+  with a raised guard. It no longer plays back to standing while Down remains held.
+- Successful parries alternate left/right deflections and a backward evasion, with a separate
+  low guard reaction. Perfect parry keeps the response visible during its existing freeze.
+  Timing, vulnerability, damage, frame data and the deterministic rules are unchanged.
+- The old persistent parry shield and large impact glow are removed in the forest.
+
+Fireballs use opaque 3D cores and tapered tails with three hard value bands, short animated
+surface marks and thin streaks. They use the existing projectile simulation and collisions.
+The new material and renderers are loaded at startup. Ground mist remains actual FluidNinja
+LIVE with the existing fighter/projectile stirrers. Supers and aerial beam remain available.
+
+Music, SFX, voice, shake and light-flash levels are saved in Saved/presentation.txt.
+Menu navigation/confirm/back sounds use the installed licensed SFX library. Character
+confirmation uses Male 6. Existing music, environmental loops and announcer remain active.
+
+Validation procedure:
+1. Build Development Editor for Mac with native/GekitotsuNative.uproject.
+2. Copy tools/scripts/presentation_acceptance.txt to Saved/script.txt.
+3. Launch native/tools/preview_forest.sh -gkscript -UseFixedTimeStep -FPS=60.
+   The script checks actual MenuInput transitions, exports native HUD captures, completes
+   a knockout into results, exercises rematch, and forces garbage collection.
+4. Run native/tools/run_film_checks.sh for the preserved combat rules and move table.
+5. Launch normally (without -gkscript or -gkfight) to play from the title.
+
+The purchased animation/character/environment/audio packs must remain installed locally.
+The added material can be regenerated with tools/make_film_projectile.py in UE 5.8.
+This is still the native Unreal Development play build; a packaged Shipping release,
+all hardware configurations and a locked 60 fps at every resolution are not claimed.
+
+Observed validation on this Mac, 2026-11-13:
+- UE 5.8.4 Development Editor build succeeded. All 93 selected animation clips loaded.
+- Twelve native menu-state assertions passed, including actual KO, results and rematch.
+- Actual rendered captures show three successive parry variants, a perfect parry, held
+  crouch and crouch guard, run, anti-air, homing, impact, and the revised fireball.
+- Existing checks passed: 60 aerial input cases; mirrored seven-hit super beam, guard,
+  meter and recovery; 69 move recovery checks; generated table matches source.
+- Forced garbage collection completed during both UI and combat rendering without a crash.
+- Full-audio CPU combat at 1280x720 / 100% render scale: sampled rolling frame-time
+  median 17.25 ms daylight, 17.70 ms storm; 95th percentile 18.07 / 19.37 ms.
+  These are lightweight in-game rolling samples, not Unreal Insights per-frame profiling
+  or a locked-60 guarantee. The original editor remained open; a short build overlapped
+  the latter storm samples. Six orphaned old crash reporters were stopped before testing.
+- Runtime confirmed music, wind and storm rain loops playing; 75 sound sets, six music
+  tracks, three VFX cues and 29 announcer/Male 6 takes loaded.
+
+Remaining visual limits: existing retargeted animation clips are being posed/blended,
+not a bespoke hand-keyed animation set. Live HUD captures have a brighter colour response
+than the main camera. The fireball is a sharply shaded 3D effect; it is not a hand-drawn
+movie effect. The painted reference still has richer art-directed scenery and shadow shapes.

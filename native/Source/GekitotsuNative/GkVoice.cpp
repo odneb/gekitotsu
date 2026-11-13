@@ -22,20 +22,20 @@ void AGkMatch::Announce(const TCHAR* Name,bool Interrupt)
  if(Announcer){Announcer->DestroyComponent();Announcer=nullptr;}
  if(TObjectPtr<USoundBase>* Sound=Voices.Find(FName(Name)))
  {
-  Announcer=UGameplayStatics::SpawnSound2D(this,*Sound,.85f,1.f,0.f,nullptr,false,false);
+  Announcer=UGameplayStatics::SpawnSound2D(this,*Sound,.85f*VoiceGain,1.f,0.f,nullptr,false,false);
   UE_LOG(LogTemp,Display,TEXT("GkVoice: %s"),Name);
  }
 }
 void AGkMatch::FighterVoice(int32 Who,const TCHAR* Name,int32 Priority)
 {
- if(Who<0||Who>1||Screen!=3||bMenu)return;
+ if(Who<0||Who>1||(Screen!=3 && Screen!=1)||bMenu)return;
  const double VoiceTime=GetWorld()->GetTimeSeconds();
  UAudioComponent* PlayingVoice=FighterVoices[Who];
  if(Priority<3 && VoiceTime<VoiceNext[Who])return;
  if(PlayingVoice && PlayingVoice->IsPlaying() && Priority<=VoicePriority[Who])return;
  if(TObjectPtr<USoundBase>* Sound=Voices.Find(FName(Name))){
   if(PlayingVoice){PlayingVoice->Stop();PlayingVoice->DestroyComponent();}
-  FighterVoices[Who]=UGameplayStatics::SpawnSound2D(this,*Sound,.82f,1.f,0.f,nullptr,false,false);
+  FighterVoices[Who]=UGameplayStatics::SpawnSound2D(this,*Sound,.82f*VoiceGain,1.f,0.f,nullptr,false,false);
   VoicePriority[Who]=Priority;VoiceNext[Who]=VoiceTime+(Priority>=2?.85:.35);
   UE_LOG(LogTemp,Display,TEXT("GkVoice Robot%d %s"),Who+1,Name);
  }

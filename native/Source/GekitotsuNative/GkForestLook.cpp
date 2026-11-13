@@ -168,7 +168,7 @@ void AGkMatch::UpdateForestLook(float DeltaSeconds)
 	{
 		Light->SetWorldRotation(ForestSunRotation + FRotator(Pitch, Yaw, 0.0));
 		Light->SetLightColor(FMath::Lerp(ForestSunColor, Key, 0.65f));
-		Light->SetIntensity(ForestSunIntensity * KeyScale * (1.f + 1.8f * Flash));
+		Light->SetIntensity(ForestSunIntensity * KeyScale * (1.f + 1.8f * Flash * FlashGain));
 	}
 	if (UExponentialHeightFogComponent* FogComponent = ForestFog.Get())
 	{
@@ -195,7 +195,7 @@ void AGkMatch::UpdateForestLook(float DeltaSeconds)
 		const FLinearColor CloudHigh[6]={{1.1f,1.06f,.92f},{.035f,.09f,.22f},{.16f,.12f,.30f},{1.f,.7f,.38f},{.3f,.7f,.06f},{1.f,.33f,.45f}};
   const FLinearColor CloudLow[6]={{.32f,.5f,.67f},{.008f,.025f,.07f},{.04f,.035f,.12f},{.28f,.18f,.10f},{.018f,.12f,.03f},{.09f,.055f,.20f}};
   FLinearColor CH(0,0,0),CL(0,0,0);for(int k=0;k<6;++k){CH+=CloudHigh[k]*PaletteWeights[k];CL+=CloudLow[k]*PaletteWeights[k];}
-  FilmSky->SetVectorParameterValue(TEXT("CloudLight"),CH*(1.f+Flash));
+  FilmSky->SetVectorParameterValue(TEXT("CloudLight"),CH*(1.f+Flash*FlashGain));
   FilmSky->SetVectorParameterValue(TEXT("CloudShadow"),CL);
 		if(ForestSun.IsValid()){const FVector D=-ForestSun->GetForwardVector();FilmSky->SetVectorParameterValue(TEXT("SunDir"),FLinearColor(D.X,D.Y,D.Z));}
 	}
@@ -206,6 +206,6 @@ void AGkMatch::UpdateForestLook(float DeltaSeconds)
 	if (BackLamp)
 	{
 		BackLamp->SetLightColor(ForestRim);
-		BackLamp->SetIntensity(LampI * (1.f + FMath::Min(Flash, 1.f)));
+		BackLamp->SetIntensity(LampI * (1.f + FMath::Min(Flash*FlashGain, 1.f)));
 	}
 }

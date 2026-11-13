@@ -12,4 +12,4 @@ if [[ ! -f "$project_dir/Content/DreamscapeSeries/DreamscapeDreadmarsh/Maps/Drea
 fi
 
 exec "$engine_dir/Binaries/Mac/UnrealEditor.app/Contents/MacOS/UnrealEditor" \
-    "$project" "$forest" -game -gkfight -windowed -ResX=1280 -ResY=720 "$@"
+    "$project" "$forest" -game -windowed -ResX=1280 -ResY=720 "$@"

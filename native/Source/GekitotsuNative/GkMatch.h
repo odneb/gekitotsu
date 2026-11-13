@@ -17,7 +17,7 @@ struct FGkStage { FString Name, Map, Sky; int32 Kind = 2; double Time = 500.0; b
 	/** One of the stage's options, written key=value;key=value at the end of its line: light=map, rim=r,g,b, air=petals, ninja=0, lamp=4000, ev=0.5, lens=1.8 */
 	FString Get(const TCHAR* Key, const TCHAR* Def = TEXT("")) const { TArray<FString> Ps; Opt.ParseIntoArray(Ps, TEXT(";")); for (const FString& P : Ps) { FString K, V; if (P.Split(TEXT("="), &K, &V) && K.TrimStartAndEnd() == Key) { return V.TrimStartAndEnd(); } } return FString(Def); } };
 /** What has been chosen in the menus. It outlives a change of map. Char: 0 is Kagu, 1 Noa, 2 and 3 the mannequins. */
-struct FGkSetup { int32 Stage = 1, Mode = 0, Level = 2, Dummy = 0, Char[2] = { 2, 2 }; bool bGo = false; };
+struct FGkSetup { int32 Costume[2]={0,1}; int32 Palette = -1; int32 Stage = 1, Mode = 0, Level = 2, Dummy = 0, Char[2] = { 2, 2 }; bool bGo = false; };
 
 UCLASS()
 class GEKITOTSUNATIVE_API AGkGameMode : public AGameModeBase
@@ -91,7 +91,7 @@ public:
 	UPROPERTY() TObjectPtr<class UPointLightComponent> FilmEnergyLight[2];
 	void EnergyOrb(int32 Who, float Radius);
 	// scripted pictures (-gkscript): a list of commands in Saved/script.txt that pose the game and save screenshots
-	TArray<FString> Script; int32 ScriptAt = 0, ScriptWait = 0; bool bScript = false; FName ScriptSlot; float ScriptStorm = -1.f; FString ScriptNote; bool bLabUi = false, bNoHud = false; FString ScriptCaptureName; int32 ScriptCaptureLeft = 0, ScriptCaptureFrame = 0; int32 ScriptRunLeft = 0, ScriptIn[2] = { 0, 0 }; void RunScript();
+	TArray<FString> Script; int32 ScriptAt = 0, ScriptWait = 0; bool bScript = false; FName ScriptSlot; float ScriptStorm = -1.f; FString ScriptNote; bool bLabUi = false, bNoHud = false; FString ScriptCaptureName; int32 ScriptCaptureLeft = 0, ScriptCaptureFrame = 0; int32 ScriptRunLeft = 0, ScriptIn[2] = { 0, 0 }; void RunScript(); FKey ScriptMenuKey;
 	// The animation lab (Screen 4): one fighter alone, every move and state in turn, and every clip he has to try on it.
 	// What is chosen is kept in Content/Gk/anims.txt (set | slot | clip | from | to | loop) and used by the game from then on.
 	struct FLabSlot { FName Slot; FString Label; int32 Cat = 0; };
@@ -114,6 +114,20 @@ public:
  UPROPERTY() TObjectPtr<class UNiagaraComponent> FilmRain;
  UPROPERTY() TObjectPtr<class UTexture2D> FilmPortraits[2];
  UPROPERTY() TObjectPtr<class UFont> HudFont;
+ // Native presentation: live scene captures, page choreography, and separately mixed UI audio.
+ UPROPERTY() TObjectPtr<class USceneCaptureComponent2D> PortraitCamera[2];
+ UPROPERTY() TObjectPtr<class UTextureRenderTarget2D> PortraitTarget[2];
+ float UiTime=0.f, PageAge=0.f, CursorAge=0.f, PortraitDue=0.f;
+ int32 UiPageKey=-1, UiCursorKey=-1, MenuPalette=0; bool bDebugMenu=false;
+ float MusicGain=1.f, EffectsGain=1.f, VoiceGain=1.f, ShakeGain=1.f, FlashGain=1.f;
+ void UpdatePresentation(float Delta); void MenuSound(int32 Kind); void LoadPresentation(); void SavePresentation();
+ static FLinearColor CostumeColor(int32 Outfit, bool Accent=false); static const TCHAR* CostumeName(int32 Outfit);
+ int32 ParryBeat[2]={-100,-100},ParryVariant[2]={0,0},ParryCount[2]={0,0};
+ TMap<const UAnimSequence*,float> CrouchSample;
+ void DrawFireball(int32 Index,bool Active);
+ UPROPERTY() TObjectPtr<UStaticMeshComponent> FireballTail[4];
+ void ApplyPersonality(int32 Who, FName Slot, float Frame, TArray<FTransform>& Pose);
+ void DrawArcadeMenu(UCanvas* Canvas); void DrawArcadeCall(UCanvas* Canvas);
 	void LoadVfx(); bool PlayVfx(const TCHAR* Name, const FVector& Local, float Scale, float Dir, const TCHAR* Sound, float Volume = 1.f);
 	UPROPERTY() TObjectPtr<ACameraActor> Cam;
 	// the two places to fight: the measured training room, and the wasteland stage; and the air between
@@ -144,6 +158,7 @@ public:
 	float PaletteWeights[6] = { 1.f };
 	UPROPERTY() TObjectPtr<UMaterialInterface> ForestCel;
 	UPROPERTY() TObjectPtr<UMaterialInterface> FilmEnergyMaterial;
+ UPROPERTY() TObjectPtr<UMaterialInterface> FilmProjectileMaterial;
 	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> FilmSky;
 	UPROPERTY() TObjectPtr<UMaterialInterface> ForestFighterCel;
 	TWeakObjectPtr<class UDirectionalLightComponent> ForestSun;

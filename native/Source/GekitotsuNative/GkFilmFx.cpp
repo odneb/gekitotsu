@@ -73,3 +73,31 @@ void AGkMatch::DumpFilmFog()
   }
  }
 }
+
+void AGkMatch::DrawFireball(int32 Index,bool Active)
+{
+ if(!ShotMesh[Index])return;
+ if(!FireballTail[Index]) {
+  UMaterialInterface* Energy=FilmProjectileMaterial.Get();
+  UStaticMesh* Shape=LoadObject<UStaticMesh>(nullptr,TEXT("/Engine/BasicShapes/Cone.Cone"));
+  if(!Energy || !Shape)return;
+  ShotMesh[Index]->SetMaterial(0,Energy);
+  auto* Tail=NewObject<UStaticMeshComponent>(this);FireballTail[Index]=Tail;
+  Tail->SetupAttachment(RootComponent);Tail->SetStaticMesh(Shape);Tail->SetMaterial(0,Energy);
+  Tail->SetCollisionEnabled(ECollisionEnabled::NoCollision);Tail->SetCastShadow(false);Tail->SetMobility(EComponentMobility::Movable);Tail->RegisterComponent();
+ }
+ if(!Active){ShotMesh[Index]->SetVisibility(false);if(FireballTail[Index])FireballTail[Index]->SetVisibility(false);return;}
+ const gk::Shot& Shot=S.shot[Index];const bool Overdrive=Shot.k==gk::moveByKey("HAD_OD");
+ const float Radius=Overdrive?27.f:18.f,Length=Overdrive?160.f:100.f;
+ const FVector Pos=At(Shot.x,Shot.y,-10);
+ const float Snap=1.f+.05f*FMath::Sin(float((Ticks/2)%16)*1.7f);
+ ShotMesh[Index]->SetRelativeLocation(Pos);ShotMesh[Index]->SetRelativeScale3D(FVector(Radius/50.f,Radius*1.4f/50.f,Radius/50.f)*Snap);ShotMesh[Index]->SetVisibility(true);
+ FireballTail[Index]->SetRelativeLocation(Pos+FVector(0,-Shot.dir*Length*.47f,0));
+ FireballTail[Index]->SetRelativeRotation(FRotator(0,0,-Shot.dir*90.f));
+ FireballTail[Index]->SetRelativeScale3D(FVector(Radius*.70f/50.f,Radius*.70f/50.f,Length/100.f));FireballTail[Index]->SetVisibility(true);
+ if((Ticks%3)==0)for(int32 k=0;k<2;++k){
+  const float Side=k?1.f:-1.f;
+  auto& Stroke=Fx.Add(0,Pos+FVector(-12,-Shot.dir*Length*.25,Side*Radius),FVector(0,-Shot.dir*900,Side*45),.12f,2.8f,.3f,FLinearColor(.1f,1.3f,2.5f));
+  Stroke.Stretch=18;Stroke.Streak=FVector(0,Shot.dir*55,Side*4);
+ }
+}
