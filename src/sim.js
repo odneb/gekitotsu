@@ -134,13 +134,13 @@ const SIM = (function () {
     // Super Arts
     // Dragonlash Flame: launcher, then spinning kicks carried up into the air; the last kick sends them back over Ken's shoulder so he lands on the far side
     const ak = (st, d) => ({ s: st, e: st + 1, hb: [-10, -10, 80, 100], d: d, stun: 34, kb: 0, air: [0, 300], lvl: 1, hsp: 6, bstun: 20, req: 1, lk: 1, carry: [24, 4] });
-    N('SA1', { n: 'Rocket Ruckus', sup: 1, sa: 1, su: 7, t: 999, frz: 40, inv: [0, 8], minScale: 30, dd: 250, mv: [[2, 8, 760]], stopOnHit: 1, wEnd: [9, -41], rise: [11, 330, 1120], landRec: 12,
+    N('SA1', { n: 'Rocket Ruckus', sup: 1, sa: 1, su: 7, t: 999, frz: 54, inv: [0, 8], minScale: 30, dd: 250, mv: [[2, 8, 760]], stopOnHit: 1, wEnd: [9, -41], rise: [11, 330, 1120], landRec: 12,
       hits: [{ s: 6, e: 8, hb: [2, 10, 64, 80], d: 40, stun: 34, kb: 0, launch: [0, 700], air: [0, 300], lk: 1, lvl: 2, hsp: 14, bstun: 20 }, ak(15, 25), ak(20, 25), ak(25, 25), ak(30, 25), { s: 36, e: 38, hb: [-10, -10, 80, 100], d: 60, launch: [-620, 520], air: [-620, 520], lvl: 2, hsp: 18, req: 1, bstun: 20 }] });
     const big = [-4, 0, 84, 104], rq = (s, d) => ({ s: s, e: s + 1, hb: big, d: d, stun: 34, kb: 0, air: [0, 250], lvl: 1, hsp: 6, bstun: 20, req: 2, lk: 1 });
     // Shippu Jinrai-kyaku: kicks on the ground, then a rising Tatsumaki that carries them into the air
     const tk2 = (st, d) => ({ s: st, e: st + 1, hb: big, d: d, stun: 34, kb: 0, air: [0, 300], lvl: 1, hsp: 5, bstun: 20, req: 2, lk: 1, carry: [22, 2] });
     // Strike-confirm latch. Block/whiff stay punishable; only a clean hit starts the paired bomb.
-    N('SA2', { n: 'Bad Idea: Hug Bomb', sup: 1, sa: 2, su: 12, t: 54, frz: 36, minScale: 40,
+    N('SA2', { n: 'Bad Idea: Hug Bomb', sup: 1, sa: 2, su: 12, t: 54, frz: 66, minScale: 40,
       mv: [[4, 14, 900]], stopOnHit: 1, dd: 500,
       hits: [{ s: 11, e: 15, hb: [0, 6, 64, 104], d: 30, stun: 34, kb: 0, lvl: 1, hsp: 10, bstun: 20 }] });
     const fl = s => ({ s: s, e: s + 1, hb: big, d: 60, stun: 34, kb: 0, air: [0, 260], lvl: 1, hsp: 7, bstun: 20, lk: 1 });
@@ -148,9 +148,9 @@ const SIM = (function () {
     const beamHit = (s, d, finish = false) => ({ s, e: s + 2, hb: [24, 20, 900, 74], d,
       stun: 26, kb: finish ? 650 : 0, lvl: finish ? 2 : 1, hsp: finish ? 16 : 3,
       bstun: finish ? 22 : 16, ...(finish ? { launch: [750, 420], air: [750, 420] } : { air: [0, 80] }) });
-    N('SA3', { n: 'Maximum Overkill', sup: 1, sa: 3, su: 20, t: 100, frz: 48, inv: [0, 12], minScale: 50, dd: 900,
+    N('SA3', { n: 'Maximum Overkill', sup: 1, sa: 3, su: 20, t: 100, frz: 90, inv: [0, 12], minScale: 50, dd: 900,
       hits: [beamHit(19, 45), beamHit(25, 45), beamHit(31, 45), beamHit(37, 45), beamHit(43, 45), beamHit(49, 45), beamHit(55, 130, true)] });
-    N('CA', { n: 'Absolutely Unnecessary', sup: 1, sa: 3, ca: 1, su: 20, t: 108, frz: 64, inv: [0, 16], minScale: 50, dd: 900,
+    N('CA', { n: 'Absolutely Unnecessary', sup: 1, sa: 3, ca: 1, su: 20, t: 108, frz: 108, inv: [0, 16], minScale: 50, dd: 900,
       hits: [beamHit(19, 50), beamHit(25, 50), beamHit(31, 50), beamHit(37, 50), beamHit(43, 50), beamHit(49, 50), beamHit(55, 150, true)] });
     N('ABEAM', { n: 'Hot Shot', sp: 1, air: 1, su: 19, t: 58, hover: 36, landRec: 18, dd: 300, sg: 30, hits: [18,24,30].map((s,i)=>({s,e:s+2,hb:[24,22,480,50],d:i===2?40:20,stun:22,bstun:12,kb:i===2?450:0,air:i===2?[400,280]:[0,60],lvl:1,hsp:3})) });
     return {
@@ -487,14 +487,14 @@ const SIM = (function () {
         if (p.tk === 5) {
           ++p.tf;
           if (o.st === 'thrown') { o.x=p.x+p.face*24*F; o.y=p.y; o.vx=o.vy=o.pv=0; }
-          if (p.tf===60 && o.st==='thrown') {
+          if (p.tf===90 && o.st==='thrown') {
             const damage=p.pmT;
             o.hp=Math.max(s.cfg.training?1:0,o.hp-damage); o.combo++; o.comboDmg+=damage; o.redT=50;
             o.st='ahit'; o.sf=0; o.y=Math.max(1,p.y+20*F); o.vx=p.face*900; o.vy=900; o.hard=1; o.jug=3;
             o.hs=p.hs=18; o.wbPend=1; o.gbPend=0;
             s.ev.push({t:'hit',who:i,x:o.x,y:o.y+45*F,lvl:2,dmg:damage,combo:o.combo,total:o.comboDmg,sp:1,fin:1,ko:o.hp<=0?1:0});
           }
-          if(p.tf>=76){p.tk=0;p.pmT=0;p.y=Math.max(1,p.y);p.vx=-p.face*180;p.vy=420;p.st='jump';p.sf=0;p.mv='';}
+          if(p.tf>=110){p.tk=0;p.pmT=0;p.y=Math.max(1,p.y);p.vx=-p.face*180;p.vy=420;p.st='jump';p.sf=0;p.mv='';}
           break;
         }
         const k = o.noTech ? 17 : 10;
@@ -509,13 +509,13 @@ const SIM = (function () {
         } else {
           p.tf++; const side = p.tk === 2 && p.tf >= 5 ? -1 : 1;
           if (o.st === 'thrown') { o.x = p.x + p.face * side * 30 * F; o.y = p.tk === 4 ? 0 : Math.min(p.tf, 10) * 3 * F; o.vx = 0; o.vy = 0; }
-          if (p.tf === 24 && o.st === 'thrown') {
+          if (p.tf === 42 && o.st === 'thrown') {
             const d = tr(120 * k / 10), V = [0, [430, 720], [430, 720], [40, 1480], [-70, 1260]][p.tk];
             o.hp = Math.max(s.cfg.training ? 1 : 0, o.hp - d); o.st = 'ahit'; o.sf = 0; o.y = p.tk === 4 || p.tk === 2 ? 1 : 60 * F; o.x=p.x+p.face*side*45*F; o.vx = p.face * side * V[0]; o.vy = V[1]; o.combo = 1; o.comboDmg = d; o.jug = p.tk >= 3 ? 0 : 3; o.hard = p.tk >= 3 ? 0 : 1; o.hs = 8; p.hs = 8; o.redT = 50; o.gbUsed = 0; o.wbUsed = 0;
             p.sa = Math.min(3000, p.sa + 200); o.sa = Math.min(3000, o.sa + 40); if (!p.bo) p.dr = Math.min(DMAX, p.dr + 200); if (o.noTech && !o.bo) { o.dr -= 1000; burn(s, o, 1 - i); }
             s.ev.push({ t: 'hit', x: o.x, y: 50 * F, lvl: 2, who: i, dmg: d, combo: 1, total: d, thr: 1, ch: o.noTech ? 2 : 0 }); if (p.tk === 4) s.ev.push({ t: 'gbounce', x: o.x, y: 0, who: 1 - i });
           }
-          if (p.tf >= 44) { p.tk = 0; toIdle(p); }
+          if (p.tf >= 68) { p.tk = 0; toIdle(p); }
         }
         break;
       }

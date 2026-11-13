@@ -8,6 +8,7 @@
 #include "Core/gk_ai.h"
 #include "GkBody.h"
 #include "GkFx.h"
+#include "GkPresentationDirector.h"
 #include "GkMatch.generated.h"
 
 class UPoseableMeshComponent; class USkeletalMeshComponent; class UAnimSequence; class UNiagaraSystem; class USoundBase; class UStaticMeshComponent; class USceneComponent; class ACameraActor; class AExponentialHeightFog; class UCanvas; class FGkPads; class UMaterialInstanceDynamic;
@@ -95,9 +96,16 @@ public:
 	// The animation lab (Screen 4): one fighter alone, every move and state in turn, and every clip he has to try on it.
 	// What is chosen is kept in Content/Gk/anims.txt (set | slot | clip | from | to | loop) and used by the game from then on.
 	struct FLabSlot { FName Slot; FString Label; int32 Cat = 0; };
-	struct FLabClip { FString Path, Label; int32 Cat = 0; };
+	struct FLabClip { FString Path, Label, Pack; int32 Cat = 0; };
 	TArray<FLabSlot> LabSlots; TArray<FLabClip> LabList; int32 LabSlot = 0, LabFrame = 0, LabSet = 2, LabCat = 0, LabDropCat = 0, LabScroll = 0, LabHot = 0, LabNoteTimer = 0, LabTryAt = -2; bool bLabDrop = false, bLabMouse = false; int32 LabKey = -2; float LabClock = 0.f; FString LabNote; FGkClip LabTry; FGkClip LabPartner; bool bLabPair=false; float LabPairSpacing=200.f;
-	void LabOpen(); void LabClose(); void LabClick(int32 Id); void LabPick(int32 ClipIndex); void LabSave(); void LoadPicks(); FString PicksFile(bool bProject) const;
+	TMap<FName,FGkClip> SetupDrafts;
+ FString SetupSearch; int32 SetupPack=0,SetupFilter=-1,SetupSlotScroll=0;
+ bool bSetupVariants=false;
+ bool bSetupSearch=false,bSetupPaused=false,bSetupTesting=false;float SetupSpeed=1.f;
+ FGkClip SetupOriginal;int32 SetupOldMode=0,SetupOldDummy=0;
+ void DrawCharacterSetup(UCanvas* Cv);void SetupInput();void SetupAction(int32 Id);void SetupSelect(int32 Slot);void SetupApply();void SetupTest();void SetupReturn();
+ bool SetupMatches(const FLabClip& C) const;
+ void LabOpen(); void LabClose(); void LabClick(int32 Id); void LabPick(int32 ClipIndex); void LabSave(); void LoadPicks(); FString PicksFile(bool bProject) const;
 	// hit, guard and dust effects and their sounds (Vefects' Combat Flipbook VFX)
 	UPROPERTY() TMap<FName, TObjectPtr<UNiagaraSystem>> Vfx;
 	UPROPERTY() TObjectPtr<class UNiagaraComponent> ShotFx[4]; int32 ShotKind[4] = { 0, 0, 0, 0 };
@@ -136,6 +144,16 @@ public:
  int32 MenuReturnPage=0,MenuReturnAt=0;
  int32 UiPageKey=-1, UiCursorKey=-1, MenuPalette=0; bool bDebugMenu=false;
  float MusicGain=1.f, EffectsGain=1.f, VoiceGain=1.f, ShakeGain=1.f, FlashGain=1.f;
+ FGkPresentationDirector Director;
+ UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> MangaMid;
+ bool bDirectorLoaded=false, bDirectorEnabled=true;
+ float DirectorReloadDue=0.f; FDateTime DirectorFileTime;
+ FVector DirectorContact=FVector::ZeroVector, PressureAt=FVector::ZeroVector;
+ float PressureAge=10.f,PressureStrength=0;
+ int DirectorBeamFrame[2]={-1,-1};
+ struct FSurfaceResponse {FLinearColor Tint;float Dust=0.2f,Speed=1.f,Wake=1.f;};TMap<FString,FSurfaceResponse> SurfaceProfiles;
+ void LoadDirector(); void DirectEvent(const gk::Event& E); void UpdateDirector(float Delta); void ApplyDirector();
+ void SurfaceResponse(const FVector& Feet,float Strength,float Direction);
  void UpdatePresentation(float Delta); void MenuSound(int32 Kind); void LoadPresentation(); void SavePresentation();
  static FLinearColor CostumeColor(int32 Outfit, bool Accent=false); static const TCHAR* CostumeName(int32 Outfit);
  int32 ParryBeat[2]={-100,-100},ParryVariant[2]={0,0},ParryCount[2]={0,0};
@@ -208,7 +226,7 @@ public:
 	int32 Combo[2] = { 0, 0 }, ComboDmg[2] = { 0, 0 }, ComboTimer[2] = { 0, 0 }; FString Note[2]; int32 NoteTimer[2] = { 0, 0 };
 	struct FSpark { FVector At; int32 Age; int32 Kind; }; TArray<FSpark> Sparks;
 	// training aids
-	struct FHist { int32 In, Frames; }; TArray<FHist> Hist; int32 LastIn = -1, Adv = -999, ActFrame[2] = { 0, 0 }; bool bWasIdle[2] = { true, true }, bExchange = false; bool bBoxes = true;
+	struct FHist { int32 In, Frames; }; TArray<FHist> Hist; int32 LastIn = -1, Adv = -999, ActFrame[2] = { 0, 0 }; bool bWasIdle[2] = { true, true }, bExchange = false; bool bBoxes = false;
 	// controls
 	FGkPads* Pads = nullptr; uint32 PadNow = 0, PadPrev = 0; int32 PadDirs = 0, PadDirPrev = 0, PadCount = 0; FString PadNames;
 	int32 PadBind[8] = { 0, 1, 2, 6, 7, 5, 4, 3 }; FKey Bind[8]; int32 InputNow = 0;

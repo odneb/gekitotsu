@@ -73,6 +73,7 @@ void AGkMatch::UpdatePresentation(float Delta)
  PortraitCamera[i]->SetWorldLocationAndRotation(Eye,(Head-FVector(0,0,5)-Eye).Rotation());
  if(Cam){
   PortraitCamera[i]->PostProcessSettings=Cam->GetCameraComponent()->PostProcessSettings;
+  PortraitCamera[i]->PostProcessSettings.WeightedBlendables.Array.RemoveAll([this](const FWeightedBlendable& B){return B.Object==MangaMid;});
   PortraitCamera[i]->PostProcessSettings.bOverride_DepthOfFieldFstop=true;PortraitCamera[i]->PostProcessSettings.DepthOfFieldFstop=32.f;
   PortraitCamera[i]->PostProcessSettings.bOverride_VignetteIntensity=true;PortraitCamera[i]->PostProcessSettings.VignetteIntensity=0;
   PortraitCamera[i]->PostProcessSettings.bOverride_BloomIntensity=true;PortraitCamera[i]->PostProcessSettings.BloomIntensity=0;

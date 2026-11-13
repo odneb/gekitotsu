@@ -9,6 +9,8 @@ for name in controls beam moves bomb throws; do
         "$native_dir/tools/check_$name.cpp" -o "$check_dir/check_$name"
     "$check_dir/check_$name"
 done
+clang++ -O2 -std=c++17 "$native_dir/tools/check_presentation.cpp" -o "$check_dir/check_presentation"
+"$check_dir/check_presentation" "$native_dir/Content/Gk/cinematography.txt"
 node "$native_dir/tools/gen_moves.js" "$native_dir/../src/sim.js" > "$check_dir/gk_moves.inl"
 cmp "$check_dir/gk_moves.inl" "$native_dir/Source/GekitotsuNative/Core/gk_moves.inl"
 print 'PASS: generated move table matches its source'

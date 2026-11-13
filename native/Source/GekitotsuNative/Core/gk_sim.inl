@@ -461,14 +461,14 @@ static void update(State& s, Fighter& p, Fighter& o, int inp, int i)
                 // Confirmed super: both participants share this clock. No input can restart the latch.
                 ++p.tf;
                 if(o.st==THROWN){o.x=p.x+p.face*24*F;o.y=p.y;o.vx=o.vy=o.pv=0;}
-                if(p.tf==60 && o.st==THROWN){
+                if(p.tf==90 && o.st==THROWN){
                     const int damage=p.pmT;
                     o.hp=imax(s.cfg.training?1:0,o.hp-damage);o.combo++;o.comboDmg+=damage;o.redT=50;
                     o.st=AHIT;o.sf=0;o.y=imax(1,p.y+20*F);o.vx=p.face*900;o.vy=900;o.hard=1;o.jug=3;
                     o.hs=p.hs=18;o.wbPend=1;o.gbPend=0;
                     push(s,E_HIT,i,o.x,o.y+45*F,2,damage,o.combo,o.comboDmg,0,H_SPECIAL|H_FINISH|(o.hp<=0?H_KO:0));
                 }
-                if(p.tf>=76){p.tk=0;p.pmT=0;p.y=imax(1,p.y);p.vx=-p.face*180;p.vy=420;p.st=JUMP;p.sf=0;p.mv=-1;}
+                if(p.tf>=110){p.tk=0;p.pmT=0;p.y=imax(1,p.y);p.vx=-p.face*180;p.vy=420;p.st=JUMP;p.sf=0;p.mv=-1;}
                 break;
             }
 			const int k = o.noTech ? 17 : 10;
@@ -491,7 +491,7 @@ static void update(State& s, Fighter& p, Fighter& o, int inp, int i)
 			{
 				p.tf++; const int side = p.tk == 2 && p.tf >= 5 ? -1 : 1;
 				if (o.st == THROWN) { o.x = p.x + p.face * side * 30 * F; o.y = p.tk == 4 ? 0 : imin(p.tf, 10) * 3 * F; o.vx = 0; o.vy = 0; }
-				if (p.tf == 24 && o.st == THROWN)
+				if (p.tf == 42 && o.st == THROWN)
 				{
 					static const int V[5][2] = { { 0, 0 }, { 430, 720 }, { 430, 720 }, { 40, 1480 }, { -70, 1260 } };
 					const int d = 120 * k / 10;
@@ -500,7 +500,7 @@ static void update(State& s, Fighter& p, Fighter& o, int inp, int i)
 					p.sa = imin(3000, p.sa + 200); o.sa = imin(3000, o.sa + 40); if (!p.bo) { p.dr = imin(DMAX, p.dr + 200); } if (o.noTech && !o.bo) { o.dr -= 1000; burnOther(s, o, 1 - i); }
 					push(s, E_HIT, i, o.x, 50 * F, 2, d, 1, d, o.noTech ? 2 : 0, H_THROW); if (p.tk == 4) { push(s, E_GBOUNCE, 1 - i, o.x, 0); }
 				}
-				if (p.tf >= 44) { p.tk = 0; toIdle(p); }
+				if (p.tf >= 68) { p.tk = 0; toIdle(p); }
 			}
 			break;
 		}

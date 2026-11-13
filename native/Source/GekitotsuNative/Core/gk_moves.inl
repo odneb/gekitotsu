@@ -3138,7 +3138,7 @@ static void buildMoves(Move* M) {
   m.landRec = 12;
   m.sup = 1;
   m.sa = 1;
-  m.frz = 40;
+  m.frz = 54;
   m.minScale = 30;
   m.stopOnHit = 1;
   m.isAir = 0; m.g = 'm';
@@ -3310,7 +3310,7 @@ static void buildMoves(Move* M) {
   m.lastAct = 15;
   m.sup = 1;
   m.sa = 2;
-  m.frz = 36;
+  m.frz = 66;
   m.minScale = 40;
   m.stopOnHit = 1;
   m.isAir = 0; m.g = 'm';
@@ -3346,7 +3346,7 @@ static void buildMoves(Move* M) {
   m.lastAct = 57;
   m.sup = 1;
   m.sa = 3;
-  m.frz = 48;
+  m.frz = 90;
   m.minScale = 50;
   m.isAir = 0; m.g = 'm';
   m.has_inv = 1;
@@ -3503,7 +3503,7 @@ static void buildMoves(Move* M) {
   m.lastAct = 57;
   m.sup = 1;
   m.sa = 3;
-  m.frz = 64;
+  m.frz = 108;
   m.minScale = 50;
   m.ca = 1;
   m.isAir = 0; m.g = 'm';

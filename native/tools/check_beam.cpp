@@ -13,7 +13,7 @@ Result exercise(const char* key, int face, bool guard, bool behind=false) {
  debugStart(s,0,moveByKey(key));
  if(behind) s.p[0].face=-face;
  int hits=0,blocked=0; const int origin=s.p[0].x;
- for(int f=0;f<250;++f) {
+ for(int f=0;f<move(moveByKey(key)).frz+move(moveByKey(key)).t+160;++f) {
   step(s,0,guard ? (face>0 ? IN_R:IN_L) : 0);
   for(int e=0;e<s.nev;++e) {if(s.ev[e].type==E_HIT) ++hits;if(s.ev[e].type==E_BLOCK) ++blocked;}
   if (s.p[0].st==ATK && s.p[0].mf<58) { assert(s.p[0].vx==0 && s.p[0].y==0); } // no scripted rush or flight

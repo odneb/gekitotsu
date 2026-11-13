@@ -9,7 +9,7 @@ int main(){
   s.p[0].x=side*(edge?280:-25)*F;s.p[1].x=s.p[0].x+side*50*F;
   s.p[0].face=side;s.p[1].face=-side;if(air){s.p[1].y=70*F;s.p[1].st=AHIT;s.p[1].vy=300;}
   debugStart(s,0,M_SA2);int latches=0,bursts=0;bool held=false;
-  for(int f=0;f<280;f++){
+  for(int f=0;f<400;f++){
    step(s,0,0);for(int j=0;j<s.nev;j++){if(s.ev[j].type==E_GRAB&&s.ev[j].a==5)++latches;if(s.ev[j].type==E_HIT&&(s.ev[j].f&H_FINISH))++bursts;}
    if(s.p[0].tk==5 && s.p[1].st==THROWN){held=true;assert(s.p[1].x==s.p[0].x+side*24*F);assert(s.p[1].y==s.p[0].y);}
    for(auto& p:s.p){assert(p.hp>=0&&p.hp<=1000);assert(iabs(p.x)<=STAGE);}
@@ -26,7 +26,7 @@ int main(){
   State s;newMatch(s,training,2);s.phase=PH_FIGHT;auto& a=s.p[owner];auto& d=s.p[1-owner];
   a.x=-25*F;d.x=25*F;a.face=1;d.face=-1;a.sa=3000;d.hp=hp;
   start(s,a,M_SA2,owner,mod);int damage=0,bursts=0;
-  for(int f=0;f<200;++f){step(s,0,0);for(int j=0;j<s.nev;++j)if(s.ev[j].type==E_HIT){damage+=s.ev[j].b;bursts+=(s.ev[j].f&H_FINISH)?1:0;}if(training)assert(d.hp>=1);}
+  for(int f=0;f<400;++f){step(s,0,0);for(int j=0;j<s.nev;++j)if(s.ev[j].type==E_HIT){damage+=s.ev[j].b;bursts+=(s.ev[j].f&H_FINISH)?1:0;}if(training)assert(d.hp>=1);}
   if(hp==1000)assert(damage==(mod?240:300));
   assert(bursts==(hp==1 && !training?0:1));assert(a.st!=THROWING && d.st!=THROWN);
  }

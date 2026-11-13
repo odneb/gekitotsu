@@ -11,7 +11,7 @@ void AGkMatch::EnergyOrb(int32 Who,float Radius)
  if(!FilmOrb[Who])
  {
   UStaticMesh* Sphere=LoadObject<UStaticMesh>(nullptr,TEXT("/Engine/BasicShapes/Sphere.Sphere"));
-  UMaterialInterface* Material=LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/GkFx/M_GkFilmEnergy.M_GkFilmEnergy"));
+  UMaterialInterface* Material=LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/GkFx/M_GkDirectedEnergy.M_GkDirectedEnergy"));
   if(!Sphere || !Material) return;
   FilmOrb[Who]=NewObject<UStaticMeshComponent>(this);
   FilmOrb[Who]->SetupAttachment(RootComponent);FilmOrb[Who]->SetStaticMesh(Sphere);FilmOrb[Who]->SetMaterial(0,Material);
