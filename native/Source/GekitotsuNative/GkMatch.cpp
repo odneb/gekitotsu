@@ -6,7 +6,7 @@
 #include "Animation/Skeleton.h"
 #include "ReferenceSkeleton.h"
 #include "UnrealClient.h"
-#include "Misc/FileHelper.h"
+#include "HAL/FileManager.h"
 #include "Animation/AnimSingleNodeInstance.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
@@ -57,7 +57,7 @@
 AGkMatch* AGkMatch::Current = nullptr;
 static FString GkSkyForce; static double GkTimeForce = -1.0;   // a script trying a stage under another sky
 static double GkFovBase = 30.0;   // the fight lens, in degrees across: a stage may ask for a wider one
-static bool GkFlyOn() { static int32 On = -1; if (On < 0) { On = FPaths::FileExists(TEXT("/Users/Shared/Epic Games/GekitotsuNative/Saved/fly.on")) ? 1 : 0; } return On == 1; }   // a note left in Saved asks for a free camera on a stage
+static bool GkFlyOn() { static int32 On = -1; if (On < 0) { On = FPaths::FileExists(*(FPaths::ProjectSavedDir() / TEXT("fly.on"))) ? 1 : 0; } return On == 1; }   // a note left in Saved asks for a free camera on a stage
 /** Turns the map's sun to shine back at the camera, so the fight is lit from behind and its edges and the haze catch the light. Yaw and pitch are in degrees; Mult scales the sun's own strength. */
 static void GkApplySun(UWorld* W, double Yaw, double Pitch, double Mult, const FLinearColor& Col, bool bCol)
 {
@@ -157,16 +157,14 @@ void AGkMatch::BeginPlay()
 		if (FParse::Param(FCommandLine::Get(), TEXT("gkfight"))) { Screen = 3; }
 		if (FParse::Param(FCommandLine::Get(), TEXT("gkscript")) || GkFlyOn())
 		{
-			if (GkFlyOn()) { FString N; FFileHelper::LoadFileToString(N, TEXT("/Users/Shared/Epic Games/GekitotsuNative/Saved/fly.on")); Script = { FString::Printf(TEXT("stage|%d"), FCString::Atoi(*N)), TEXT("wait|400"), TEXT("fight|1"), TEXT("hud|0"), TEXT("storm|0") }; }
-			else { FFileHelper::LoadFileToStringArray(Script, TEXT("/Users/Shared/Epic Games/GekitotsuNative/Saved/script.txt")); }
+			if (GkFlyOn()) { FString N; FFileHelper::LoadFileToString(N, *(FPaths::ProjectSavedDir() / TEXT("fly.on"))); Script = { FString::Printf(TEXT("stage|%d"), FCString::Atoi(*N)), TEXT("wait|400"), TEXT("fight|1"), TEXT("hud|0"), TEXT("storm|0") }; }
+			else { FFileHelper::LoadFileToStringArray(Script, *(FPaths::ProjectSavedDir() / TEXT("script.txt"))); }
 			bScript = Script.Num() > 0; if (bScript) { Screen = 3; Mode = 1; ScriptAt = GkScriptResume; }
 		}
 	}
 	StageLook();
 	Restart();
-	// -gkstatus=<file>: keep a short note of how the game is running in that file (the path may contain spaces)
-	{ const FString Cmd = FCommandLine::Get(); const int32 From = Cmd.Find(TEXT("-gkstatus=")), To = Cmd.Find(TEXT(".txt"), ESearchCase::IgnoreCase, ESearchDir::FromStart, FMath::Max(0, From));
-	  if (From >= 0 && To > From) { StatusPath = Cmd.Mid(From + 10, To + 4 - From - 10).Replace(TEXT("\""), TEXT("")); } }
+	FParse::Value(FCommandLine::Get(), TEXT("gkstatus="), StatusPath);
 
 	// a neutral place to fight: a floor, a marker at each end of the stage, daylight
 	UStaticMesh* Plane = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane"));
@@ -300,6 +298,7 @@ void AGkMatch::BeginPlay()
 			  PP.bOverride_BloomIntensity = true; PP.BloomIntensity = 0.9f; PP.bOverride_BloomThreshold = true; PP.BloomThreshold = 1.0f;
 			  PP.bOverride_VignetteIntensity = true; PP.VignetteIntensity = 0.5f;
 			  PP.bOverride_ColorSaturation = true; PP.ColorSaturation = FVector4(1.08, 1.08, 1.08, 1.0); PP.bOverride_ColorContrast = true; PP.ColorContrast = FVector4(1.06, 1.06, 1.06, 1.0);
+			  if (ForestCel) { PP.AddBlendable(ForestCel, 1.f); }
 			  Cam->GetCameraComponent()->PostProcessBlendWeight = 1.f; }
 			if (APlayerController* PC = W->GetFirstPlayerController()) { PC->SetViewTarget(Cam); }
 		}
@@ -324,7 +323,15 @@ void AGkMatch::StageLook()
 	static const TCHAR* Airs[8] = { TEXT("motes"), TEXT("petals"), TEXT("leaves"), TEXT("fireflies"), TEXT("snow"), TEXT("embers"), TEXT("spores"), TEXT("sand") };
 	const FString Air = St->Get(TEXT("air")); AirKind = 0; for (int32 k = 0; k < 8; k++) { if (Air == Airs[k]) { AirKind = k; } }
 	LampI = FCString::Atof(*St->Get(TEXT("lamp"), TEXT("5000"))); LensF = FCString::Atof(*St->Get(TEXT("lens"), TEXT("0")));
-	if (!EdgeMid) { if (UMaterialInterface* EM = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/GkFx/M_GkRim.M_GkRim"))) { EdgeMid = UMaterialInstanceDynamic::Create(EM, this); } }
+	bForestLook = St->Get(TEXT("look")) == TEXT("anime-forest") &&
+		!FParse::Param(FCommandLine::Get(), TEXT("gkclassiclook"));
+	if (bForestLook)
+	{
+		FParse::Value(FCommandLine::Get(), TEXT("-gkpalette="), PaletteOverride);
+		PaletteOverride = FMath::Clamp(PaletteOverride, -1, 5);
+		ForestCel = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/GkFx/M_GkForestCel.M_GkForestCel"));
+	}
+	if (!bForestLook && !EdgeMid) { if (UMaterialInterface* EM = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/GkFx/M_GkRim.M_GkRim"))) { EdgeMid = UMaterialInstanceDynamic::Create(EM, this); } }
 	{ TArray<FString> N; St->Get(TEXT("edge")).ParseIntoArray(N, TEXT(",")); if (N.Num() > 0) { GkEdge(EdgeMid, N); } } GkFovBase = FCString::Atod(*St->Get(TEXT("fov"), TEXT("30")));   // no soft focus unless a stage asks for it
 }
 
@@ -1022,7 +1029,18 @@ void AGkMatch::Tick(float DeltaSeconds)
 	// a pack's map streams in around the camera first; the fight is set down in it once its ground is there
 	if (!bPlaced) { PlaceWait += float(Real); if (PlaceWait > 0.6f && TryPlace()) { bPlaced = true; Restart(); CamD.bSnap = true; if (bScript) { Screen = 3; for (int32 k = 0; k < 400 && S.phase != gk::PH_FIGHT; k++) { gk::step(S, 0, 0); } } } }
 	if ((++LightsClock % 30) == 1 && LightsClock < 1800) { if (Kind == 2) { QuietMapLights(); } if (bPlaced && Kind != 0) { if (!bNinjaTried) { NinjaFog(); } Mist(); } }
-	if (bScript) { Acc = 0.0; Ticks++; RunScript(); Present(float(Real)); return; }
+	if (bScript)
+	{
+		Acc = 0.0;
+		Ticks++;
+		RunScript();
+		Present(float(Real));
+		if (!StatusPath.IsEmpty() && (Ticks % 30) == 0)
+		{
+			UE_LOG(LogTemp, Display, TEXT("GkCapture frame %.2f ms, storm %.2f, render scale %.0f%%"), FrameMs, Storm, ScreenPct);
+		}
+		return;
+	}
 	InputNow = ReadPlayer();
 	MenuInput();
 	const double Step = 1.0 / 60.0, T0 = FPlatformTime::Seconds(); int32 Steps = 0;
@@ -1359,7 +1377,12 @@ void AGkMatch::ShowFighter(int32 i)
 	if (P.hs > 0 && (P.st == gk::HIT || P.st == gk::AHIT || P.st == gk::BLOCK)) { Jit.Y = ((Ticks & 1) ? 1.0 : -1.0) * FMath::Min(4.0, P.hs * 0.6); }
 	// The skeleton faces its own +Y, which is the rules' "right"; the camera looks along +X. Facing left he is the mirrored
 	// pose turned about, which shows the camera his chest exactly as the browser's mirror image does.
-	const FVector Where = bLab ? Wd(FVector(0.0, (bScript && !bLabUi) ? 0.0 : 62.0 * Cm * gk::F, 0.0)) : Wd(At(P.x, P.y, i ? 8.0 : -8.0) + Jit); const FQuat Facing = Anchor.GetRotation() * FRotator(0.0, bLeft ? 180.0 : 0.0, 0.0).Quaternion();
+	FVector Where = bLab ? Wd(FVector(0.0, (bScript && !bLabUi) ? 0.0 : 62.0 * Cm * gk::F, 0.0)) : Wd(At(P.x, P.y, i ? 8.0 : -8.0) + Jit); const FQuat Facing = Anchor.GetRotation() * FRotator(0.0, bLeft ? 180.0 : 0.0, 0.0).Quaternion();
+	if (bForestLook && bPlaced && !bLab)
+	{
+		const FVector Local = At(P.x, 0, i ? 8.0 : -8.0);
+		Where.Z += Wd(FloorPoint(Local)).Z - Wd(Local).Z;
+	}
 	const bool bTry = bLab && bLabDrop && LabTryAt >= -1;
 	const FGkClip* Use = bTry ? (LabTry.Anim ? &LabTry : nullptr) : (ClipSet[i] >= 0 ? ClipFor(ClipSet[i], Clip, MoveId) : nullptr);
 	if (Anim[i]) { Anim[i]->SetVisibility(false); } C->SetVisibility(true);
@@ -1522,7 +1545,7 @@ void AGkMatch::LookFighter(int32 i)
 	if (!bLab && BoltT > 0.f) { const float K = FMath::Clamp(BoltT / 4.f, 0.f, 1.f); Wash = FMath::Lerp(Wash, FLinearColor(0.f, 0.f, 0.01f), K); Amt = FMath::Lerp(Amt, 0.96f, K); Edge = FMath::Lerp(Edge, FLinearColor(9.f, 10.f, 13.f), K); Thick = FMath::Max(Thick, 2.6f * K); }
 	InkMid[i]->SetVectorParameterValue(TEXT("Outlines Color"), Edge); InkMid[i]->SetScalarParameterValue(TEXT("Outlines_Thickness"), Thick);
 	// the rim: the colour of the lamp behind them, brighter in a storm's flashes and dimmed with the world under a super
-	const bool bRim = Kind != 0 || bLab; const FLinearColor Rim = RimCol * ((bRim ? 1.f : 0.35f) * (1.f + 3.f * FMath::Min(Flash, 1.f)) * (1.f + 0.6f * Storm));
+	const bool bRim = Kind != 0 || bLab; const FLinearColor Rim = (bForestLook ? ForestRim : RimCol) * ((bRim ? 1.f : 0.35f) * (1.f + 3.f * FMath::Min(Flash, 1.f)) * (1.f + 0.6f * Storm));
 	float SceneDir = 0.f; const FLinearColor SceneT = GkSceneTint(GetWorld(), SceneDir); const FLinearColor SceneS = FLinearColor(0.92f, 0.95f, 1.f);
 	for (int32 k = 0; k < 4; k++)
 	{
@@ -1561,13 +1584,32 @@ void AGkMatch::StateFx(int32 i)
 {
 	const gk::Fighter& P = S.p[i]; const FVector Chest = At(P.x, P.y) + FVector(-20.0, 0.0, 95.0); const gk::Move* M = (P.st == gk::ATK && P.mv >= 0) ? &gk::move(P.mv) : nullptr;
 	const FLinearColor Ki = i ? FLinearColor(1.5f, 3.5f, 8.f) : FLinearColor(7.f, 3.6f, 0.9f);
-	if (Kind == 1 && P.y <= 0 && P.vx != 0)
+	if ((Kind == 1 || (bForestLook && bPlaced)) && P.y <= 0 && P.vx != 0)
 	{
 		const bool bDash = P.st == gk::DASHF || P.st == gk::DASHB || P.st == gk::DRUSH;
 		const bool bMoving = bDash || P.st == gk::RUN || (P.st == gk::IDLE && P.sub != gk::CROUCH);
 		if (bMoving && (Ticks % (bDash ? 4 : 10)) == i)
 		{
-			Fx.CanyonFootDust(At(P.x, 0), P.vx > 0 ? 1.0 : -1.0, bDash);
+			const FVector Feet = bForestLook ? FloorPoint(At(P.x, 0)) : At(P.x, 0);
+			if (bForestLook)
+			{
+				if ((Ticks % (bDash ? 8 : 20)) == i)
+				{
+					const float Direction = P.vx > 0 ? 1.f : -1.f;
+					if (!PlayVfx(bDash ? TEXT("NS_Directional_Dust_03_Once_Fast") : TEXT("NS_Directional_Dust_01_Once"),
+						Feet, bDash ? 0.48f : 0.33f, -Direction, nullptr))
+					{
+						Fx.Dust(Feet, bDash ? 0.65f : 0.30f, Direction);
+					}
+					if (bDash)
+					{
+						FGkFx::FP& Chip = Fx.Add(1, Feet + FVector(-8.0, 0.0, 8.0),
+							FVector(0.0, -140.0 * Direction, 120.0), 0.26f, 5.f, 3.f, Fx.DustCol);
+						Chip.Grav = 760.f;
+					}
+				}
+			}
+			else { Fx.CanyonFootDust(Feet, P.vx > 0 ? 1.0 : -1.0, bDash); }
 		}
 	}
 	// his feet: a heavy step as he walks, quicker when he runs
@@ -1679,7 +1721,7 @@ float AGkMatch::ImpactOf(int32 i, const FGkClip& C, bool bThrust)
 /** -gkscript: poses the game as Saved/script.txt says and saves pictures of it, then quits. One command a line, parts split by |. */
 void AGkMatch::RunScript()
 {
-	static const TCHAR* Root = TEXT("/Users/Shared/Epic Games/GekitotsuNative/Saved/shots/");
+	const FString Root = FPaths::ProjectSavedDir() / TEXT("shots/");
 	if (ScriptWait > 0) { ScriptWait--; return; }
 	if (!bPlaced) { return; }
 	if (ScriptRunLeft > 0) { ScriptRunLeft--; StepOnce(ScriptIn[0], ScriptIn[1]); AnimClock++; return; }
@@ -1735,12 +1777,13 @@ void AGkMatch::RunScript()
 		else if (Op == TEXT("hud")) { bNoHud = Num(1) == 0; }
 		else if (Op == TEXT("note")) { ScriptNote = A.IsValidIndex(1) ? A[1] : FString(); }
 		else if (Op == TEXT("exec") && A.IsValidIndex(1)) { if (GEngine) { GEngine->Exec(GetWorld(), *A[1]); } }
+		else if (Op == TEXT("palette")) { PaletteOverride = FMath::Clamp(Num(1, -1), -1, 5); }
 		else if (Op == TEXT("storm")) { ScriptStorm = Num(1) / 100.f; }
 		else if (Op == TEXT("wait")) { ScriptWait = Num(1, 1); return; }
-		else if (Op == TEXT("shot")) { if (Cam) { const FVector CL = Cam->GetActorLocation(); const FRotator CR = Cam->GetActorRotation(); UE_LOG(LogTemp, Display, TEXT("GkCam %s %.0f,%.0f,%.0f p%.1f y%.1f fov %.1f"), *A[1], CL.X, CL.Y, CL.Z, CR.Pitch, CR.Yaw, Cam->GetCameraComponent()->FieldOfView); } FScreenshotRequest::RequestScreenshot(FString(Root) + A[1] + TEXT(".png"), false, false); ScriptWait = 3; return; }
+		else if (Op == TEXT("shot")) { if (Cam) { const FVector CL = Cam->GetActorLocation(); const FRotator CR = Cam->GetActorRotation(); UE_LOG(LogTemp, Display, TEXT("GkCam %s %.0f,%.0f,%.0f p%.1f y%.1f fov %.1f"), *A[1], CL.X, CL.Y, CL.Z, CR.Pitch, CR.Yaw, Cam->GetCameraComponent()->FieldOfView); } IFileManager::Get().MakeDirectory(*Root, true); FScreenshotRequest::RequestScreenshot(Root + A[1] + TEXT(".png"), false, false); ScriptWait = 3; return; }
 		else if (Op == TEXT("quit")) { break; }
 	}
-	GkScriptResume = 0; bScript = false; if (GkFlyOn()) { return; } FFileHelper::SaveStringToFile(TEXT("done\n"), *(FString(Root) + TEXT("done.txt"))); FPlatformMisc::RequestExit(false);
+	GkScriptResume = 0; bScript = false; if (GkFlyOn()) { return; } FFileHelper::SaveStringToFile(TEXT("done\n"), *(Root + TEXT("done.txt"))); FPlatformMisc::RequestExit(false);
 }
 
 /** The clip each state and move starts with, for every character (the lab changes them; its choices are read last). */
@@ -1849,6 +1892,7 @@ bool AGkMatch::PlayVfx(const TCHAR* Name, const FVector& Local, float Scale, flo
 
 void AGkMatch::Present(float Real)
 {
+	if (bForestLook && bPlaced) { UpdateForestLook(Real); }
 	for (int32 i = 0; i < 2; i++) { ShowFighter(i); }
 	// which place is shown: training is fought in the measured room, everything else in the wasteland
 	const int32 Place = Kind;
@@ -1872,6 +1916,7 @@ void AGkMatch::Present(float Real)
 		float Want = FMath::Clamp((0.78f - HpMin) / 0.6f, 0.f, 1.f);
 		if (S.round == 2) { Want = FMath::Max(Want, 0.32f); } if (S.round >= 3) { Want = FMath::Max(Want, 0.8f); }
 		if (Place == 0 || Screen != 3) { Want = 0.f; }
+		if (bForestLook && PaletteOverride >= 0) { Want = PaletteWeights[2]; }
 		if (ScriptStorm >= 0.f) { Want = ScriptStorm; }
 		Storm = FMath::Lerp(Storm, Want, FMath::Clamp(Real * 1.2f, 0.f, 1.f));
 		const int32 Stage = Want < 0.05f ? 0 : Want < 0.3f ? 1 : Want < 0.6f ? 2 : 3;
@@ -1900,7 +1945,8 @@ void AGkMatch::Present(float Real)
 			SplashDue -= Real; Guard = 0;
 			while (SplashDue <= 0.f && Guard++ < 6)
 			{   // where the drops land: a ring that opens on the ground and two beads thrown up from it
-				SplashDue += 0.02f / Storm; const FVector G(Fx.Rng.FRandRange(-260.f, 90.f), CamPos.Y + Fx.Rng.FRandRange(-900.f, 900.f), 3.0);
+				SplashDue += 0.02f / Storm; FVector G(Fx.Rng.FRandRange(-260.f, 90.f), CamPos.Y + Fx.Rng.FRandRange(-900.f, 900.f), 3.0);
+				if (bForestLook) { G = FloorPoint(G) + FVector(0.0, 0.0, 3.0); }
 				Fx.Add(0, G, FVector::ZeroVector, 0.16f, 4.f, 30.f, FLinearColor(1.4f, 1.8f, 2.6f), 0.6f);
 				for (int32 k = 0; k < 2; k++) { FGkFx::FP& Bd = Fx.Add(0, G, FVector(0.0, Fx.Rng.FRandRange(-90.f, 90.f), Fx.Rng.FRandRange(120.f, 260.f)), 0.22f, 4.f, 1.5f, FLinearColor(2.f, 2.6f, 3.6f)); Bd.Grav = 1100.f; Bd.Stretch = 3.f; }
 			}
@@ -1956,15 +2002,16 @@ void AGkMatch::Present(float Real)
 		if (Cam)
 		{
 			FPostProcessSettings& PP = Cam->GetCameraComponent()->PostProcessSettings; const double G = (1.0 - 0.55 * Dim) * (1.0 - 0.2 * Storm * Storm) + 1.5 * Flash;
-			PP.bOverride_ColorGain = true; PP.ColorGain = FVector4(G * (1.0 - 0.1 * Storm), G, G * (1.0 + 0.08 * Dim + 0.1 * Storm), 1.0);
+			PP.bOverride_ColorGain = true; PP.ColorGain = FVector4(G * ForestGrade.R * (1.0 - 0.1 * Storm), G * ForestGrade.G, G * ForestGrade.B * (1.0 + 0.08 * Dim + 0.1 * Storm), 1.0);
 			PP.bOverride_ColorSaturation = true; const double Sat = 1.0 - 0.3 * Storm; PP.ColorSaturation = FVector4(Sat, Sat, Sat, 1.0);
 		}
 		Fx.DustCol = Place != 0 ? FMath::Lerp(FLinearColor(0.62f, 0.47f, 0.33f), FLinearColor(0.36f, 0.38f, 0.48f), Storm) : FLinearColor(0.45f, 0.47f, 0.52f);
 	}
-	if (Kind == 1 && Screen == 3 && !bMenu)
+	if ((Kind == 1 || (bForestLook && bPlaced)) && Screen == 3 && !bMenu)
 	{
 		const float DustDt = FMath::Min(Real, 0.05f);
-		Fx.CanyonHaze(CamPos.Y, DustDt);
+		Fx.CanyonHaze(CamPos.Y, DustDt, bForestLook ? FloorPoint(FVector(0.0, CamPos.Y, 0.0)).Z : 0.0,
+			bForestLook ? FMath::Lerp(ForestRim, FLinearColor::White, 0.5f) : FLinearColor(0.83f, 0.63f, 0.43f), Storm);
 		for (const gk::Fighter& Fighter : S.p)
 		{
 			if (Fighter.y <= 0 && Fighter.vx != 0)
@@ -2131,8 +2178,15 @@ void AGkMatch::Present(float Real)
 		const double Fov = FMath::Clamp(GkFovBase + double(CamD.Fov + CamD.KFov) * 0.4, GkFovBase - 4.0, GkFovBase + 10.0), Hk = FMath::Tan(FMath::DegreesToRadians(Fov * 0.5)), Hk0 = FMath::Tan(HalfFov);
 		double D = -CamPos.X * (Hk0 / Hk) * double(CamD.Zm) * (1.0 + double(CamD.KZm));
 		if (!T.bSolo) { const double A = (FMath::Abs(Ax - Bx) * 0.5 + 36.0 + T.Pad) * Unit; D = FMath::Max(D, A * (FMath::Cos(Yaw) / (0.84 * Hk) + FMath::Abs(FMath::Sin(Yaw)))); }
-		const FVector Look(0.0, CamPos.Y, CamPos.Z); const double R = D * FMath::Cos(Pit);
-		FVector Eye(-R * FMath::Cos(Yaw), Look.Y + R * FMath::Sin(Yaw), FMath::Max(14.0, Look.Z + D * FMath::Sin(Pit)));
+		double LookZ = CamPos.Z;
+		if (bForestLook && bPlaced && Screen == 3)
+		{
+			const double GroundZ = 0.5 * (FloorPoint(At(S.p[0].x, 0)).Z + FloorPoint(At(S.p[1].x, 0)).Z);
+			ForestCameraGround = FMath::FInterpTo(ForestCameraGround, GroundZ, Real, 5.0);
+			LookZ += ForestCameraGround - 24.0;
+		}
+		const FVector Look(0.0, CamPos.Y, LookZ); const double R = D * FMath::Cos(Pit);
+		FVector Eye(-R * FMath::Cos(Yaw), Look.Y + R * FMath::Sin(Yaw), FMath::Max(14.0 + ForestCameraGround, Look.Z + D * FMath::Sin(Pit)));
 		Eye += FVector(0.0, FMath::Sin(Ticks * 1.7) * Shake, FMath::Cos(Ticks * 2.3) * Shake * 0.7);
 		FRotator Rot = (Look - Eye).Rotation(); Rot.Roll = -(CamD.Roll + CamD.KRoll);
 		if (Cam) { Cam->GetCameraComponent()->SetFieldOfView(float(Fov)); Cam->SetActorLocationAndRotation(Wd(Eye), Anchor.GetRotation() * Rot.Quaternion()); }

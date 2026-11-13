@@ -23,7 +23,7 @@ struct FGkFx
 	void Guard(const FVector& At, float Dir);
 	void Parry(const FVector& At, bool bPerfect);
 	void Dust(const FVector& At, float Amount, float Dir);
-	void CanyonHaze(double CentreY, float Dt);
+	void CanyonHaze(double CentreY, float Dt, double GroundZ, const FLinearColor& Tint, float Wind);
 	void StirCanyonHaze(const FVector& Feet, double Speed, float Dt);
 	void CanyonFootDust(const FVector& Feet, double Direction, bool bDash);
 	void Aura(const FVector& At, const FLinearColor& Col, float Amount);

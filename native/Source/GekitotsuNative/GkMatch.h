@@ -118,8 +118,24 @@ public:
 	// a fluid that lies over the floor of the fight and is stirred by the fighters as they move through it.
 	FLinearColor RimCol = FLinearColor(1.f, 0.85f, 0.65f); float RimTune[3] = { 2.f, 2.f, 0.6f }, BoltT = 0.f, LensF = 1.8f, LampI = 5000.f, LampScatter = 3.f, WindDue = 0.f, SplashDue = 0.f; int32 AirKind = 0; bool bOwnLight = false, bNinjaTried = false, bNinjaQuiet = false;
 	UPROPERTY() TObjectPtr<class USpotLightComponent> BackLamp; UPROPERTY() TObjectPtr<class ULevelStreamingDynamic> NinjaLevel; UPROPERTY() TArray<TObjectPtr<AActor>> Stirrers;
-	UMaterialInstanceDynamic* EdgeMid = nullptr; bool bEdgeAdd = false; bool bFly = false; bool bScout = false; FVector ScoutPos = FVector::ZeroVector; FRotator ScoutRot = FRotator::ZeroRotator; float ScoutFov = 60.f;
+	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> EdgeMid; bool bEdgeAdd = false; bool bFly = false; bool bScout = false; FVector ScoutPos = FVector::ZeroVector; FRotator ScoutRot = FRotator::ZeroRotator; float ScoutFov = 60.f;
 	void StageLook(); void NinjaFog(); void Mist();
+	void UpdateForestLook(float DeltaSeconds);
+	FVector FloorPoint(const FVector& Local) const;
+	bool bForestLook = false;
+	double ForestCameraGround = 0.0;
+	int32 PaletteOverride = INDEX_NONE;
+	float PaletteWeights[6] = { 1.f };
+	UPROPERTY() TObjectPtr<UMaterialInterface> ForestCel;
+	TWeakObjectPtr<class UDirectionalLightComponent> ForestSun;
+	TWeakObjectPtr<class UExponentialHeightFogComponent> ForestFog;
+	FRotator ForestSunRotation;
+	float ForestSunIntensity = 0.f;
+	float ForestFogDensity = 0.f;
+	FLinearColor ForestSunColor = FLinearColor::White;
+	FLinearColor ForestFogColor = FLinearColor::White;
+	FLinearColor ForestRim = FLinearColor::White;
+	FLinearColor ForestGrade = FLinearColor::White;
 	// afterimages: when a fighter moves fast (a dash, a rush, a drive impact, a super, being knocked flying) he leaves
 	// bright copies of himself behind for a few frames, each held in the pose he had there
 	UPROPERTY() TObjectPtr<UPoseableMeshComponent> Ghost[6]; UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> GhostMid[6]; int32 GhostAge[6] = { 99, 99, 99, 99, 99, 99 }, GhostNext[2] = { 0, 0 }, GhostClock[2] = { 0, 0 };

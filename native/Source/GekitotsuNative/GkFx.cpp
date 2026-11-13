@@ -118,14 +118,14 @@ void FGkFx::Dust(const FVector& At, float Amount, float Dir)
 	}
 }
 
-void FGkFx::CanyonHaze(double CentreY, float Dt)
+void FGkFx::CanyonHaze(double CentreY, float Dt, double GroundZ, const FLinearColor& Tint, float Wind)
 {
 	CanyonHazeDue -= FMath::Min(Dt, 0.05f);
 	if (CanyonHazeDue > 0.f) { return; }
 	CanyonHazeDue += 0.09f;
-	const FVector Position(Rng.FRandRange(-55.f, 32.f), CentreY + Rng.FRandRange(-650.f, 650.f), Rng.FRandRange(4.f, 13.f));
-	FP& Puff = Add(1, Position, FVector(0.0, Rng.FRandRange(22.f, 52.f), 1.5), Rng.FRandRange(2.2f, 3.5f),
-		75.f, 118.f, FLinearColor(0.83f, 0.63f, 0.43f), 0.26f);
+	const FVector Position(Rng.FRandRange(-55.f, 32.f), CentreY + Rng.FRandRange(-650.f, 650.f), GroundZ + Rng.FRandRange(4.f, 13.f));
+	FP& Puff = Add(1, Position, FVector(0.0, Rng.FRandRange(22.f, 52.f) - 235.f * Wind, 1.5), Rng.FRandRange(2.2f, 3.5f),
+		75.f, 118.f, Tint, 0.26f);
 	Puff.bSwell = true;
 	Puff.bCanyonHaze = true;
 }

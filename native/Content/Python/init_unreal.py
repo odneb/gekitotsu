@@ -42,5 +42,6 @@ def _tick(dt):
         return
     m = _mtime(_TEST)
     if m and m != _S['test']: _S['test'] = m; _run(_TEST, 'test')
-unreal.register_slate_post_tick_callback(_tick)
-_log('=== editor started', time.ctime(), unreal.SystemLibrary.get_engine_version())
+if os.environ.get('GK_EDITOR_WATCH') == '1':
+    unreal.register_slate_post_tick_callback(_tick)
+    _log('=== editor watcher started', time.ctime(), unreal.SystemLibrary.get_engine_version())

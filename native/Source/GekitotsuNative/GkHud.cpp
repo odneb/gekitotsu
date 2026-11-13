@@ -148,7 +148,9 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 	{
 		for (int32 i = 0; i < 2; i++)
 		{
-			const FVector Hd = Cv->Project(Wd(At(S.p[i].x, S.p[i].y + 104 * gk::F))); if (Hd.Z <= 0.0) { continue; }
+			FVector Mark = At(S.p[i].x, S.p[i].y + 104 * gk::F);
+			if (bForestLook && bPlaced) { Mark.Z += FloorPoint(At(S.p[i].x, 0, i ? 8.0 : -8.0)).Z; }
+			const FVector Hd = Cv->Project(Wd(Mark)); if (Hd.Z <= 0.0) { continue; }
 			const FLinearColor Mk = i ? Blue : Red; const float Mw = 34.f * U;
 			GkRect(Cv, Hd.X - Mw * 0.5f, Hd.Y - 30.f * U, Mw, 20.f * U, Mk); GkText(Cv, i ? (Mode == 0 ? TEXT("CPU") : TEXT("2P")) : TEXT("1P"), Hd.X, Hd.Y - 29.f * U, 13.f * U, Bone, true, 0);
 			GkRect(Cv, Hd.X - 3.f * U, Hd.Y - 10.f * U, 6.f * U, 6.f * U, Mk);
