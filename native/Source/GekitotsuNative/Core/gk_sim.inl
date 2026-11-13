@@ -460,7 +460,7 @@ static void update(State& s, Fighter& p, Fighter& o, int inp, int i)
 			const int k = o.noTech ? 17 : 10;
 			if (!p.tk)
 			{
-				if (o.st == THROWN) { o.x += (p.x + p.face * 30 * F - o.x) / 3; o.y = 0; o.vx = 0; o.vy = 0; }
+				if (o.st == THROWN) { o.x = p.x + p.face * 30 * F; o.y = 0; o.vx = 0; o.vy = 0; }
 				if (p.sf < 9 && o.st == THROWN && (o.prev & 16) && (o.prev & 32) && o.age[0] <= 10 && o.age[1] <= 10 && !o.noTech)
 				{
 					p.st = TECH; o.st = TECH; p.sf = 0; o.sf = 0; o.y = 0; p.pv = -p.face * 620; o.pv = p.face * 620; push(s, E_TECH, -1, (p.x + o.x) >> 1, 60 * F); break;
@@ -475,31 +475,18 @@ static void update(State& s, Fighter& p, Fighter& o, int inp, int i)
 			}
 			else
 			{
-				p.tf++; const int side = p.tk == 2 ? -1 : 1;
-                // A shared 18-frame lift/turn/release. The back throw crosses
-                // continuously through the pivot instead of teleporting at f5.
-                if (o.st == THROWN) {
-                    const int t = imin(p.tf, 18), u = t * t * (54 - 2 * t); // smoothstep numerator / 5832
-                    const int endX = p.tk == 2 ? -30 : p.tk == 3 ? 20 : 32;
-                    o.x = p.x + p.face * (30 * F + (endX - 30) * F * u / 5832);
-                    const int crest = p.tk == 4 ? 28 : p.tk == 3 ? 42 : 24;
-                    const int endY = p.tk == 4 ? 0 : p.tk == 3 ? 40 : 24;
-                    o.y = t <= 10 ? crest * F * t / 10 : (crest + (endY - crest) * (t - 10) / 8) * F;
-                    o.vx = 0; o.vy = 0;
-                    const int edge = STAGE - PW;
-                    if (o.x > edge) { p.x -= o.x - edge; o.x = edge; }
-                    else if (o.x < -edge) { p.x += -edge - o.x; o.x = -edge; }
-                }
-				if (p.tf == 18 && o.st == THROWN)
+				p.tf++; const int side = p.tk == 2 && p.tf >= 5 ? -1 : 1;
+				if (o.st == THROWN) { o.x = p.x + p.face * side * 30 * F; o.y = p.tk == 4 ? 0 : imin(p.tf, 10) * 3 * F; o.vx = 0; o.vy = 0; }
+				if (p.tf == 10 && o.st == THROWN)
 				{
 					static const int V[5][2] = { { 0, 0 }, { 430, 720 }, { 430, 720 }, { 40, 1480 }, { -70, 1260 } };
 					const int d = 120 * k / 10;
-					o.hp = imax(s.cfg.training ? 1 : 0, o.hp - d); o.st = AHIT; o.sf = 0; o.y = imax(1, o.y); o.vx = p.face * side * V[p.tk][0]; o.vy = V[p.tk][1]; o.combo = 1; o.comboDmg = d;
+					o.hp = imax(s.cfg.training ? 1 : 0, o.hp - d); o.st = AHIT; o.sf = 0; o.y = p.tk == 4 ? 1 : 30 * F; o.vx = p.face * side * V[p.tk][0]; o.vy = V[p.tk][1]; o.combo = 1; o.comboDmg = d;
 					o.jug = p.tk >= 3 ? 0 : 3; o.hard = p.tk >= 3 ? 0 : 1; o.hs = 8; p.hs = 8; o.redT = 50; o.gbUsed = 0; o.wbUsed = 0;
 					p.sa = imin(3000, p.sa + 200); o.sa = imin(3000, o.sa + 40); if (!p.bo) { p.dr = imin(DMAX, p.dr + 200); } if (o.noTech && !o.bo) { o.dr -= 1000; burnOther(s, o, 1 - i); }
 					push(s, E_HIT, i, o.x, 50 * F, 2, d, 1, d, o.noTech ? 2 : 0, H_THROW); if (p.tk == 4) { push(s, E_GBOUNCE, 1 - i, o.x, 0); }
 				}
-				if (p.tf >= (p.tk >= 3 ? 30 : 40)) { p.tk = 0; toIdle(p); }
+				if (p.tf >= (p.tk >= 3 ? 20 : 30)) { p.tk = 0; toIdle(p); }
 			}
 			break;
 		}
@@ -870,22 +857,6 @@ void step(State& s, int i0, int i1)
 	for (int i = 0; i < 2; i++) { Fighter& p = s.p[i]; if (fr[i]) { p.hs--; } else { update(s, p, s.p[1 - i], raw[i], i); } }
 	for (int i = 0; i < 2; i++) { if (!fr[i]) { physics(s, s.p[i], s.p[1 - i], i); } }
 	pushboxes(s);
-    // Resolve the paired interaction after ordinary body separation, before
-    // strike resolution. Hit-confirm only; block, parry and whiff cannot latch.
-    for (int i=0;i<2;++i) {
-        Fighter& a=s.p[i];Fighter& d=s.p[1-i];
-        const bool hold=a.st==ATK && a.mv==M_SA2 && a.hitOK && a.mf>=5 && a.mf<40 && d.hp>0 && (d.st==HIT || d.st==AHIT);
-        if(hold) {
-            d.superHold=i+1;
-            if(!fr[i]) {
-                d.x+=(a.x+a.face*26*F-d.x)/3;d.y+=(a.y-d.y)/3;if(d.y<F)d.y=0;
-                const int edge=STAGE-PW;if(d.x>edge){a.x-=d.x-edge;d.x=edge;}else if(d.x < -edge){a.x+=-edge-d.x;d.x=-edge;}
-                d.st=HIT;d.stun=60;d.vx=d.vy=d.pv=0;d.mv=-1;
-            }
-        } else if(d.superHold==i+1) {
-            d.superHold=0;if(d.st==HIT){d.st=AHIT;d.sf=0;d.y=imax(1,d.y);d.vx=a.face*120;d.vy=300;}
-        }
-    }
 	resolveThrows(s);
 	projectiles(s);
 	resolveHits(s);

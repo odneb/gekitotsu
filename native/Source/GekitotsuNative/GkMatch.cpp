@@ -1210,7 +1210,7 @@ void AGkMatch::OnEvent(const gk::Event& E)
 {
 	EventSound(E); VoiceEvent(E);
  if(E.type==gk::E_PARRY || E.type==gk::E_PPARRY){
-  const int32 Defender=E.who&1;ParryBeat[Defender]=AnimClock;ParryContact[Defender]=FVector(E.x,E.y,0);
+  const int32 Defender=E.who&1;ParryBeat[Defender]=AnimClock;
   const bool Low=E.y-S.p[Defender].y<35*gk::F;
   ParryVariant[Defender]=Low?3:(ParryCount[Defender]++%3);
   UE_LOG(LogTemp,Display,TEXT("GkParry defender=%d variant=%d perfect=%d"),Defender,ParryVariant[Defender],E.type==gk::E_PPARRY);
@@ -1220,15 +1220,6 @@ void AGkMatch::OnEvent(const gk::Event& E)
 	switch (E.type)
 	{
 		case gk::E_HIT:
-            if(S.p[Who].mv==gk::moveByKey("SA2") && S.p[Who].mf>=40) {
-                const FVector Centre=At(E.x,50*gk::F);PlayVfx(TEXT("NS_Radial_Spiky_Hit_01"),Centre,3.f,0,TEXT("SFX_Vefects_Block_01_Cue"),.8f);
-                PlayVfx(TEXT("NS_Radial_Burst"),Centre,2.8f,0,nullptr);
-                PlayVfx(TEXT("NS_Directional_Dust_03_Once_Fast"),At(E.x,0),2.3f,float(S.p[Who].face),nullptr);
-                for(int Ray=0;Ray<32;++Ray){const float Angle=Ray*2.f*PI/32.f;const FVector Dir(0,FMath::Cos(Angle),FMath::Sin(Angle));
-                    auto& Shard=Fx.Add(0,Centre+FVector(-45,0,0)+Dir*25,Dir*(1100+Ray%5*150),.18f+Ray%4*.025f,8.f+Ray%3*3,0,FLinearColor(9,5,.8f));Shard.Streak=Dir*(100+Ray%5*35);
-                }
-                Fx.StirCanyonHaze(At(E.x,0),2400.f,.1f);Shake=FMath::Max(Shake,18.f);Flash=FMath::Max(Flash,.55f);Snd(TEXT("ImpactBurst_01"),1.f);
-            }
 			HitKind[1 - Who] = (E.f & gk::H_LOW) ? 3 : E.a >= 2 ? 2 : E.a >= 1 ? 1 : 0;   // how hard it landed picks the reel: light, medium, heavy, or swept low
 			{   // one spark and one sound for each blow that lands, sized by how hard it was
 				const int32 Lv = (E.f & gk::H_KO) ? 3 : FMath::Clamp(E.a, 0, 2); const float Dr = float(S.p[Who].face); const FVector Pt = At(E.x, E.y, -30.0);
@@ -1504,10 +1495,7 @@ void AGkMatch::ShowFighter(int32 i)
 		for (int32 k = 0; k < 5; k++) { KeyBone[i][k] = RS.FindBoneIndex(FName(Keys[k])); }
 	}
 	static TArray<FTransform> Tg, Cs, Ms; FVector Wh = Where; FQuat Fq = Facing;
- const bool bChoreo=BuildChoreography(i,Clip,Tg);
- if(bChoreo && !bLab && P.st==gk::ATK && MoveClip.IsValidIndex(P.mv))Clip=MoveClip[P.mv];
- if(bChoreo) {}
-	else if (Use)
+	if (Use)
 	{
 		const float Len = Use->Anim->GetPlayLength(), A0 = Use->From * Len, A1 = FMath::Max(Use->To * Len, A0 + 0.01f); float Sec = A0; const int32 Count = FMath::Max(2, Poses.Length(Clip));
 		const FString Cn = Clip.ToString();
@@ -1585,16 +1573,10 @@ void AGkMatch::ShowFighter(int32 i)
 		const float* Pose = GkOwnPose(Clip, OwnT); if (!Pose) { Pose = Poses.Frame(Clip, T); } if (!Pose) { Pose = Poses.Frame(TEXT("idle"), 0); }
 		Rig[i].Apply(Pose, !bLab && P.y > 0, bLeft, Roll, Turn); Tg = C->BoneSpaceTransforms;
 	}
- // Hold the paired release pose through impact freeze. Blending into the
- // generic airborne reel during hit-stop lifted a slammed body off the floor.
- if(P.st==gk::THROWN)ThrowReleaseHold[i]=true;
- else if(P.st!=gk::AHIT || P.hs<=0)ThrowReleaseHold[i]=false;
- const bool bThrowHold=ThrowReleaseHold[i] && P.st==gk::AHIT && PoseShown[i].Num()==N;
- if(bThrowHold){Tg=PoseShown[i];Clip=TEXT("throw_exit");}
 	// the change from one clip to the next is a short cross-fade from whatever was showing: quick into a blow or a reel, easy back to standing
-	const void* NowAnim = (!bThrowHold && !bChoreo && Use) ? (const void*)Use->Anim.Get() : nullptr;
+	const void* NowAnim = Use ? (const void*)Use->Anim.Get() : nullptr;
 	const bool bAgain = MoveId >= 0 && T < LastT[i] - 1; LastT[i] = T;
-	if (NowAnim != ShownAnim[i] || ((!Use || bChoreo || bThrowHold) && ShownClip[i] != Clip) || bAgain || PoseShown[i].Num() != N)
+	if (NowAnim != ShownAnim[i] || (!Use && ShownClip[i] != Clip) || bAgain || PoseShown[i].Num() != N)
 	{
 		const bool bFirst = PoseShown[i].Num() != N; PoseFrom[i] = bFirst ? Tg : PoseShown[i]; BlendAt[i] = AnimClock; ShownAnim[i] = NowAnim; ShownClip[i] = Clip;
 		const FString Cn = Clip.ToString(); const bool bSharp = !bLab && (P.st == gk::HIT || P.st == gk::AHIT || P.st == gk::BLOCK || P.st == gk::PARRY || P.st == gk::PREC || P.st == gk::THROWN || P.st == gk::KDOWN);
@@ -1606,8 +1588,8 @@ void AGkMatch::ShowFighter(int32 i)
 	else { for (int32 b = 0; b < N; b++) { FTransform Bl; Bl.Blend(PoseFrom[i][b], Tg[b], Al); PoseShown[i][b] = Bl; } }
 	C->BoneSpaceTransforms = PoseShown[i]; C->MarkRefreshTransformDirty();
 	// a blow rocks him back on his heels; a landing squashes him for an instant
-	if (!bChoreo && !bLab && FMath::Abs(Lean[i]) > 0.3f) { Fq = Fq * FQuat(FVector(1, 0, 0), FMath::DegreesToRadians(Lean[i])); }
-	const float Sq = (bLab || bChoreo) ? 0.f : Squash[i]; C->SetWorldScale3D(FVector(1.0 + 0.07 * Sq, 1.0 + 0.07 * Sq, 1.0 - 0.12 * Sq));
+	if (!bLab && FMath::Abs(Lean[i]) > 0.3f) { Fq = Fq * FQuat(FVector(1, 0, 0), FMath::DegreesToRadians(Lean[i])); }
+	const float Sq = bLab ? 0.f : Squash[i]; C->SetWorldScale3D(FVector(1.0 + 0.07 * Sq, 1.0 + 0.07 * Sq, 1.0 - 0.12 * Sq));
 	if(bShowcase) {
   const FVector Spot=At((i?115:-115)*gk::F,0,i?8:-8);
   Wh=Wd(Spot);if(bForestLook)Wh.Z+=Wd(FloorPoint(Spot)).Z-Wd(Spot).Z;
@@ -1626,7 +1608,7 @@ void AGkMatch::Afterimage(int32 i)
 	UPoseableMeshComponent* C = Body[i]; if (!C) { return; }
 	const gk::Fighter& P = S.p[i]; const gk::Move* M = (P.st == gk::ATK && P.mv >= 0) ? &gk::move(P.mv) : nullptr;
 	const bool bOn = Screen == 3 && !bMenu && BodyMid[i][0] != nullptr && C->GetSkinnedAsset() != nullptr;
-	const bool bFast = bOn && S.freeze <= 0 && (P.st == gk::DRUSH || P.st == gk::RUN || P.st == gk::DASHF || P.st == gk::DASHB || (M && (M->di || (M->sup && P.mf > 6 && (FMath::Abs(P.vx)>100 || FMath::Abs(P.vy)>300)) || (M->has_home && P.mf >= M->home[0] && !P.hmE))) || (P.st == gk::AHIT && FMath::Abs(P.vx) > 260));
+	const bool bFast = bOn && S.freeze <= 0 && (P.st == gk::DRUSH || P.st == gk::RUN || P.st == gk::DASHF || P.st == gk::DASHB || (M && (M->di || (M->sup && P.mf > 6) || (M->has_home && P.mf >= M->home[0] && !P.hmE))) || (P.st == gk::AHIT && FMath::Abs(P.vx) > 260));
 	const bool bStep = AnimClock != GhostClock[i]; GhostClock[i] = AnimClock;
 	if (bStep) { for (int32 g = 0; g < 3; g++) { GhostAge[i * 3 + g]++; } }
 	if (bStep && bFast && (AnimClock % 3) == 0)
@@ -2148,8 +2130,8 @@ void AGkMatch::Present(float Real)
 	for (int32 i=0; i<2; ++i)
 	{
 		const gk::Fighter& P=S.p[i];
-		const bool Charge=P.st==gk::ATK && P.mv>=0 && ((gk::move(P.mv).has_proj && P.mf<gk::move(P.mv).pf) || (P.mv==gk::moveByKey("SA2") && P.hitOK && P.mf<40));
-  if(Charge && Screen==3 && !bMenu)EnergyOrb(i,P.mv==gk::moveByKey("SA2")?8.f+16.f*FMath::SmoothStep(10.f,38.f,float(P.mf)):8.f+14.f*P.mf/FMath::Max(1,gk::move(P.mv).pf));
+		const bool Charge=P.st==gk::ATK && P.mv>=0 && gk::move(P.mv).has_proj && P.mf<gk::move(P.mv).pf;
+  if(Charge && Screen==3 && !bMenu)EnergyOrb(i,8.f+14.f*P.mf/FMath::Max(1,gk::move(P.mv).pf));
   const bool Energy=Screen==3 && !bMenu && P.st==gk::ATK && (P.mv==gk::moveByKey("SA3") || P.mv==gk::moveByKey("CA") || P.mv==gk::moveByKey("ABEAM")) && P.mf<=gk::move(P.mv).lastAct+3;
 		if (FilmOrb[i]) FilmOrb[i]->SetVisibility(Energy || (Charge && Screen==3 && !bMenu));
 		if (FilmEnergyLight[i]) FilmEnergyLight[i]->SetVisibility(Energy || (Charge && Screen==3 && !bMenu));
@@ -2161,7 +2143,6 @@ void AGkMatch::Present(float Real)
 	}
 	if (bForestLook && bPlaced) { UpdateForestLook(Real); }
 	for (int32 i = 0; i < 2; i++) { ShowFighter(i); }
- UpdateThrowContact();
 	// which place is shown: training is fought in the measured room, everything else in the wasteland
 	const int32 Place = Kind;
 	if (Place != ShownPlace)
@@ -2478,12 +2459,6 @@ void AGkMatch::Present(float Real)
 		if(S.freeze<=0){T.Yaw=FMath::Clamp(T.Yaw,-8.f,8.f);T.Roll=FMath::Clamp(T.Roll,-2.f,2.f);T.Pit=4.f;T.Zm=FMath::Max(T.Zm,.97f);T.bSolo=false;}
 		else if(T.bSolo){const float u=1.f-float(S.freeze)/FMath::Max(1,FrzMax);T.Zm=.48f;T.Pit=4.f;T.Yaw=S.p[S.frzWho].face*(65.f-35.f*u);T.Roll=S.p[S.frzWho].face*(-3.f+6.f*u);}
 	}
- if(Screen==3 && !bMenu && Place!=0 && S.freeze<=0)for(int Who=0;Who<2;++Who){const auto& P=S.p[Who];
-  if(P.st==gk::ATK && P.mv==gk::moveByKey("SA2") && S.p[1-Who].superHold==Who+1 && P.mf>=12 && P.mf<36){
-   const float Beat=FMath::SmoothStep(12.f,20.f,float(P.mf))*(1-FMath::SmoothStep(29.f,36.f,float(P.mf)));
-   T.Yaw=P.face*18.f*Beat;T.Roll=-P.face*2.f*Beat;T.Zm=1.f-.23f*Beat;T.Pit=4.f;T.K=.22f;
-  }
- }
 	if (Place == 0 || bMenu || Screen == 4) { T = { 0.f, 4.f, 0.f, 1.f, 0.f, 0.2f, 0.f, false }; }
 	if (GkFlyOn() && Place != 0 && Screen == 3 && !bMenu && !bScript)
 	{   // a free camera on the stage: mouse looks, WASD moves, Q and E go down and up, shift is quick and control is slow, Z and X change the lens, F writes where it is to Saved/fly.txt
