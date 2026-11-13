@@ -9,8 +9,7 @@
 #include "Engine/Texture2D.h"
 #include "TextureResource.h"
 
-// A plain working HUD for the first milestone, drawn straight onto the canvas: the gauges, the calls, the training
-// read-outs, the hit and hurt boxes, and the menu.
+// Match gauges share the same angular frame language; training diagnostics remain optional.
 
 static void GkRect(UCanvas* Cv, float X, float Y, float W, float H, const FLinearColor& Col)
 {
@@ -36,14 +35,32 @@ static void GkHudPanel(UCanvas* Canvas, float X, float Y, float Width, float Hei
 	DrawTriangle(TR, BR, BL);
 }
 
+static void GkRoundToken(UCanvas* Cv,float X,float Y,float Radius,const FLinearColor& Color)
+{
+ for(int k=0;k<16;++k){const float A=k*2*PI/16,B=(k+1)*2*PI/16;FCanvasUVTri T;
+ T.V0_Pos=FVector2D(X,Y);T.V1_Pos=FVector2D(X+FMath::Cos(A)*Radius,Y+FMath::Sin(A)*Radius);T.V2_Pos=FVector2D(X+FMath::Cos(B)*Radius,Y+FMath::Sin(B)*Radius);
+ T.V0_Color=T.V1_Color=T.V2_Color=Color;FCanvasTriangleItem Item(T,GWhiteTexture);Item.BlendMode=SE_BLEND_Translucent;Cv->DrawItem(Item);}
+}
+
+static void GkPortrait(UCanvas* Cv,UTexture2D* Texture,float X,float Y,float Width,float Height,bool Mirror)
+{
+ const float Cut=Width*.22f;
+ FVector2D P[4]={{X,Y},{X+Width,Y},{X+Width-(Mirror?0:Cut),Y+Height},{X+(Mirror?Cut:0),Y+Height}};
+ FVector2D UV[4]={{0,.04},{1,.04},{1,.94},{0,.94}};
+ for(int k=0;k<2;++k){int a=0,b=k+1,c=k+2;FCanvasUVTri T;
+ T.V0_Pos=P[a];T.V1_Pos=P[b];T.V2_Pos=P[c];T.V0_UV=UV[a];T.V1_UV=UV[b];T.V2_UV=UV[c];
+ T.V0_Color=T.V1_Color=T.V2_Color=FLinearColor::White;FCanvasTriangleItem Item(T,Texture->GetResource());Item.BlendMode=SE_BLEND_Translucent;Cv->DrawItem(Item);}
+}
+
 static void GkText(UCanvas* Cv, const FString& Str, float X, float Y, float Size, const FLinearColor& Col, bool bCentre = false, int32 Outline = 2)
 {
-	static TWeakObjectPtr<UFont> Carrier;
-	if (!Carrier.IsValid()) { Carrier = LoadObject<UFont>(nullptr, TEXT("/Engine/EngineFonts/Roboto.Roboto")); }
-	if (!Carrier.IsValid() || Col.A <= 0.f) { return; }
+	if (!AGkMatch::Current || Col.A <= 0.f) return;
+    auto& Carrier=AGkMatch::Current->HudFont;
+    if (!Carrier) Carrier=LoadObject<UFont>(nullptr,TEXT("/Engine/EngineFonts/Roboto.Roboto"));
+    if (!Carrier) return;
 	const FFontOutlineSettings Line = Outline > 0 ? FFontOutlineSettings(Outline, FLinearColor(0.f, 0.f, 0.f, Col.A)) : FFontOutlineSettings();
 	FCanvasTextItem Item(FVector2D(X, Y), FText::FromString(Str), Carrier.Get(), Col);
-	Item.SlateFontInfo = FCoreStyle::GetDefaultFontStyle(FName(TEXT("Bold")), FMath::Max(4.f, Size), Line);
+	Item.SlateFontInfo = FCoreStyle::GetDefaultFontStyle(FName(Str.IsNumeric()?TEXT("BoldItalic"):TEXT("Bold")), FMath::Max(4.f, Size), Line);
 	Item.bCentreX = bCentre; Cv->DrawItem(Item);
 }
 static FLinearColor GkFade(const FLinearColor& C, float A) { return FLinearColor(C.R, C.G, C.B, C.A * FMath::Clamp(A, 0.f, 1.f)); }
@@ -53,7 +70,7 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 	if (!Cv) { return; }
 	const float W = Cv->SizeX, H = Cv->SizeY, U = H / 1080.f, Mid = W * 0.5f;
 	const FLinearColor Ink(0.02f, 0.02f, 0.03f, 0.85f), Bone(0.96f, 0.94f, 0.9f, 1.f), Gold(1.f, 0.78f, 0.2f, 1.f), Red(0.9f, 0.16f, 0.12f, 1.f), Blue(0.35f, 0.65f, 1.f, 1.f), Ash(0.3f, 0.3f, 0.34f, 0.9f), Jade(0.25f, 0.9f, 0.5f, 1.f), Slate(0.55f, 0.55f, 0.6f, 1.f);
-	const FLinearColor Tint[2] = { Red, Blue }; const FString Names[2] = { TEXT("PLAYER 1"), Mode == 1 ? TEXT("DUMMY") : TEXT("CPU") };
+	const FLinearColor Tint[2] = { bForestLook ? FLinearColor(1.f,.18f,.30f) : Red, Blue }; const FString Names[2] = { TEXT("PLAYER 1"), Mode == 1 ? TEXT("DUMMY") : TEXT("CPU") };
 	if (Screen == 4 && (!bScript || bLabUi))
 	{
 		// the animation lab: tabs by kind of move, a grid of the moves, and a drop-down of clips on the one that is clicked
@@ -154,7 +171,7 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 		else if (P.arm > 0) { Word = TEXT("ARMOR"); Chip = FLinearColor(0.95f, 0.45f, 0.05f, 1.f); }
 		else if (P.st == gk::DRUSH) { Word = TEXT("RUSH"); Chip = FLinearColor(0.1f, 0.7f, 0.25f, 1.f); }
 		float Yy = Head.Y - 64.f * U;
-		if (Word) { const float Ww = (FCString::Strlen(Word) * 15.f + 26.f) * U; GkRect(Cv, Head.X - Ww * 0.5f, Yy, Ww, 30.f * U, Chip); GkText(Cv, Word, Head.X, Yy + 2.f * U, 19.f * U, Bone, true, 2); Yy -= 34.f * U; }
+		if (Word) { const float Ww = (FCString::Strlen(Word) * 15.f + 26.f) * U; if(!bForestLook)GkRect(Cv, Head.X - Ww * 0.5f, Yy, Ww, 30.f * U, Chip); GkText(Cv, Word, Head.X, Yy + 2.f * U, 19.f * U, Bone, true, 2); Yy -= 34.f * U; }
 		if (P.bo) { const float Ww = 136.f * U, Bl = 0.65f + 0.35f * FMath::Sin(Ticks * 0.3f); GkRect(Cv, Head.X - Ww * 0.5f, Yy, Ww, 30.f * U, FLinearColor(0.3f, 0.32f, 0.3f, Bl)); GkText(Cv, TEXT("BURNOUT"), Head.X, Yy + 2.f * U, 19.f * U, Bone, true, 2); }
 		if (Mode == 1 && P.st == gk::ATK) { GkText(Cv, FString::Printf(TEXT("%s  %d"), UTF8_TO_TCHAR(gk::moveName(P.mv)), P.mf), Head.X, Head.Y + 6.f * U, 15.f * U, Gold, true); }
 	}
@@ -184,7 +201,7 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 	if (Screen == 3)
 	{
 	const float Gap = (bForestLook ? 62.f : 80.f) * U;
-	const float BarW = FMath::Min(700.f * U, Mid - Gap - 30.f * U), BarH = 26.f * U, Top = (bForestLook ? 40.f : 56.f) * U;
+	const float BarW = FMath::Min(760.f * U, Mid - Gap - 170.f * U), BarH = 26.f * U, Top = (bForestLook ? 34.f : 56.f) * U;
 	for (int32 i = 0; i < 2; i++)
 	{
 		const gk::Fighter& P = S.p[i]; const float K = FMath::Clamp(P.hp / 1000.f, 0.f, 1.f), Lag = FMath::Clamp(P.red / 1000.f, K, 1.f);
@@ -192,23 +209,24 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 		if (bForestLook)
 		{
 			GkHudPanel(Cv, X0 - 24.f * U, Top - 7.f * U, BarW + 48.f * U, BarH + 15.f * U, 16.f * U, Ink);
+			GkHudPanel(Cv,X0-20.f*U,Top-5.f*U,BarW+40.f*U,BarH+11.f*U,12.f*U,FLinearColor(.36,.39,.42));
+			GkHudPanel(Cv,X0-17.f*U,Top-3.f*U,BarW+34.f*U,BarH+7.f*U,10.f*U,Ink);
 			GkRect(Cv, X0, Top, BarW, BarH, Ash);
 			if (Setup.Char[i] >= 2)
 			{
-				static TWeakObjectPtr<UTexture2D> Portraits[2];
-				if (!Portraits[i].IsValid())
+
+				if (!FilmPortraits[i])
 				{
-					Portraits[i] = LoadObject<UTexture2D>(nullptr, i
+					FilmPortraits[i] = LoadObject<UTexture2D>(nullptr, i
 						? TEXT("/Game/GkFx/T_GkBluePortrait.T_GkBluePortrait")
 						: TEXT("/Game/GkFx/T_GkRedPortrait.T_GkRedPortrait"));
 				}
-				if (Portraits[i].IsValid() && Portraits[i]->GetResource())
+				if (bool(FilmPortraits[i]) && FilmPortraits[i]->GetResource())
 				{
-					const float Size = 100.f * U;
-					const float X = i ? W - Size - 14.f * U : 14.f * U;
-					GkHudPanel(Cv, X - 4.f * U, 5.f * U, Size + 8.f * U, Size + 8.f * U, 4.f * U, Tint[i]);
-					FCanvasTileItem Portrait(FVector2D(X, 9.f * U), Portraits[i]->GetResource(), FVector2D(Size), FLinearColor::White);
-					Cv->DrawItem(Portrait);
+					const float Size = 134.f * U;
+					const float X = i ? W - Size - 8.f * U : 8.f * U;
+					GkHudPanel(Cv, X - 4.f * U, 5.f * U, Size + 8.f * U, Size*.78f + 8.f * U, 15.f * U, Ink);
+					GkPortrait(Cv,FilmPortraits[i].Get(),X,5.f*U,Size,Size*.78f,i!=0);
 				}
 			}
 		}
@@ -225,22 +243,31 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 			const float Shine = BarW * K;
 			GkRect(Cv, i ? X0 : X0 + BarW - Shine, Top, Shine, 5.f * U, FLinearColor(1.f, 0.85f, 0.40f));
 		}
-		GkText(Cv, bForestLook ? (i ? TEXT("P2") : TEXT("P1")) : Names[i], i ? X0 + BarW - 150.f * U : X0, Top + BarH + 30.f * U, 20.f * U, Bone);
+		GkText(Cv, bForestLook ? (i ? TEXT("P2") : TEXT("P1")) : Names[i], i ? X0 + BarW - 150.f * U : X0, Top - 25.f * U, 16.f * U, Bone);
 		// the Drive gauge: six bars
 		for (int32 b = 0; b < 6; b++)
 		{
-			const float Part = FMath::Clamp((P.dr - b * 1000) / 1000.f, 0.f, 1.f), Dw = 56.f * U, Dh = 12.f * U, Dx = i ? Mid + Gap + b * (Dw + 6.f * U) : Mid - Gap - (b + 1) * (Dw + 6.f * U) + 6.f * U, Dy = Top + BarH + 10.f * U;
+			const float Part = FMath::Clamp((P.dr - b * 1000) / 1000.f, 0.f, 1.f), Dw = 38.f * U, Dh = 8.f * U, Dx = i ? Mid + Gap + b * (Dw + 6.f * U) : Mid - Gap - (b + 1) * (Dw + 6.f * U) + 6.f * U, Dy = Top + BarH + 10.f * U;
 			GkRect(Cv, Dx, Dy, Dw, Dh, Ash); if (i) { GkRect(Cv, Dx, Dy, Dw * Part, Dh, P.bo ? Slate : Jade); } else { GkRect(Cv, Dx + Dw * (1.f - Part), Dy, Dw * Part, Dh, P.bo ? Slate : Jade); }
 		}
 		if (P.bo) { const float Bx = i ? Mid + Gap : Mid - Gap - 6.f * 62.f * U + 6.f * U, Bl = 0.5f + 0.5f * FMath::Sin(Ticks * 0.3f); GkRect(Cv, Bx - 3.f * U, Top + BarH + 7.f * U, 6.f * 62.f * U, 18.f * U, FLinearColor(0.75f, 0.1f, 0.08f, 0.35f + 0.4f * Bl)); GkText(Cv, TEXT("BURNOUT"), Bx + 130.f * U, Top + BarH + 5.f * U, 17.f * U, Bone, false, 2); }
-		for (int32 r = 0; r < FMath::Clamp(S.cfg.rounds, 1, 3); r++) { GkRect(Cv, i ? Mid + Gap + r * 30.f * U : Mid - Gap - (r + 1) * 30.f * U + 8.f * U, Top - 26.f * U, 22.f * U, 12.f * U, r < P.wins ? Gold : Ash); }
+		for (int32 r = 0; r < FMath::Clamp(S.cfg.rounds, 1, 3); r++) {
+   const float Rx=i?Mid+Gap+(r*23.f+7.f)*U:Mid-Gap-(r*23.f+7.f)*U,Ry=Top+BarH+29.f*U;
+   if(bForestLook){GkRoundToken(Cv,Rx,Ry,6.f*U,FLinearColor(.65,.55,.38));GkRoundToken(Cv,Rx,Ry,4.4f*U,r<P.wins?Gold:FLinearColor(.045,.055,.075));}
+   else GkRect(Cv,Rx,Ry,18.f*U,8.f*U,r<P.wins?Gold:Ash);
+  }
 		// the super gauge: three levels
 		for (int32 b = 0; b < 3; b++)
 		{
 			const float Part = FMath::Clamp((P.sa - b * 1000) / 1000.f, 0.f, 1.f), Sw = 150.f * U, Sx = i ? W - 60.f * U - (b + 1) * (Sw + 10.f * U) : 60.f * U + b * (Sw + 10.f * U), Sy = H - 70.f * U;
+			if (bForestLook)
+			{
+				GkHudPanel(Cv,Sx-5.f*U,Sy-6.f*U,Sw+10.f*U,30.f*U,9.f*U,Ink);
+				GkHudPanel(Cv,Sx,Sy-2.f*U,Sw,22.f*U,6.f*U,GkFade(Tint[i],.27f));
+			}
 			GkRect(Cv, Sx, Sy, Sw, 16.f * U, Ash); if (i) { GkRect(Cv, Sx + Sw * (1.f - Part), Sy, Sw * Part, 16.f * U, Part >= 1.f && !bForestLook ? Gold : Tint[i]); } else { GkRect(Cv, Sx, Sy, Sw * Part, 16.f * U, Part >= 1.f && !bForestLook ? Gold : Tint[i]); }
 		}
-		GkText(Cv, (bForestLook ? FString::FromInt(P.sa / 1000) : FString::Printf(TEXT("SUPER %d"), P.sa / 1000)), i ? W - 180.f * U : 60.f * U, H - 111.f * U, (bForestLook ? 32.f : 18.f) * U, bForestLook ? Tint[i] : P.sa >= 1000 ? Gold : Bone);
+		GkText(Cv, (bForestLook ? FString::FromInt(P.sa / 1000) : FString::Printf(TEXT("SUPER %d"), P.sa / 1000)), i ? W - 180.f * U : 60.f * U, H - 128.f * U, (bForestLook ? 48.f : 18.f) * U, bForestLook ? Tint[i] : P.sa >= 1000 ? Gold : Bone);
 		const float Cx = i ? W - 240.f * U : 240.f * U;
 		if (ComboTimer[i] > 0 && Combo[i] >= 2) { GkText(Cv, FString::Printf(TEXT("%d HITS"), Combo[i]), Cx, 300.f * U, 54.f * U, Bone, true, 3); GkText(Cv, FString::Printf(TEXT("%d"), ComboDmg[i]), Cx, 372.f * U, 26.f * U, Tint[i], true); }
 		if (NoteTimer[i] > 0) { GkText(Cv, Note[i], Cx, 420.f * U, 28.f * U, GkFade(Gold, NoteTimer[i] / 12.f), true); }
@@ -248,7 +275,23 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 	if (bForestLook) { GkHudPanel(Cv, Mid - 66.f * U, Top - 22.f * U, 132.f * U, 76.f * U, 20.f * U, Ink); }
 	else { GkRect(Cv, Mid - 56.f * U, Top - 22.f * U, 112.f * U, 76.f * U, Ink); }
 	GkText(Cv, FString::Printf(TEXT("%02d"), FMath::Clamp((S.time + 59) / 60, 0, 99)), Mid, Top - 20.f * U, 50.f * U, Bone, true);
-	GkText(Cv, ModeName[FMath::Clamp(Mode, 0, 2)], Mid, Top + 60.f * U, 16.f * U, Gold, true);
+	if (Mode == 1 || !bForestLook) { GkText(Cv, ModeName[FMath::Clamp(Mode, 0, 2)], Mid, Top + 60.f * U, 13.f * U, Bone, true); }
+	if (bForestLook && Mode != 1)
+	{
+		GkText(Cv,TEXT("D R E A D M A R S H"),Mid,H-42.f*U,12.f*U,GkFade(Bone,.6f),true,1);
+	}
+	// Name the actual super during its held anticipation; it never covers the active fight.
+	if (S.freeze>0 && S.frzWho>=0 && S.frzWho<2)
+	{
+		const gk::Fighter& F=S.p[S.frzWho];
+		if (F.st==gk::ATK && F.mv>=0 && gk::move(F.mv).sup)
+		{
+			const float Y=H*.76f;
+			GkHudPanel(Cv,Mid-300.f*U,Y,600.f*U,72.f*U,28.f*U,GkFade(Ink,.94f));
+			GkRect(Cv,Mid-255.f*U,Y,510.f*U,3.f*U,Tint[S.frzWho]);
+			GkText(Cv,UTF8_TO_TCHAR(gk::moveName(F.mv)),Mid,Y+10.f*U,34.f*U,Bone,true,2);
+		}
+	}
 
 	if (CallHold > 0) { const float A = FMath::Min(1.f, FMath::Min(CallAge / 5.f, (CallHold - CallAge) / 8.f)); GkRect(Cv, 0.f, H * 0.36f, W, 120.f * U, GkFade(Ink, A)); GkText(Cv, CallWord, Mid, H * 0.36f + 14.f * U, 76.f * U, GkFade(Bone, A), true, 4); }
 	if (S.phase == gk::PH_OVER)
@@ -322,7 +365,7 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 			GkText(Cv, Stick, Mid, Py + 520.f * U, 16.f * U, Gold, true);
 			GkText(Cv, TEXT("TAB or ESC cancels.  Directions come from the stick or d-pad."), Mid, Py + 556.f * U, 16.f * U, Bone, true);
 			GkText(Cv, TEXT("Throw: Light + Medium.   Quick Dash: Medium + Heavy.   Supers: Heavy + Special."), Mid, Py + 588.f * U, 16.f * U, Bone, true);
-		
+
 		}
 		else if (Screen == 0)
 		{
@@ -331,28 +374,11 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 		}
 		else if (Screen == 1)
 		{
-			// choosing fighters: the roster's two rows of tiles, most of them still empty
-			static const TCHAR* Who[4] = { TEXT("KAGU"), TEXT("NOA"), TEXT("ROBOT"), TEXT("ROBOT 2") };
-			GkText(Cv, TEXT("SELECT CHARACTER"), Mid, H * 0.06f, 56.f * U, Bone, true, 4);
-			const float Tile = 104.f * U, Sp = 6.f * U, X0 = Mid - 4.f * (Tile + Sp), Y0 = H * 0.66f;
-			for (int32 r = 0; r < 2; r++) { for (int32 c = 0; c < 8; c++)
-			{
-				const float X = X0 + c * (Tile + Sp), Y = Y0 + r * (Tile + Sp); const bool bHas = r == 0 && c < 4;
-				GkRect(Cv, X, Y, Tile, Tile, bHas ? FLinearColor(0.2f, 0.21f, 0.25f, 0.95f) : FLinearColor(0.08f, 0.08f, 0.1f, 0.85f));
-				if (bHas) { GkText(Cv, Who[c], X + Tile * 0.5f, Y + Tile * 0.4f, 17.f * U, Bone, true); }
-				else if (r == 0 && c == 5) { GkText(Cv, TEXT("?"), X + Tile * 0.5f, Y + Tile * 0.22f, 44.f * U, GkFade(Bone, 0.5f), true); }
-				for (int32 p = 0; p < 2; p++)
-				{
-					if (bHas && Setup.Char[p] % 4 == c && (p <= SelWho))
-					{
-						const FLinearColor Edge = p ? Blue : Red; const float T = 5.f * U, In = p * 7.f * U;
-						GkRect(Cv, X + In, Y + In, Tile - 2 * In, T, Edge); GkRect(Cv, X + In, Y + Tile - T - In, Tile - 2 * In, T, Edge); GkRect(Cv, X + In, Y + In, T, Tile - 2 * In, Edge); GkRect(Cv, X + Tile - T - In, Y + In, T, Tile - 2 * In, Edge);
-					}
-				}
-			} }
-			GkText(Cv, FString::Printf(TEXT("PLAYER 01   %s"), Who[Setup.Char[0] % 4]), W * 0.14f, H * 0.86f, 34.f * U, SelWho == 0 ? Bone : GkFade(Bone, 0.6f), true, 3);
-			GkText(Cv, FString::Printf(TEXT("%s   %s"), Mode == 0 ? TEXT("CPU") : Mode == 1 ? TEXT("DUMMY") : TEXT("CPU 02"), Who[Setup.Char[1] % 4]), W * 0.86f, H * 0.86f, 34.f * U, SelWho == 1 ? Bone : GkFade(Bone, 0.6f), true, 3);
-			GkText(Cv, SelWho == 0 ? TEXT("LEFT / RIGHT  choose player one's fighter      LIGHT  confirm      HEAVY  back") : TEXT("LEFT / RIGHT  choose the opponent      LIGHT  confirm      HEAVY  back"), Mid, H * 0.945f, 16.f * U, Gold, true);
+			GkText(Cv, TEXT("ROBOT 1"), Mid, H * .08f, 62.f * U, Bone, true, 4);
+			GkText(Cv, TEXT("SMALL FUSE. BIG PERSONALITY."), Mid, H * .18f, 20.f * U, Gold, true);
+			GkText(Cv, TEXT("RUSH IN  /  MIX IT UP  /  GO OUT WITH A BANG"), Mid, H * .77f, 19.f * U, Bone, true);
+			GkText(Cv, SelWho == 0 ? TEXT("PLAYER 1 — CRIMSON") : TEXT("OPPONENT — COBALT"), Mid, H*.85f, 30.f*U, SelWho==0?Red:Blue, true, 3);
+			GkText(Cv, TEXT("LIGHT  confirm      HEAVY  back"), Mid, H * .945f, 18.f * U, Gold, true);
 		}
 		else if (Screen == 2)
 		{

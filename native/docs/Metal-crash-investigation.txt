@@ -1,0 +1,41 @@
+UNREAL CRASH INVESTIGATION — 2026-11-13
+
+Examined actual Unreal logs and crash reports, including:
+/Users/mattbendo/Library/Application Support/Epic/UnrealEngine/5.8/Saved/Crashes
+and the copied project's Saved logs plus work/film-*.log.
+The earlier CrashReportClientEditor exit report does not identify the original
+editor fault. These are multiple crash families, not one diagnosed cause.
+
+REPRODUCED GAME CRASH
+On UE 5.8.4 Metal, combat followed by “obj gc” reproducibly crashed in
+FMetalStateCache::BindUniformBuffer with “Resource is being deleted”, asserting
+RHIResources.h:153. Running without the RHI thread exposed the recording path:
+FMeshDrawShaderBindings::SetOnCommandList -> FMeshDrawCommand::SubmitDrawBegin
+-> FInstanceCullingContext::SubmitDrawCommands -> cached depth prepass draw.
+
+Keeping the HUD font strongly referenced, avoiding per-frame recreation of
+instanced-particle render state, reusing projectile Niagara components, and
+disabling parallel RHI translation did not independently eliminate this crash.
+Those first three lifetime/allocation improvements are retained.
+
+Mac-only supported configuration r.MeshDrawCommands.UseCachedCommands=0
+passed the previously failing forced-cleanup sequence. A longer native game
+run (11:33:54–11:41:09 UTC) then passed six explicit collections across all six
+palettes, continuous CPU fighting, and a normal process exit. Garbage collection
+remains enabled. The lower-cost rain build passed two further forced
+collections during continuous storm combat and exited normally.
+This is a verified workaround for this reproduction, not a
+proved repair of the engine's underlying ownership bug. Recheck it when
+upgrading Unreal. No engine source changes were made.
+
+OTHER OBSERVED REPORTS
+World/level garbage-collection leak checks during map changes; landscape
+source/mip-data errors; Python weak-reference teardown; ICU/Slate text cleanup
+on editor exit; and a separate macOS startup abort. These are not all fixed.
+The Python asset watcher is opt-in rather than automatically editing assets
+from Slate ticks. Authoring runs use separate editor/commandlet processes.
+
+A public Niagara uniform-buffer report (UE-392456) was investigated, but its
+compute/flush stack is different from this game's graphics-depth-pass failure:
+https://issues.unrealengine.com/issue/UE-392456
+Do not label this project's crash as that known issue without more evidence.

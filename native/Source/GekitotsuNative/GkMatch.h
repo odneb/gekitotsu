@@ -82,9 +82,16 @@ public:
 	UPROPERTY() TArray<TObjectPtr<UMaterialInstanceDynamic>> Mids;
 	UMaterialInstanceDynamic* BodyMid[2][4] = { { nullptr, nullptr, nullptr, nullptr }, { nullptr, nullptr, nullptr, nullptr } }; UMaterialInstanceDynamic* InkMid[2] = { nullptr, nullptr }; FLinearColor BaseCol[2][4], ShadeCol[2][4];
 	int32 PerfectT[2] = { 0, 0 }, ImpactT[2] = { 0, 0 }; float Lean[2] = { 0.f, 0.f }, Squash[2] = { 0.f, 0.f }, Flash = 0.f, RainDue = 0.f, BoltDue = 3.f;
-	void LookFighter(int32 i); void StateFx(int32 i); void Beam(const FVector& From, float Dir, float Len, float R, const FLinearColor& Col); float BeamDue = 0.f;
+	void LookFighter(int32 i); void StateFx(int32 i); void Beam(const FVector& From, float Dir, float Len, float R, const FLinearColor& Col, int32 Who); float BeamDue = 0.f;
+	UPROPERTY() TObjectPtr<UStaticMeshComponent> FilmBeam[2];
+	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> FilmBeamMid[2];
+	float FilmBeamLife[2] = {0,0};
+ float FilmWetness=-1.f;
+	UPROPERTY() TObjectPtr<UStaticMeshComponent> FilmOrb[2];
+	UPROPERTY() TObjectPtr<class UPointLightComponent> FilmEnergyLight[2];
+	void EnergyOrb(int32 Who, float Radius);
 	// scripted pictures (-gkscript): a list of commands in Saved/script.txt that pose the game and save screenshots
-	TArray<FString> Script; int32 ScriptAt = 0, ScriptWait = 0; bool bScript = false; FName ScriptSlot; float ScriptStorm = -1.f; FString ScriptNote; bool bLabUi = false, bNoHud = false; int32 ScriptRunLeft = 0, ScriptIn[2] = { 0, 0 }; void RunScript();
+	TArray<FString> Script; int32 ScriptAt = 0, ScriptWait = 0; bool bScript = false; FName ScriptSlot; float ScriptStorm = -1.f; FString ScriptNote; bool bLabUi = false, bNoHud = false; FString ScriptCaptureName; int32 ScriptCaptureLeft = 0, ScriptCaptureFrame = 0; int32 ScriptRunLeft = 0, ScriptIn[2] = { 0, 0 }; void RunScript();
 	// The animation lab (Screen 4): one fighter alone, every move and state in turn, and every clip he has to try on it.
 	// What is chosen is kept in Content/Gk/anims.txt (set | slot | clip | from | to | loop) and used by the game from then on.
 	struct FLabSlot { FName Slot; FString Label; int32 Cat = 0; };
@@ -98,6 +105,15 @@ public:
 	UPROPERTY() TObjectPtr<class UAudioComponent> RainLoop; UPROPERTY() TObjectPtr<class UAudioComponent> WindLoop; UPROPERTY() TObjectPtr<class UAudioComponent> GaleLoop; UPROPERTY() TObjectPtr<class UAudioComponent> PourLoop; UPROPERTY() TObjectPtr<class UAudioComponent> RoomLoop; UPROPERTY() TObjectPtr<class UAudioComponent> Music; UPROPERTY() TArray<TObjectPtr<USoundBase>> Songs; int32 LastSong = -1; float MusicVol = 0.5f; int32 StepT[2] = { 0, 0 };
 	float SongGain = 1.f;
 	UPROPERTY() TArray<TObjectPtr<USoundBase>> SndKeep; TMap<FName, TArray<USoundBase*>> SndSets; void Snd(const TCHAR* Set, float Volume = 1.f, float Pitch = 1.f); void EventSound(const gk::Event& E);
+	void LoadVoices(); void VoiceEvent(const gk::Event& E); void Announce(const TCHAR* Name,bool Interrupt); void DumpFilmFog(); void FighterVoice(int32 Who,const TCHAR* Name,int32 Priority);
+	UPROPERTY() TMap<FName,TObjectPtr<USoundBase>> Voices;
+	UPROPERTY() TObjectPtr<class UAudioComponent> Announcer;
+ UPROPERTY() TObjectPtr<class UAudioComponent> FighterVoices[2];
+ int32 VoicePriority[2]={0,0}; double VoiceNext[2]={0,0};
+ UPROPERTY() TObjectPtr<class UNiagaraComponent> FilmNinja;
+ UPROPERTY() TObjectPtr<class UNiagaraComponent> FilmRain;
+ UPROPERTY() TObjectPtr<class UTexture2D> FilmPortraits[2];
+ UPROPERTY() TObjectPtr<class UFont> HudFont;
 	void LoadVfx(); bool PlayVfx(const TCHAR* Name, const FVector& Local, float Scale, float Dir, const TCHAR* Sound, float Volume = 1.f);
 	UPROPERTY() TObjectPtr<ACameraActor> Cam;
 	// the two places to fight: the measured training room, and the wasteland stage; and the air between
@@ -127,6 +143,8 @@ public:
 	int32 PaletteOverride = INDEX_NONE;
 	float PaletteWeights[6] = { 1.f };
 	UPROPERTY() TObjectPtr<UMaterialInterface> ForestCel;
+	UPROPERTY() TObjectPtr<UMaterialInterface> FilmEnergyMaterial;
+	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> FilmSky;
 	UPROPERTY() TObjectPtr<UMaterialInterface> ForestFighterCel;
 	TWeakObjectPtr<class UDirectionalLightComponent> ForestSun;
 	TWeakObjectPtr<class UExponentialHeightFogComponent> ForestFog;

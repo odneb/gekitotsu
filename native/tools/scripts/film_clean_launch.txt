@@ -1,0 +1,19 @@
+fight|0
+hud|1
+palette|1
+wait|300
+set|0|sa|3000
+set|1|sa|3000
+shot|film-moon-clean
+palette|0
+wait|240
+shot|film-day-clean
+palette|2
+wait|240
+shot|film-storm-clean
+match|2
+palette|-1
+run|600|-1|0
+exec|obj gc
+run|120|-1|0
+quit

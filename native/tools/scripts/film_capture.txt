@@ -1,0 +1,31 @@
+# Run with -gkscript -UseFixedTimeStep -FPS=60; do not profile this offline capture.
+fight|0
+hud|1
+palette|1
+wait|240
+set|0|sa|3000
+set|1|sa|3000
+shot|film-moon-final-corrected
+palette|0
+wait|240
+exec|DisableAllScreenMessages
+set|0|sa|3000
+set|1|sa|3000
+mv|0|SA3
+record|210|robot-super-verified|0|0
+fight|0
+set|0|y|100
+mv|0|ABEAM
+record|90|robot-airbeam-verified|0|0
+fight|0
+run|1|8|0
+run|2|0|0
+record|90|robot-dash-verified|8|0
+fogdump
+palette|2
+wait|240
+bolt
+record|120|forest-storm-verified|0|0
+exec|obj gc
+run|120|0|0
+quit

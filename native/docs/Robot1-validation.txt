@@ -1,0 +1,82 @@
+TESTED NATIVE BUILD — 2026-11-13
+
+Machine: Apple M2 Max, 96 GB; macOS 26.2; UE 5.8.4; Metal SM6.
+Game: Development editor binary running -game, 1280x720, 100% render scale.
+The original editor was left running; measurements are local samples, not
+shipping-build benchmarks or promises for other Macs.
+
+COMBAT CHECKS
+60 combinations of aerial normal inputs, both facing directions: pass.
+Neutral air beam, forward anti-air, down-air spike, dedicated homing: pass.
+No extra meter charge for Assist versions of identical air specials: pass.
+Air beam once per jump and reset on landing: pass.
+Level-three beam: 7 hits, 400 raw damage, mirrored results equal; Critical 450.
+Guard: zero health damage, seven blocks. Opponent behind: zero hits.
+Meter cost, recovery and stationary commitment: pass.
+All 69 move definitions return to a valid recovered state: pass.
+Generated native move table matches its JavaScript source: pass.
+Build and whitespace check: pass. Final build: film-build39.
+Final clean launch after navigation cleanup: normal exit, HUD-on day/night/storm
+captures with screen warnings enabled, followed by CPU combat and forced GC.
+These checks do not establish competitive balance. Human matchup testing,
+combo optimization, accessibility and controller testing remain necessary.
+The broader legacy JS/native oracle still has mismatches, including older
+throw/grab differences and the intentionally changed native AI. It is not
+reported as passing.
+
+RENDER AND EFFECTS
+Actual native viewport renders, HUD enabled, all six lighting presets.
+Three-band fighter materials, selective silhouette outlines and hard rim cuts.
+Environment light quantization preserves actual cast shadows.
+Manual exposure, no depth-of-field blur in the gameplay shot.
+Real LIVE-2 simulation, 128x256 at 30 Hz; registered bone/dash/projectile/beam
+interactors. Idle and dash render-target readbacks change as expected.
+Ground is the actual landscape with a painted albedo; foot contact uses
+flattened/rebuilt terrain collision, not an image backdrop.
+Unused demo navigation bounds/data were removed after lane editing; the native
+fighting AI does not use a navigation mesh.
+Authored Niagara dust and rain; rain splashes use the existing collision emitter.
+Face/hands super camera, animated 3D beam, ground/air animation timing inspected.
+The beam lifetime now follows its active move, including slow frames;
+offline capture presentation and Niagara share the fixed simulation clock.
+Purchased Male 6 and announcer: 29 imported takes loaded; gameplay events logged
+for attacks, specials, hurt, fight, round changes, KO and win.
+Recorded audio peaks were checked; full listening/mix approval remains open.
+
+PERFORMANCE SAMPLES
+Daylight, cached draw-command workaround enabled: median 16.03 ms;
+95th-percentile frame 22.25 ms (301-frame capture).
+Storm after reducing rain to 1,800 particles/second maximum: median 16.23 ms;
+95th-percentile 23.18 ms (301-frame capture).
+Final storm CPU-combat sample: median 16.05 ms, 95th percentile 23.62 ms
+(601 frames, with audio, HUD, rain and LIVE-2).
+The rejected 12,000-particle CPU rain system exceeded 40 ms in combat.
+These are frame times, not a locked-60 claim. Shader warm-up, effects, cleanup
+and loading can produce slower frames. Fixed-step video capture is excluded
+from performance measurements.
+
+REFERENCE GAP / REMAINING WORK
+The six-panel reference is painted concept art.
+Contact-sheet order is daylight / moonlight, storm / haze, green / twilight. Current footage still has
+simpler robot silhouettes and surface detail, coarser background forms, and
+less deliberately composed painted foliage/sky than that illustration.
+Mist interaction is implemented but its visual density and motion still need
+art-direction review; it is deliberately low and does not obscure the feet.
+The supers use available animation assets and authored timing/camera/effects;
+they do not have the volume of bespoke animation, facial acting or multi-shot
+choreography found in DBFZ or Guilty Gear.
+The match HUD was revised; every menu and auxiliary screen has not received
+a complete visual redesign.
+A packaged Shipping build has not been produced or validated. Existing
+landscape cooking issues and unused vendor water-material warnings remain.
+See CRASH-NOTES.txt: the reproduced Metal crash has a tested workaround;
+other historical editor crash families are not claimed resolved.
+
+CAPTURE INTEGRITY
+PNG files come from Unreal's actual game viewport with the HUD on.
+Video is assembled from real viewport frames rendered at fixed 1/60-second
+world/simulation steps. It is silent; it is not a real-time FPS benchmark.
+The separate WAV is the native audio mix from a real-time combat test.
+No generated scene image, repaint or web view is substituted for gameplay.
+The generated bitmap is only a landscape base-colour asset; its full prompt
+and provenance accompany the source asset.

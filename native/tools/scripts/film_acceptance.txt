@@ -1,0 +1,38 @@
+fight|0
+hud|1
+palette|0
+wait|300
+exec|DisableAllScreenMessages
+set|0|sa|3000
+set|1|sa|3000
+shot|film-day-21
+palette|1
+wait|240
+shot|film-palette-1-21
+palette|2
+wait|240
+shot|film-palette-2-21
+palette|3
+wait|240
+shot|film-palette-3-21
+palette|4
+wait|240
+shot|film-palette-4-21
+palette|5
+wait|240
+shot|film-palette-5-21
+palette|2
+wait|240
+bolt
+run|1|0|0
+shot|film-lightning-21
+match|2
+exec|obj gc
+exec|csvprofile start
+run|600|-1|0
+exec|csvprofile stop
+run|1800|-1|0
+exec|obj gc
+run|2400|-1|0
+shot|film-match-21
+quit

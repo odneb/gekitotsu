@@ -77,10 +77,11 @@ int aiThink(Ai& ai, const State& s, int me)
 			const double dy = double(o.y - p.y) / F, ax = double(o.x > p.x ? o.x - p.x : p.x - o.x) / F; const bool behind = int64_t(o.x - p.x) * p.face < 0, up = o.y > 0 || o.st == AHIT;
 			static const int a[4] = { 0, 18, 45, 70 };
 			if (p.st == ATK && !p.dj && o.st == AHIT && dy > 30 && r(20) < 30 + lv * 20) { return out(U | (behind ? BK : FW)); }
-			if (up && !behind && ax < 66 && dy > 14 && dy < 120 && r(21) < 40 + lv * 20) { return out(U | M); }
+			if (up && !behind && ax < 66 && dy > 14 && dy < 120 && r(21) < 40 + lv * 20) { return out(FW | SP); }
 			if (up && ax < 56 && dy < -6 && dy > -100 && r(22) < 35 + lv * 20) { return out(lv >= 2 && r(23) < 50 ? D | SP : D | H); }
-			if (up && lv >= 3 && !behind && ax < 60 && dy > 10 && p.vy > 0 && r(24) < 12) { return out(U | SP); }
-			if (behind && ax < 76 && std::fabs(dy) < 60 && r(25) < 45 + lv * 15) { return out(lv >= 3 && ax > 30 && r(26) < 35 ? BK | SP : BK | M); }
+			if (up && lv >= 3 && !behind && ax < 60 && dy > 10 && p.vy > 0 && r(24) < 12) { return out(FW | SP); }
+			if (behind && ax < 76 && std::fabs(dy) < 60 && r(25) < 45 + lv * 15) { return out(lv >= 3 && ax > 30 && r(26) < 35 ? HM : M); }
+			if (p.st == JUMP && !p.airBeamUsed && !behind && ax > 100 && ax < 280 && std::fabs(dy) < 35 && r(34) < 5 + lv * 3) { return out(SP); }
 			if (p.st == JUMP && chase && (ax > 64 || std::fabs(dy) > 70) && r(32) < a[lv]) { return out(HM); }
 			if (p.st == JUMP && lv >= 2 && !p.wj && p.y > 30 * F && (p.x < 0 ? -p.x : p.x) > STAGE - 20 * F && r(27) < 8) { return out(U); }
 			if (p.st == JUMP && lv >= 2 && !p.dj && incoming && p.vy < 0 && r(28) < 25) { return out(U); }
@@ -115,7 +116,7 @@ int aiThink(Ai& ai, const State& s, int me)
 	if (dist > 240)
 	{
 		static const int a[4] = { 0, 6, 4, 2 };
-		if (k < 42 && !myProj) { PUSH({ SP, 2 }, { 0, 24 }); }
+		if (k < 14 && !myProj) { PUSH({ SP, 2 }, { 0, 24 }); }
 		if (k < 58) { ai.hold = FW; return out(FW); }
 		if (drive && lv >= 2 && k < 72) { PUSH({ FW, 1 }, { 0, 1 }, { FW | PA, 2 }, { PA, 4 }, { 0, 4 }); }
 		if (k < 80) { PUSH({ FW, 1 }, { 0, 1 }, { FW, 2 }, { 0, 14 }); }

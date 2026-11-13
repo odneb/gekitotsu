@@ -8,10 +8,10 @@ void FGkFx::Init(AActor* Owner, USceneComponent* Root)
 {
 	Rng.Initialize(7731); Ps.Reset(); Ps.Reserve(Pool * 2);
 	UStaticMesh* Plane = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane"));
-	static const TCHAR* Mats[2] = { TEXT("/Game/GkFx/M_GkGlow.M_GkGlow"), TEXT("/Game/GkFx/M_GkDust.M_GkDust") };
+	static const TCHAR* Mats[2] = { TEXT("/Game/GkFx/M_GkFilmSpark.M_GkFilmSpark"), TEXT("/Game/GkFx/M_GkDust.M_GkDust") };
 	for (int32 L = 0; L < 2; L++)
 	{
-		UMaterialInterface* M = LoadObject<UMaterialInterface>(nullptr, Mats[L]);
+		UMaterialInterface* M = LoadObject<UMaterialInterface>(nullptr, L==0 && !bFilm ? TEXT("/Game/GkFx/M_GkGlow.M_GkGlow") : Mats[L]);
 		if (!Plane || !M) { UE_LOG(LogTemp, Warning, TEXT("Gekitotsu: particle material %s did not load"), Mats[L]); Mesh[L] = nullptr; continue; }
 		UInstancedStaticMeshComponent* C = NewObject<UInstancedStaticMeshComponent>(Owner); C->SetMobility(EComponentMobility::Movable); C->SetupAttachment(Root);
 		C->SetStaticMesh(Plane); C->SetMaterial(0, M); C->SetCollisionEnabled(ECollisionEnabled::NoCollision); C->SetCastShadow(false); C->SetNumCustomDataFloats(4);
@@ -64,7 +64,9 @@ void FGkFx::Tick(float Dt)
 	{
 		if (!Mesh[L]) { continue; }
 		for (int32 i = N[L]; i < Used[L]; i++) { Mesh[L]->UpdateInstanceTransform(i, FTransform(FQuat::Identity, FVector(0, 0, -10000), FVector::ZeroVector), false, false, true); }
-		Used[L] = N[L]; Mesh[L]->MarkRenderStateDirty();
+		// UE 5.8 queues instance/custom-data changes through its instance manager.
+        // Recreating the entire scene proxy each frame churns uniform buffers on Metal.
+        Used[L] = N[L];
 	}
 }
 
@@ -166,14 +168,14 @@ void FGkFx::CanyonFootDust(const FVector& Feet, double Direction, bool bDash)
 
 void FGkFx::Aura(const FVector& At, const FLinearColor& Col, float Amount)
 {
-	Add(0, At + FVector(-20, 0, 95), FVector::ZeroVector, 0.26f, 90.f, 240.f * FMath::Min(Amount, 1.6f), Col * 0.22f);
-	const int32 Count = int32(14 * Amount);
+	if(!bFilm)Add(0, At + FVector(-20, 0, 95), FVector::ZeroVector, 0.26f, 90.f, 240.f * FMath::Min(Amount, 1.6f), Col * 0.22f);
+	const int32 Count = int32((bFilm ? 4 : 14) * Amount);
 	for (int32 i = 0; i < Count; i++)
 	{
-		FP& S = Add(0, At + FVector(Rng.FRandRange(-40.f, 20.f), Rng.FRandRange(-45.f, 45.f), Rng.FRandRange(0.f, 150.f)), FVector(0, Rng.FRandRange(-40.f, 40.f), Rng.FRandRange(180.f, 520.f)), Rng.FRandRange(0.3f, 0.7f), Rng.FRandRange(8.f, 16.f), 3.f, Col);
-		S.Stretch = 4.f;
+		FP& S = Add(0, At + FVector(Rng.FRandRange(-40.f, 20.f), Rng.FRandRange(-45.f, 45.f), Rng.FRandRange(0.f, 150.f)), FVector(0, Rng.FRandRange(-40.f, 40.f), Rng.FRandRange(180.f, 520.f)), Rng.FRandRange(0.3f, 0.7f), Rng.FRandRange(bFilm ? 1.5f : 8.f,bFilm ? 3.f : 16.f), bFilm ? .3f : 3.f, Col);
+		S.Stretch = bFilm ? 14.f : 4.f;
 	}
-	Dust(FVector(At.X, At.Y, 0), FMath::Min(0.8f, 0.5f * Amount), 0.f);
+	if(!bFilm)Dust(FVector(At.X, At.Y, 0), FMath::Min(0.8f, 0.5f * Amount), 0.f);
 }
 
 void FGkFx::Trail(const FVector& At, const FLinearColor& Col)
@@ -198,9 +200,9 @@ void FGkFx::Air(double CentreY, float Dt, bool bOutdoors, int32 Kind, float Wind
 			}
 			case 3: case 6:
 			{   // fireflies, or the swamp's glowing spores: slow lights that wander
-				MoteDue += 0.09f; const FLinearColor C = Kind == 3 ? FLinearColor(3.2f, 3.6f, 0.7f) : FLinearColor(0.5f, 3.4f, 2.6f);
-				FP& M = Add(0, At, FVector(0, Rng.FRandRange(-26.f, 26.f) - 60.f * Wind, Rng.FRandRange(-8.f, 22.f)), Rng.FRandRange(3.f, 6.f), Rng.FRandRange(4.f, 8.f), Rng.FRandRange(3.f, 7.f), C, 0.9f); M.bSwell = true;
-				if (Rng.FRand() < 0.25f) { FP& G = Add(0, At, M.Vel, M.Life, 34.f, 30.f, C * 0.12f, 0.7f); G.bSwell = true; }
+				MoteDue += bFilm ? .55f : .09f; const FLinearColor C = bFilm ? FLinearColor(.75f,.8f,.45f) : Kind == 3 ? FLinearColor(3.2f, 3.6f, 0.7f) : FLinearColor(0.5f, 3.4f, 2.6f);
+				FP& M = Add(0, At, FVector(0, Rng.FRandRange(-26.f, 26.f) - 60.f * Wind, Rng.FRandRange(-8.f, 22.f)), Rng.FRandRange(3.f, 6.f), Rng.FRandRange(bFilm ? .7f : 4.f,bFilm ? 1.4f : 8.f), Rng.FRandRange(bFilm ? .4f : 3.f,bFilm ? 1.f : 7.f), C, 0.9f); M.bSwell = true;
+				if (!bFilm && Rng.FRand() < 0.25f) { FP& G = Add(0, At, M.Vel, M.Life, 34.f, 30.f, C * 0.12f, 0.7f); G.bSwell = true; }
 				break;
 			}
 			case 4:
@@ -223,7 +225,7 @@ void FGkFx::Air(double CentreY, float Dt, bool bOutdoors, int32 Kind, float Wind
 			}
 		}
 	}
-	while (HazeDue <= 0.f && bOutdoors)
+	while (!bFilm && HazeDue <= 0.f && bOutdoors)
 	{
 		HazeDue += 0.45f;
 		FP& H = Add(1, FVector(Rng.FRandRange(-350.f, 110.f), CentreY + Rng.FRandRange(-1100.f, 900.f), Rng.FRandRange(8.f, 40.f)), FVector(0, Rng.FRandRange(50.f, 130.f), Rng.FRandRange(0.f, 8.f)),

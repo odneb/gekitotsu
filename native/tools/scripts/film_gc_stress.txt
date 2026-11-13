@@ -1,0 +1,55 @@
+fight|0
+hud|1
+palette|0
+wait|300
+exec|DisableAllScreenMessages
+exec|r.MeshDrawCommands.UseCachedCommands
+exec|csvprofile start
+wait|300
+exec|csvprofile stop
+shot|film-day-19
+fogdump
+palette|1
+wait|240
+shot|film-palette-1-19
+palette|2
+wait|240
+shot|film-palette-2-19
+palette|3
+wait|240
+shot|film-palette-3-19
+palette|4
+wait|240
+shot|film-palette-4-19
+palette|5
+wait|240
+shot|film-palette-5-19
+palette|2
+wait|180
+bolt
+run|3|0|0
+shot|film-lightning-19
+match|2
+audio|start
+run|1800|-1|0
+audio|stop|Robot1-Match
+palette|0
+exec|obj gc
+run|2400|-1|0
+palette|1
+exec|obj gc
+run|2400|-1|0
+palette|2
+exec|obj gc
+run|2400|-1|0
+palette|3
+exec|obj gc
+run|2400|-1|0
+palette|4
+exec|obj gc
+run|2400|-1|0
+palette|5
+exec|obj gc
+run|2400|-1|0
+shot|film-stress-complete-19
+quit

@@ -11,7 +11,7 @@ class UInstancedStaticMeshComponent; class AActor; class USceneComponent;
 struct FGkFx
 {
 	struct FP { FVector Pos, Vel; float Age, Life, Size0, Size1, Stretch, Grav, Drag, Alpha; FVector Streak; FLinearColor Col; int32 Layer; bool bSwell, bCanyonHaze; };
-	TArray<FP> Ps; UInstancedStaticMeshComponent* Mesh[2] = { nullptr, nullptr }; int32 Used[2] = { 0, 0 }; FRandomStream Rng; float MoteDue = 0.f, HazeDue = 0.f, CanyonHazeDue = 0.f, Yaw = 0.f;   // Yaw: which way the camera is looking, so the squares can face it
+	TArray<FP> Ps; UInstancedStaticMeshComponent* Mesh[2] = { nullptr, nullptr }; int32 Used[2] = { 0, 0 }; FRandomStream Rng; bool bFilm = false; float MoteDue = 0.f, HazeDue = 0.f, CanyonHazeDue = 0.f, Yaw = 0.f;   // Yaw: which way the camera is looking, so the squares can face it
 	FLinearColor DustCol = FLinearColor(0.62f, 0.47f, 0.33f);
 	static constexpr int32 Pool = 420;
 

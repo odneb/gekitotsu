@@ -134,36 +134,37 @@ const SIM = (function () {
     // Super Arts
     // Dragonlash Flame: launcher, then spinning kicks carried up into the air; the last kick sends them back over Ken's shoulder so he lands on the far side
     const ak = (st, d) => ({ s: st, e: st + 1, hb: [-10, -10, 80, 100], d: d, stun: 34, kb: 0, air: [0, 300], lvl: 1, hsp: 6, bstun: 20, req: 1, lk: 1, carry: [24, 4] });
-    N('SA1', { n: 'Moonwake', sup: 1, sa: 1, su: 7, t: 999, frz: 40, inv: [0, 8], minScale: 30, dd: 250, mv: [[2, 8, 760]], stopOnHit: 1, wEnd: [9, -41], rise: [11, 330, 1120], landRec: 12,
+    N('SA1', { n: 'Rocket Ruckus', sup: 1, sa: 1, su: 7, t: 999, frz: 40, inv: [0, 8], minScale: 30, dd: 250, mv: [[2, 8, 760]], stopOnHit: 1, wEnd: [9, -41], rise: [11, 330, 1120], landRec: 12,
       hits: [{ s: 6, e: 8, hb: [2, 10, 64, 80], d: 40, stun: 34, kb: 0, launch: [0, 700], air: [0, 300], lk: 1, lvl: 2, hsp: 14, bstun: 20 }, ak(15, 25), ak(20, 25), ak(25, 25), ak(30, 25), { s: 36, e: 38, hb: [-10, -10, 80, 100], d: 60, launch: [-620, 520], air: [-620, 520], lvl: 2, hsp: 18, req: 1, bstun: 20 }] });
     const big = [-4, 0, 84, 104], rq = (s, d) => ({ s: s, e: s + 1, hb: big, d: d, stun: 34, kb: 0, air: [0, 250], lvl: 1, hsp: 6, bstun: 20, req: 2, lk: 1 });
     // Shippu Jinrai-kyaku: kicks on the ground, then a rising Tatsumaki that carries them into the air
     const tk2 = (st, d) => ({ s: st, e: st + 1, hb: big, d: d, stun: 34, kb: 0, air: [0, 300], lvl: 1, hsp: 5, bstun: 20, req: 2, lk: 1, carry: [22, 2] });
-    N('SA2', { n: 'Storm Surge', sup: 1, sa: 2, su: 6, t: 999, frz: 44, minScale: 40, mv: [[4, 14, 1300]], stopOnHit: 1, dd: 500, wEnd: [88, -1], rise: [38, 110, 1060], landRec: 14,
+    N('SA2', { n: 'Bad Idea Barrage', sup: 1, sa: 2, su: 6, t: 999, frz: 44, minScale: 40, mv: [[4, 14, 1300]], stopOnHit: 1, dd: 500, wEnd: [88, -1], rise: [38, 110, 1060], landRec: 14,
       hits: [{ s: 5, e: 14, hb: [0, 6, 64, 110], d: 30, stun: 34, kb: 0, air: [0, 300], lk: 1, pop: [40, 640], lvl: 1, hsp: 10, bstun: 33 }, rq(20, 30), rq(26, 30), rq(32, 30), tk2(40, 15), tk2(44, 15), tk2(48, 15), tk2(52, 15), { s: 57, e: 59, hb: [-10, -10, 90, 110], d: 100, launch: [900, 900], air: [900, 900], wb: 1, lvl: 2, hsp: 18, req: 2, bstun: 27 }] });
     const fl = s => ({ s: s, e: s + 1, hb: big, d: 60, stun: 34, kb: 0, air: [0, 260], lvl: 1, hsp: 7, bstun: 20, lk: 1 });
-    N('SA3', { n: 'King Tide', sup: 1, sa: 3, su: 7, t: 999, frz: 60, inv: [0, 17], minScale: 50, partAt: 10, rise: [41, 100, 1280], landRec: 19, dd: 900, mv: [[1, 6, 1100]], stopOnHit: 1,
-      hits: [{ s: 6, e: 9, hb: [0, 6, 70, 110], d: 60, stun: 34, kb: 0, air: [0, 260], lvl: 1, hsp: 7, bstun: 20 }, fl(14), fl(22), fl(30), { s: 40, e: 44, hb: big, d: 160, launch: [150, 1450], air: [150, 1450], lvl: 2, hsp: 22, bstun: 20 }],
-      an: { k: [[0, 'cupW'], [6, 'srS'], [11, 'cupW'], [14, 'srS'], [19, 'cupW'], [22, 'srS'], [27, 'cupW'], [30, 'srS'], [36, 'cupW'], [40, 'srS'], [56, 'srS2'], [80, 'jump']], spin: [40, 70, 1080] } });
-    // Critical Art: the Level 3 at a quarter health or less. Same opening and the same frame data, but it carries them to the top of the screen and drives them back into the floor.
-    const ck = st => ({ s: st, e: st + 1, hb: big, d: 15, stun: 34, kb: 0, air: [0, 300], lvl: 1, hsp: 6, bstun: 20, req: 1, lk: 1, carry: [20, 8] });
-    N('CA', { n: 'Abyssal Tide', sup: 1, sa: 3, ca: 1, su: 7, t: 999, frz: 84, inv: [0, 17], minScale: 50, partAt: 10, rise: [41, 100, 1280], landRec: 19, dd: 900, mv: [[1, 6, 1100]], stopOnHit: 1,
-      hits: [{ s: 6, e: 9, hb: [0, 6, 70, 110], d: 60, stun: 34, kb: 0, air: [0, 260], lvl: 1, hsp: 7, bstun: 20 }, fl(14), fl(22), fl(30), { s: 40, e: 44, hb: big, d: 100, launch: [150, 1450], air: [150, 1450], lvl: 2, hsp: 16, bstun: 20 },
-        ck(49), ck(54), ck(59), { s: 65, e: 67, hb: [-20, -30, 96, 130], d: 65, stun: 34, air: [40, -2400], gb: 1, lvl: 2, hsp: 24, req: 1, fin: 1 }] });
+    // Maximum Overkill is a committed horizontal beam: the visible shaft and hit regions agree.
+    const beamHit = (s, d, finish = false) => ({ s, e: s + 2, hb: [24, 20, 900, 74], d,
+      stun: 26, kb: finish ? 650 : 0, lvl: finish ? 2 : 1, hsp: finish ? 16 : 3,
+      bstun: finish ? 22 : 16, ...(finish ? { launch: [750, 420], air: [750, 420] } : { air: [0, 80] }) });
+    N('SA3', { n: 'Maximum Overkill', sup: 1, sa: 3, su: 20, t: 100, frz: 48, inv: [0, 12], minScale: 50, dd: 900,
+      hits: [beamHit(19, 45), beamHit(25, 45), beamHit(31, 45), beamHit(37, 45), beamHit(43, 45), beamHit(49, 45), beamHit(55, 130, true)] });
+    N('CA', { n: 'Absolutely Unnecessary', sup: 1, sa: 3, ca: 1, su: 20, t: 108, frz: 64, inv: [0, 16], minScale: 50, dd: 900,
+      hits: [beamHit(19, 50), beamHit(25, 50), beamHit(31, 50), beamHit(37, 50), beamHit(43, 50), beamHit(49, 50), beamHit(55, 150, true)] });
+    N('ABEAM', { n: 'Hot Shot', sp: 1, air: 1, su: 19, t: 58, hover: 36, landRec: 18, dd: 300, sg: 30, hits: [18,24,30].map((s,i)=>({s,e:s+2,hb:[24,22,480,50],d:i===2?40:20,stun:22,bstun:12,kb:i===2?450:0,air:i===2?[400,280]:[0,60],lvl:1,hsp:3})) });
     return {
-      name: 'ARD', jp: '闇', title: 'THE PALE TIDE', hp: 1000, walkF: 230, walkB: 157, jx: 245, jxB: 196, runV: 430, mv: mv,
-      sp: [{ dir: 6, k: 'SRK_M', od: 'SRK_OD' }, { dir: 4, k: 'HOME', od: 'HOME_OD' }, { dir: 2, k: 'JIN_M', od: 'JIN_OD' }, { dir: 5, k: 'HAD_H', od: 'HAD_OD' }, { air: 1, adir: 2, k: 'ASPK', od: 'ASPK' }, { air: 1, adir: 8, k: 'AUP', od: 'AUP' }, { air: 1, adir: 4, k: 'ABK', od: 'ABK' }, { air: 1, fwd: 1, adir: 6, k: 'ATAT', od: 'ATAT_OD' }, { air: 1, k: 'AHOME', od: 'AHOME_OD' }],
+      name: 'ROBOT 1', jp: '闇', title: 'ENGINEERED FOR TROUBLE', hp: 1000, walkF: 230, walkB: 157, jx: 245, jxB: 196, runV: 430, mv: mv,
+      sp: [{ dir: 6, k: 'SRK_M', od: 'SRK_OD' }, { dir: 4, k: 'DL_H', od: 'DL_OD' }, { dir: 2, k: 'JIN_M', od: 'JIN_OD' }, { dir: 5, k: 'HAD_H', od: 'HAD_OD' }, { air: 1, adir: 2, k: 'ASPK', od: 'ASPK' }, { air: 1, adir: 6, k: 'AUP', od: 'AUP' }, { air: 1, k: 'ABEAM', od: 'ABEAM' }],
       mo: [{ m: '623', L: 'SRK_L', M: 'SRK_M', H: 'SRK_H', OD: 'SRK_OD' }, { m: '214', L: 'TAT_L', M: 'TAT_M', H: 'TAT_H', OD: 'TAT_OD' }, { m: '236', L: 'JIN_L', M: 'JIN_M', H: 'JIN_H', OD: 'JIN_OD' }, { m: '214', air: 1, fwd: 1, L: 'ATAT', M: 'ATAT', H: 'ATAT', OD: 'ATAT_OD' }],
       run: { L: 'STOP', M: 'TK', H: 'FSK', S6: 'QSRK', S5: 'QSRK', S2: 'QTAT', S4: 'QDL', m623: 'QSRK', m214: 'QTAT' },
       auto: { L: [['5LK'], ['JIN_L'], ['KAZE']], LC: [['2LK'], ['5LP'], ['JIN_L'], ['KAZE']], M: [['5MP'], ['CB2'], ['RUN'], ['QDL'], ['SA2', 'SRK_H']], H: [['5HP'], ['JIN_OD', 'JIN_M'], ['KAZE_OD', 'KAZE'], ['KASAI'], ['SA3']] },
       cmd: [['Corpse Candle', 'SP', 'A drifting ghost flame. Assist+SP is the two-hit Flood version.'], ['Spindrift', '→ + SP   (623 + L/M/H)', 'Rising spin, anti-air invincible. Only the Flood version is fully invincible.'],
-        ['Slipstream', 'Homing button   (or ← + SP, air: SP)', 'Homes in. Hit = free air combo. Blocked or missed = long helpless fall.'], ['Black Current', '↓ + SP   (236 + L/M/H)', 'Then ←SP Low Water, ↓SP High Water (overhead), SP Crest.'],
-        ['Maelstrom', '214 + L/M/H   (air: → + SP)', 'Motion only on the ground. In the air it is the Waterspout: forward jump, → + SP.'], ['Quick Dash', 'M + H', 'Run. L stops, M overhead, H step kick, SP specials (←SP Breaker).'],
-        ['Tide Arts', 'H + SP   ← H + SP   ↓ H + SP', 'Moonwake, Storm Surge, King Tide.'], ['Final Tide', '↓ H + SP   at 25% health or less', 'Abyssal Tide replaces King Tide when nearly dead. More damage, ends in a slam.']],
-      cmd2: [['Air Normals', '↑ L/M/H   ↓ M/H   ← L/M/H', 'Rising Lash launches. Falling Heel spikes. Back Lash hits behind.'], ['Air Specials', 'Homing / SP   ↑ SP   ↓ SP   ← SP', 'Slipstream, Riptide, Falling Star (spike), Undertow (behind).'],
+        ['Slipstream', 'Homing button only', 'Homes in. Hit = free air combo. Blocked or missed = long helpless fall.'], ['Black Current', '↓ + SP   (236 + L/M/H)', 'Then ←SP Low Water, ↓SP High Water (overhead), SP Crest.'],
+        ['Maelstrom', '214 + L/M/H', 'Spinning ground kick. Forward Special is always the rising anti-air.'], ['Quick Dash', 'M + H', 'Run. L stops, M overhead, H step kick, SP specials (←SP Breaker).'],
+        ['Super Attacks', 'H + SP   ← H + SP   ↓ H + SP', 'Rocket Ruckus, Bad Idea Barrage, Maximum Overkill.'], ['Critical Overload', '↓ H + SP   at 25% health or less', 'Absolutely Unnecessary replaces Maximum Overkill when nearly dead. Seven hits with a bigger final blast and longer recovery.']],
+      cmd2: [['Air Normals', 'L / M / H   Assist + L / M / H', 'Six attacks. Direction does not change the selected normal.'], ['Air Specials', 'SP beam   →SP anti-air   ↓SP dive', 'Hot Shot commits in the air; Riptide rises; Falling Star spikes. Homing has its own button.'],
         ['Air Movement', '↑ again   ↑ at the wall   ← →', 'Double jump, wall jump, drift. Hold ↓ to fall fast.'], ['Air Cancels', 'after an air normal hits', '↑ jump-cancels it; SP cancels it into an air special.'],
         ['Juggle Loop', 'launch, Homing, air combo, ↓ + SP', 'Slipstream pops them up twice per combo; the spike bounces them once.'], ['Grab', 'L + M   then any attack button', 'Holds them. Pummel up to five times before throwing.'],
-        ['Throws', '→   ←   ↑   ↓   while holding', 'Forward, back, straight up (juggle), slam into a ground bounce.'], ['Assist Combos', 'hold Assist, tap L / M / H', 'L x3, M x5 (ends in Storm Surge), H x5 (ends in King Tide, or the Final Tide).']]
+        ['Throws', '→   ←   ↑   ↓   while holding', 'Forward, back, straight up (juggle), slam into a ground bounce.'], ['Assist Combos', 'hold Assist, tap L / M / H', 'L x3, M x5 (ends in Bad Idea Barrage), H x5 (ends in Maximum Overkill, or the Critical Overload).']]
     };
   }
   function ren() { return Object.assign(ken(), { name: 'ARD', jp: '闇', title: 'THE BLACK TIDE' }); }
@@ -175,7 +176,7 @@ const SIM = (function () {
     return { ch: ch, x: (i ? 80 : -80) * F, y: 0, vx: 0, vy: 0, pv: 0, face: i ? -1 : 1, hp: CH[ch].hp, sa: 0, dr: DMAX, bo: 0, drT: 0, st: 'idle', sub: 'stand', sf: 0, subf: 0,
       mv: '', mf: 0, hitMask: 0, contact: 0, hitOK: 0, hs: 0, stun: 0, buf: b, prev: 0, age: [99, 99, 99, 99, 99, 99, 99, 99], d66: 99, d44: 99, combo: 0, comboDmg: 0, jug: 0,
       wbUsed: 0, gbUsed: 0, wbPend: 0, gbPend: 0, jd: 0, rec: 0, cb: 0, hitHi: 1, tinv: 0, wins: 0, back: 0, red: CH[ch].hp, redT: 0, air2: 0, noTech: 0,
-      ca: 0, rq: 99, part: 0, jg: 0, cxSeq: -1, fuq: '', fum: 0, pd: [0, 0, 0, 0, 0, 0, 0, 0], mseq: 0, cs: 0, lastSeq: -1, acq: 0, rcn: 0, sshift: 0, drs: 0, pok: 0, roll: 0, hard: 0, arm: 0, armHit: 0, drb: 0, mod: 0, ac: '', aci: 0, crum: 0, pp: 0, plock: 0, half: 0, hm: 0, hmc: 0, fr: 0, hmE: 0, dj: 0, wj: 0, aa: 0 };
+      ca: 0, rq: 99, part: 0, jg: 0, cxSeq: -1, fuq: '', fum: 0, pd: [0, 0, 0, 0, 0, 0, 0, 0], mseq: 0, cs: 0, lastSeq: -1, acq: 0, rcn: 0, sshift: 0, drs: 0, pok: 0, roll: 0, hard: 0, arm: 0, armHit: 0, drb: 0, mod: 0, ac: '', aci: 0, crum: 0, pp: 0, plock: 0, half: 0, hm: 0, hmc: 0, fr: 0, hmE: 0, dj: 0, wj: 0, aa: 0, airBeamUsed: 0 };
   }
   function newMatch(cfg) {
     const s = { frame: 0, slow: 0, phase: 'intro', pt: 0, kx: 0, round: 1, time: 99 * 60, freeze: 0, frzWho: 0, proj: [], ev: [], winner: -1, rw: -1, koType: '', cfg: { training: !!cfg.training, chars: cfg.chars.slice(), rounds: cfg.rounds || 2 }, p: [] };
@@ -244,7 +245,7 @@ const SIM = (function () {
     if (m.sup || (pm && pm.thru)) { if (o.x > p.x) p.face = 1; else if (o.x < p.x) p.face = -1; }
     p.st = 'atk'; p.mv = key; p.mseq++; p.mf = 0; p.sf = 0; p.hitMask = 0; p.contact = 0; p.hitOK = 0; p.arm = m.arm || 0; p.armHit = 0;
     p.drb = fromDr && !m.sp && !m.sup && !m.thr ? 1 : 0; if (fromDr) p.pv = p.face * 480;
-    p.mod = opt && opt.mod ? 1 : 0; p.fuq = ''; p.part = 0; p.ca = m.ca ? 1 : 0; p.fr = 0; p.hmE = 0; if (m.home) p.hm = 1; if (!(opt && opt.auto)) { p.ac = ''; p.aci = 0; }
+    p.mod = opt && opt.mod ? 1 : 0; p.fuq = ''; p.part = 0; p.ca = m.ca ? 1 : 0; p.fr = 0; p.hmE = 0; if (m.home) p.hm = 1; if (key === 'ABEAM') p.airBeamUsed = 1; if (!(opt && opt.auto)) { p.ac = ''; p.aci = 0; }
     if (!m.isAir) { p.vx = 0; if (p.y > 0) { p.y = 0; p.vy = 0; p.air2 = 0; p.jg = 0; } }
     if (m.sa) p.sa -= m.sa * 1000; else if (m.sp) p.sa = Math.min(3000, p.sa + 10);
     if (m.frz) { s.freeze = m.frz; s.frzWho = i; s.ev.push({ t: 'super', who: i, lv: m.sa, ca: p.ca, k: key }); }
@@ -302,15 +303,15 @@ const SIM = (function () {
         const d = v < 0 ? 2 : (air && v > 0) ? 8 : h > 0 ? 6 : h < 0 ? 4 : 5;
         for (const sp of C.sp) {
           if (!!sp.air !== air || (!air && sp.dir !== d) || (air && sp.adir && sp.adir !== d) || (sp.fwd && p.jd <= 0) || (C.mv[sp.k].home && p.hm)) continue;
-          if (as && canOD && !(C.mv[sp.od].proj && myProj)) { spend(s, p, i, 2 * BAR, 120); return start(s, p, sp.od, i, { mod: 1 }); }
-          if (C.mv[sp.k].proj && myProj) continue;
+          if (as && canOD && sp.od !== sp.k && !(C.mv[sp.od].proj && myProj)) { spend(s, p, i, 2 * BAR, 120); return start(s, p, sp.od, i, { mod: 1 }); }
+          if ((C.mv[sp.k].proj && myProj) || (sp.k === 'ABEAM' && p.airBeamUsed)) continue;
           return start(s, p, sp.k, i, { mod: 1 });
         }
       }
     }
     if (!(lt || md || hv)) return false;
     if (air) { if (m && !(m.isAir && p.contact && (p.aa || 0) < 3)) return false; if (m) p.aa = (p.aa || 0) + 1;
-      const vv = vdir(inp), hh = hdir(inp, p.face), k = vv > 0 && (m || p.sf > 9) ? 'jUP' : vv < 0 && (md || hv) ? 'jDN' : hh < 0 ? 'jBK' : as ? (hv ? 'jHP' : md ? 'jMK' : 'jLK') : (hv ? (p.jd === 0 ? 'njHK' : 'jHK') : md ? 'jMP' : 'jLP'); return start(s, p, k, i); }
+      const k = as ? (hv ? 'jHP' : md ? 'jMK' : 'jLK') : (hv ? 'jHK' : md ? 'jMP' : 'jLP'); return start(s, p, k, i); }
     if ((canN || kara) && (inp & 16) && (inp & 32) && A[0] <= BUF + 2 && A[1] <= BUF + 2) { p.back = h < 0 ? 1 : 0; return start(s, p, 'throw', i); }
     const b = hv ? 'H' : md ? 'M' : 'L', nb = hv ? 2 : md ? 1 : 0, hN = hdir(p.pd[nb], p.face), vN = vdir(p.pd[nb]), k = pick(b, hN, vN, as);
     if (canN) { if (as) { p.ac = b; p.aci = 0; return start(s, p, k, i, { auto: 1 }); } return start(s, p, k, i); }
@@ -512,7 +513,7 @@ const SIM = (function () {
     }
   }
   function land(s, p, i) {
-    p.dj = 0; p.wj = 0; p.aa = 0; p.hm = 0; p.fr = 0;
+    p.dj = 0; p.wj = 0; p.aa = 0; p.hm = 0; p.airBeamUsed = 0; p.fr = 0;
     p.y = 0; p.vy = 0; p.air2 = 0; p.jg = 0;
     if (p.st === 'ahit') {
       if (p.gbPend && !p.gbUsed && p.hp > 0) { p.gbUsed = 1; p.gbPend = 0; p.y = 1; p.vy = 880; p.vx = tr(p.vx / 3); p.hs = 5; s.ev.push({ t: 'gbounce', x: p.x, y: 0, who: i }); return; }

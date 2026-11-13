@@ -1,0 +1,25 @@
+fight|0
+hud|1
+palette|1
+wait|300
+exec|DisableAllScreenMessages
+set|0|sa|3000
+set|1|sa|3000
+shot|film-moon-final
+palette|0
+wait|240
+fight|0
+set|0|sa|3000
+mv|0|SA3
+run|100|0|0
+shot|film-beam-realtime-final
+run|100|0|0
+match|2
+palette|-1
+audio|start
+run|1800|-1|0
+audio|stop|Robot1-VoiceMix-final
+exec|obj gc
+run|600|-1|0
+shot|film-match-final
+quit

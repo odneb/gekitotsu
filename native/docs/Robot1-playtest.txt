@@ -1,0 +1,50 @@
+GEKITOTSU — ROBOT 1 / DREADMARSH
+Native Unreal gameplay, development build, macOS Metal SM6
+
+OPEN THE GAME
+Double-click “Launch Robot 1.command” beside this file.
+This launches the working checkout, not the original Epic Games project.
+The original project remains at /Users/Shared/Epic Games/GekitotsuNative.
+The working project is ../../work/gekitotsu/native/GekitotsuNative.uproject,
+relative to this Robot1 delivery folder. UE 5.8.4 is required on this Mac.
+The existing purchased content and retargeted animations are already present
+in that working checkout. A fresh clone alone does not contain all vendor assets.
+
+CONTROLS
+WASD or arrows: move, jump, crouch; hold away from the opponent to guard.
+J / K / L: light / medium / heavy. Space or left Shift: Assist modifier.
+I: Special. H: dedicated Homing. U: Parry. O: Impact.
+J+K: throw. K+L: quick dash.
+L+I: level-one super; away+L+I: level two; down+L+I: level three.
+Supers cost one, two or three meter stocks respectively. At 25% health or
+less, the level-three super upgrades to its Critical version.
+In the air, J/K/L and Assist+J/K/L are the six normal attacks.
+Neutral air I: Hot Shot beam, once per jump. Toward+I: anti-air.
+Down+air I: downward spike. Homing is H, not neutral air I.
+Tab opens the menu. R restarts training; B toggles training hitboxes.
+Gamepad bindings remain configurable through the existing menu.
+
+ROBOT 1
+Only Robot 1 is selectable; crimson and cobalt are the two player colours.
+Other character assets remain available on disk but are not selected/loaded.
+Male 6 from the purchased TSUKAERU pack voices Robot 1. The downloaded
+announcer covers rounds, fight, KO, time, perfect and win announcements.
+The fighter uses curated existing animations with move-specific timing.
+Maximum Overkill uses a face/hands charge cut and a continuous animated mesh
+beam. Seven hits, 400 raw damage (450 for Critical), stationary commitment,
+blockable, long recovery. Hot Shot is 80 raw damage with landing recovery.
+
+LIGHTING
+Daylight is the initial round palette; round two shifts toward twilight;
+low health and later rounds bring storm lighting. Six explicit preview values:
+0 daylight, 1 moonlight, 2 storm, 3 warm haze, 4 toxic green, 5 twilight.
+To force a palette, launch the command file from Terminal with -gkpalette=0
+(or another value). Omit the argument to use gameplay-driven changes.
+LIVE-2 simulates low ground mist, with registered fighter-bone, dash,
+projectile and beam interaction meshes. It is not a screen-space gradient.
+
+STATUS
+This is a playable, tested development slice. It is not a finished commercial
+release, a proven balanced competitive game, or an exact reproduction of the
+painted concept. See TESTING-AND-LIMITS.txt for measured results and remaining
+visual, stability and packaging limitations.

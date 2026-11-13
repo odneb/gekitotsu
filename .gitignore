@@ -1,0 +1,11 @@
+# Generated Unreal and local verification output; keep Build/Mac resources versioned.
+.DS_Store
+native/Binaries/
+native/Intermediate/
+native/Saved/
+native/DerivedDataCache/
+native/Build/Build/
+native/Build/check_*
+native/Build/gkcheck
+native/Build/o.txt
+__pycache__/

@@ -11,19 +11,8 @@ namespace gk {
 static const int SCALE[10] = { 100, 100, 80, 70, 60, 50, 40, 30, 20, 10 };
 static Move g_moves[M_COUNT]; static bool g_built = false;
 static inline const Move& MV(int id) { return g_moves[id]; }
-// King Tide, the level three super, is a beam in this version: he plants his feet, and a wave the length of the stage
-// strikes five times and blows the other fighter away. (The browser's King Tide is a rushing combination.)
-static void beamSuper(Move& m)
-{
-	m.has_mv = 0; m.has_rise = 0; m.stopOnHit = 0; m.t = 84; m.lastAct = 58; m.landRec = 0; m.inv[1] = 21;
-	static const int at[5] = { 22, 29, 36, 43, 52 };
-	for (int k = 0; k < m.nhits && k < 5; k++)
-	{
-		Hit& h = m.hits[k]; h.s = at[k]; h.e = at[k] + (k == 4 ? 5 : 2); h.has_hb = 1; h.hb[0] = 14; h.hb[1] = 28; h.hb[2] = 900; h.hb[3] = 66; h.lk = 0; h.req = 0; h.kb = 140;
-		if (k == 4) { h.has_launch = 1; h.launch[0] = 700; h.launch[1] = 620; h.has_air = 1; h.air[0] = 700; h.air[1] = 620; }
-	}
-}
-static void ready() { if (!g_built) { buildMoves(g_moves); beamSuper(g_moves[M_SA3]); g_built = true; } }
+// All move rules come from the generated table, including beam supers.
+static void ready() { if (!g_built) { buildMoves(g_moves); g_built = true; } }
 
 const Move& move(int id) { ready(); return g_moves[id < 0 || id >= M_COUNT ? 0 : id]; }
 const char* moveKey(int id) { return id >= 0 && id < M_COUNT ? MOVE_KEY[id] : ""; }
@@ -122,7 +111,7 @@ static bool start(State& s, Fighter& p, int key, int i, int optMod = 0, int optA
 	if (m.sup || (pm && pm->thru)) { if (o.x > p.x) { p.face = 1; } else if (o.x < p.x) { p.face = -1; } }
 	p.st = ATK; p.mv = int16_t(key); p.mseq++; p.mf = 0; p.sf = 0; p.hitMask = 0; p.contact = 0; p.hitOK = 0; p.arm = m.arm; p.armHit = 0;
 	p.drb = fromDr && !m.sp && !m.sup && !m.thr ? 1 : 0; if (fromDr) { p.pv = p.face * 480; }
-	p.mod = optMod ? 1 : 0; p.fuq = -1; p.part = 0; p.ca = m.ca ? 1 : 0; p.fr = 0; p.hmE = 0; if (m.has_home) { p.hm = 1; } if (!optAuto) { p.ac = AC_NONE; p.aci = 0; }
+	p.mod = optMod ? 1 : 0; p.fuq = -1; p.part = 0; p.ca = m.ca ? 1 : 0; p.fr = 0; p.hmE = 0; if (m.has_home) { p.hm = 1; } if (key==M_ABEAM) { p.airBeamUsed=1; } if (!optAuto) { p.ac = AC_NONE; p.aci = 0; }
 	if (!m.isAir) { p.vx = 0; if (p.y > 0) { p.y = 0; p.vy = 0; p.air2 = 0; p.jg = 0; } }
 	if (m.sa) { p.sa -= m.sa * 1000; } else if (m.sp) { p.sa = imin(3000, p.sa + 10); }
 	if (m.frz) { s.freeze = m.frz; s.frzWho = i; push(s, E_SUPER, i, 0, 0, m.sa, p.ca, key); }
@@ -202,8 +191,8 @@ static bool tryAttack(State& s, Fighter& p, Fighter& o, int inp, int i)
 			for (const SpDef& sp : SP_LIST)
 			{
 				if ((sp.air != 0) != air || (!air && sp.dir != d) || (air && sp.adir && sp.adir != d) || (sp.fwd && p.jd <= 0) || (MV(sp.k).has_home && p.hm)) { continue; }
-				if (as && canOD && !(MV(sp.od).has_proj && myProj)) { spend(s, p, i, 2 * BAR, 120); return start(s, p, sp.od, i, 1); }
-				if (MV(sp.k).has_proj && myProj) { continue; }
+				if (as && canOD && sp.od != sp.k && !(MV(sp.od).has_proj && myProj)) { spend(s, p, i, 2 * BAR, 120); return start(s, p, sp.od, i, 1); }
+				if ((MV(sp.k).has_proj && myProj) || (sp.k==M_ABEAM && p.airBeamUsed)) { continue; }
 				return start(s, p, sp.k, i, 1);
 			}
 		}
@@ -213,8 +202,7 @@ static bool tryAttack(State& s, Fighter& p, Fighter& o, int inp, int i)
 	{
 		if (m && !(m->isAir && p.contact && p.aa < 3)) { return false; }
 		if (m) { p.aa = p.aa + 1; }
-		const int vv = vdir(inp), hh = hdir(inp, p.face);
-		const int k = vv > 0 && (m || p.sf > 9) ? M_jUP : vv < 0 && (md || hv) ? M_jDN : hh < 0 ? M_jBK : as ? (hv ? M_jHP : md ? M_jMK : M_jLK) : (hv ? (p.jd == 0 ? M_njHK : M_jHK) : md ? M_jMP : M_jLP);
+		const int k = as ? (hv ? M_jHP : md ? M_jMK : M_jLK) : (hv ? M_jHK : md ? M_jMP : M_jLP);
 		return start(s, p, k, i);
 	}
 	if ((canN || kara) && (inp & 16) && (inp & 32) && A[0] <= BUF + 2 && A[1] <= BUF + 2) { p.back = h < 0 ? 1 : 0; return start(s, p, M_throw, i); }
@@ -509,7 +497,7 @@ static void update(State& s, Fighter& p, Fighter& o, int inp, int i)
 
 static void land(State& s, Fighter& p, int i)
 {
-	p.dj = 0; p.wj = 0; p.aa = 0; p.hm = 0; p.fr = 0;
+	p.dj = 0; p.wj = 0; p.aa = 0; p.hm = 0; p.airBeamUsed = 0; p.fr = 0;
 	p.y = 0; p.vy = 0; p.air2 = 0; p.jg = 0;
 	if (p.st == AHIT)
 	{

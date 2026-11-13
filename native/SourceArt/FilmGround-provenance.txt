@@ -1,0 +1,9 @@
+Generated with the built-in image generation tool on 2026-11-13.
+Used as a base-color texture in the real landscape, not as a gameplay image.
+Source file: FilmGround.png. Unreal import: /Game/GkFx/T_GkFilmGround.
+Original resolution: 1254 square; Unreal stretches to power of two for mip generation.
+The original prompt requested 2048 square; the returned image was 1254 square.
+Landscape child-material texture scale: 48; normal strength 0 on the painted layers.
+
+Prompt:
+Use case: stylized-concept. Asset type: seamless square 2048x2048 base-color texture for a real Unreal anime fighting-game forest floor, NOT a scene illustration or mockup. Orthographic top-down view filling the whole square with ground at an even scale. Hand-painted anime feature-film background art texture: warm muted ochre compacted earth, irregular angular weathered dark slate and sandstone plates flush with the dirt, thin graphic dark cracks and little chips, sparse subdued moss in some seams. About half dirt and half broken flat stone, varied natural asymmetric stone sizes, no tiled paving pattern. Broad clean painterly color shapes, crisp economical ink-like contour accents, subtle brush texture. Neutral even ambient lighting appropriate for an albedo map; no cast shadows, no light beams, no gradients, no perspective, no horizon, no characters, no grass clumps, no objects protruding above the ground, no text, no border. Texture must tile seamlessly on all four edges, avoid a focal point or large identifiable repeated element. Palette restrained warm grey, olive-grey, dusty tan and earthy ochre; avoid saturated yellow and avoid monochrome grey. This will be imported into an actual 3D landscape material and illuminated dynamically.

@@ -1,0 +1,2 @@
+# set (0 Kagu, 1 Noa, 2 the robot) | move or state | clip, or none for the hand pose | from | to | loop
+2|dashb|/Game/FightAnimations/Animations/Base/Dodge/A_Dodge_B_Manny.A_Dodge_B_Manny|0.000|1.000|0
