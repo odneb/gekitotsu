@@ -96,7 +96,7 @@ void AGkMatch::UpdateSpatialType(float Delta)
  }else if(Screen==2){Show(0,TEXT("DREAD"),.19f,.29f,.13f,.34f,0);Show(3,TEXT("MARSH"),.19f,.45f,.13f,.34f,0);}
  else if(Screen==6){Show(0,TEXT("VICTORY"),.30f,.33f,.18f,.55f,FMath::Exp(-PageAge*9));}
  else if(Screen==7){Show(0,TEXT("VS"),.5f,.45f,.30f,.40f,FMath::Exp(-PageAge*9));}
- else if(Screen==3 && CallHold>0){Show(0,CallWord,.5f,.40f,.24f,.84f,FMath::Exp(-CallAge*.23f));}
+ else if(Screen==3 && CallHold>0){const float Exit=FMath::SmoothStep(8.f,18.f,float(CallAge));Show(0,CallWord,.5f,FMath::Lerp(.40f,.16f,Exit),FMath::Lerp(.20f,.045f,Exit),FMath::Lerp(.70f,.26f,Exit),FMath::Exp(-CallAge*.23f));}
  else if(Screen==3 && S.phase==gk::PH_OVER){Show(0,TEXT("VICTORY"),.5f,.40f,.20f,.80f,0);}
  if(Screen==3&&!bMenu)for(int i=0;i<2;++i){const bool Visible=Combo[i]>=2&&ComboTimer[i]>0;Show(i+1,Visible?FString::FromInt(Combo[i]):FString(),i?.86f:.14f,.30f,.16f,.18f,FMath::Exp(-FMath::Max(0,80-ComboTimer[i])*.2f));}
 }

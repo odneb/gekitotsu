@@ -49,7 +49,7 @@ void AGkMatch::VoiceEvent(const gk::Event& E)
  case gk::E_WHIFF:{const auto& P=S.p[E.who&1];if(P.mv>=0&&!gk::move(P.mv).sup&&!gk::move(P.mv).sp){const FString Name=FString::Printf(TEXT("R6_Attack%d"),1+(S.frame+E.who)%4);FighterVoice(E.who,*Name,0);}break;}
  case gk::E_PPARRY:FighterVoice(E.who,TEXT("R6_Parry"),2);break;
  case gk::E_ROUND:Announce(S.round>=3?TEXT("Ann_Final"):S.round==2?TEXT("Ann_Round2"):TEXT("Ann_Round1"),true);break;
- case gk::E_FIGHT:Announce(TEXT("Ann_Fight"),true);FighterVoice(0,TEXT("R6_Intro"),2);break;
+ case gk::E_FIGHT:Announce(TEXT("Ann_Fight"),true);break;
  case gk::E_KO:if(E.who>=0)FighterVoice(1-E.who,TEXT("R6_Defeat"),4);Announce(S.koType==gk::KO_TIME?TEXT("Ann_Time"):TEXT("Ann_KO"),true);break;
  case gk::E_WINPOSE:FighterVoice(E.who,TEXT("R6_Win"),3);Announce(S.koType==gk::KO_PERFECT?TEXT("Ann_Perfect"):TEXT("Ann_Win"),false);break;
  case gk::E_HIT:{if(!(E.f&gk::H_KO)){const FString Name=FString::Printf(TEXT("R6_Hurt%d"),1+S.frame%3);FighterVoice(1-E.who,*Name,1);}}if(E.c==8 && !(E.f&gk::H_KO))Announce(TEXT("Ann_Combo"),false);break;

@@ -1,0 +1,23 @@
+# Run with -gkscript -gkscriptfile=<this file>. No assignments are saved.
+wait|120
+fight|1
+labui
+setupslot|mv_5HP
+setupfind|AS_Anime_MC_PunchV2
+setupfilter|1|-1
+setupassert|4|0
+setupaction|3
+run|15
+setupassert|3|1
+nav|Escape
+setupassert|4|0
+nav|F6
+setupassert|3|0
+nav|F6
+setupassert|4|0
+setupaction|3
+setupaction|33
+setupassert|3|1
+setupaction|32
+setupassert|4|0
+quit

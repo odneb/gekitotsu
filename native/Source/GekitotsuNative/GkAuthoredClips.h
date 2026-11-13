@@ -36,3 +36,7 @@
 { TEXT("mv_HOME_OD"), TEXT("/Game/GkNewAnimations/AnimeMartialArts/In_Place/AS_Anime_MC_Jump_Punch_Barrage"), .24f, .60f, true, -1.f, false },
 { TEXT("mv_AHOME"), TEXT("/Game/GkNewAnimations/AnimeMartialArts/In_Place/AS_Anime_MC_Jump_Punch_Barrage"), .24f, .60f, true, -1.f, false },
 { TEXT("mv_AHOME_OD"), TEXT("/Game/GkNewAnimations/AnimeMartialArts/In_Place/AS_Anime_MC_Jump_Punch_Barrage"), .24f, .60f, true, -1.f, false },
+
+{ TEXT("introWalk"), TEXT("/Game/GkNewAnimations/AnimeMartialArts/In_Place/AS_Anime_MC_Walk"), 0.f, 1.f, true, -1.f, false },
+{ TEXT("introA"), TEXT("/Game/TauntBundle/TauntsPack02/Animations/Taunts/A_OverlyDramatic_01"), 0.f, .75f, false, -1.f, false },
+{ TEXT("introB"), TEXT("/Game/TauntBundle/TauntsPack02/Animations/Taunts/A_ShoulderRoll_01"), 0.f, .75f, false, -1.f, false },

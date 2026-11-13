@@ -1,0 +1,17 @@
+# Native opening sequence: stage fly-through, both walk-ins/voice poses, dolly and fight.
+wait|120
+exec|DisableAllScreenMessages
+palette|0
+match|0
+record|600|MatchEntrance|0|0
+entranceassert|0|1
+match|0
+run|20
+nav|Enter
+entranceassert|0|0
+run|37
+entranceassert|0|1
+fight|1
+run|2
+entranceassert|0|1
+quit

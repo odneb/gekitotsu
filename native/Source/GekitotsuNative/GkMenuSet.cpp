@@ -13,7 +13,7 @@ void AGkMatch::UpdateMenuSet()
 {
  const bool Studio=!bNoHud && Screen!=4 && Screen!=2 && (Screen!=3 || bMenu);
  const bool Stage=!bNoHud && Screen==2;
- const bool Call=!bNoHud && Screen==3 && !bMenu && CallHold>0;
+ const bool Call=!bNoHud && Screen==3 && !bMenu && CallHold>0 && CallAge<10;
  if(!PrintFinish){if(auto* M=LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/GkUI/M_GkPrintFinish.M_GkPrintFinish")))PrintFinish=UMaterialInstanceDynamic::Create(M,this);}
  auto& PP=Cam->GetCameraComponent()->PostProcessSettings;
  if(PrintFinish)PP.AddBlendable(PrintFinish,Studio?1.f:0.f);
@@ -46,7 +46,7 @@ void AGkMatch::UpdateMenuSet()
  };
  if(Stage){Plane(0,.035,.50,.58,2,175,-11,MenuPaper);Plane(1,.39,.04,.025,2,180,-11,MenuBlack);return;}
  if(Call){
-  const float K=FMath::Clamp(float(CallHold)/12.f,0.f,1.f);
+  const float K=FMath::Clamp((10.f-CallAge)/5.f,0.f,1.f);
   Plane(0,.5,.41,.92,.27f*K,170,-7,MenuPaper);Plane(1,.53,.43,1.15,.035f*K,165,-13,MenuBlack);return;
  }
  Plane(0,.5,.5,2,2,950,0,MenuPaper);

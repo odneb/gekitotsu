@@ -99,11 +99,12 @@ public:
 	struct FLabClip { FString Path, Label, Pack; int32 Cat = 0; };
 	TArray<FLabSlot> LabSlots; TArray<FLabClip> LabList; int32 LabSlot = 0, LabFrame = 0, LabSet = 2, LabCat = 0, LabDropCat = 0, LabScroll = 0, LabHot = 0, LabNoteTimer = 0, LabTryAt = -2; bool bLabDrop = false, bLabMouse = false; int32 LabKey = -2; float LabClock = 0.f; FString LabNote; FGkClip LabTry; FGkClip LabPartner; bool bLabPair=false; float LabPairSpacing=200.f;
 	TMap<FName,FGkClip> SetupDrafts;
- FString SetupSearch; int32 SetupPack=0,SetupFilter=-1,SetupSlotScroll=0;
+ FString SetupSearch; int32 SetupPack=0,SetupFilter=-1,SetupSlotScroll=0,SetupDropdown=0;
+ bool bSetupAdvanced=false;
  bool bSetupVariants=false;
  bool bSetupSearch=false,bSetupPaused=false,bSetupTesting=false;float SetupSpeed=1.f;
  FGkClip SetupOriginal;int32 SetupOldMode=0,SetupOldDummy=0;
- void DrawCharacterSetup(UCanvas* Cv);void SetupInput();void SetupAction(int32 Id);void SetupSelect(int32 Slot);void SetupApply();void SetupTest();void SetupReturn();
+ void DrawSetupTest(UCanvas* Cv);void DrawCharacterSetup(UCanvas* Cv);void SetupInput();void SetupAction(int32 Id);void SetupSelect(int32 Slot);void SetupApply();void SetupTest();void SetupReturn();
  bool SetupMatches(const FLabClip& C) const;
  void LabOpen(); void LabClose(); void LabClick(int32 Id); void LabPick(int32 ClipIndex); void LabSave(); void LoadPicks(); FString PicksFile(bool bProject) const;
 	// hit, guard and dust effects and their sounds (Vefects' Combat Flipbook VFX)
@@ -235,6 +236,9 @@ public:
 
 	static constexpr double Cm = (100.0 / 51.0) / 100.0;   // centimetres in one of the rules' sub-units: the fighter is 89 units, about 1.75 m
 	FVector At(int32 X, int32 Y, double Depth = 0.0) const { return FVector(Depth, double(X) * Cm, double(Y) * Cm); }
-	void Restart(); int32 ReadPlayer() const; int32 DummyInput(); void MenuInput(); void StepOnce(int32 Force0 = -1, int32 Force1 = -1); void OnEvent(const gk::Event& E); void Track(int32 In);
+	bool bEntrance=false,bEntrancePlayed=false; int32 EntranceFrame=0,EntrancePoseFrames=120;
+ int32 EntranceA() const {return 144;} int32 EntranceBWalk() const {return EntranceA()+EntrancePoseFrames;} int32 EntranceB() const {return EntranceBWalk()+72;} int32 EntranceDolly() const {return EntranceB()+EntrancePoseFrames;} int32 EntranceEnd() const {return EntranceDolly()+60;}
+ bool StepEntrance(); void FinishEntrance(); void EntranceCamera(); float EntranceX(int32 Who) const; FName EntranceClip(int32 Who) const; float EntranceSample(int32 Who,float Length) const;
+ void Restart(); int32 ReadPlayer() const; int32 DummyInput(); void MenuInput(); void StepOnce(int32 Force0 = -1, int32 Force1 = -1); void OnEvent(const gk::Event& E); void Track(int32 In);
 	void Present(float Real); void ShowFighter(int32 i); void SaveBinds() const; void LoadBinds(); void Say(const TCHAR* Word, int32 Hold); void Remark(int32 Who, const TCHAR* Text);
 };

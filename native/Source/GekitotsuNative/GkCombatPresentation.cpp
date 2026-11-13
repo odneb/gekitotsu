@@ -106,7 +106,7 @@ void AGkMatch::ApplyDirector()
    Material->SetVectorParameterValue(TEXT("Key"),FLinearColor(L.X,L.Y,L.Z));Material->SetVectorParameterValue(TEXT("KeyTint"),FLinearColor(.55f,.9f,1.3f));Material->SetVectorParameterValue(TEXT("Rim"),Energy*2.f);
   }
  }
- if(Music)Music->SetVolumeMultiplier(MusicGain*MusicVol*SongGain*(1.f-D.duck));
+ if(Music)Music->SetVolumeMultiplier(MusicGain*MusicVol*SongGain*(1.f-D.duck)*(bEntrance?.65f:1.f));
 }
 void AGkMatch::SurfaceResponse(const FVector& Point,float Strength,float Direction)
 {

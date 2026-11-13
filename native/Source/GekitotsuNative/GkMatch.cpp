@@ -131,7 +131,7 @@ void AGkGameMode::StartPlay()
 	Super::StartPlay();
 	if (UWorld* W = GetWorld()) { W->SpawnActor<AGkMatch>(FVector::ZeroVector, FRotator::ZeroRotator); }
 }
-void AGkHUD::DrawHUD() { Super::DrawHUD(); if (AGkMatch::Current) { AGkMatch::Current->DrawHud(Canvas); } }
+void AGkHUD::DrawHUD() { Super::DrawHUD(); if (AGkMatch::Current) { AGkMatch::Current->DrawHud(Canvas); if(AGkMatch::Current->bSetupTesting)AGkMatch::Current->DrawSetupTest(Canvas); } }
 
 AGkMatch::AGkMatch()
 {
@@ -579,9 +579,10 @@ void AGkMatch::LabOpen()
 	LabSlots.Reset();
 	for (const FState& St : States) { if(St.Cat==8)continue; FLabSlot L; L.Slot = FName(St.Slot); L.Label = St.Label; L.Cat = St.Cat; LabSlots.Add(L); }
 	for (int32 k = 0; k < MoveClip.Num(); k++) { const FString Key = UTF8_TO_TCHAR(gk::moveKey(k)); if(Key==TEXT("throw"))continue; FLabSlot L; L.Slot = MoveClip[k]; L.Label = FString::Printf(TEXT("%s   %s"), UTF8_TO_TCHAR(gk::moveName(k)), *Key); L.Cat = GkMoveCat(Key); LabSlots.Add(L); }
-	for(const TCHAR* Slot:{TEXT("pairGrab"),TEXT("pairGrabVictim"),TEXT("pairForward"),TEXT("pairForwardVictim"),TEXT("pairBack"),TEXT("pairBackVictim"),TEXT("showcase0"),TEXT("showcase1"),TEXT("showcase2"),TEXT("showcase3")}){FLabSlot L;L.Slot=Slot;L.Label=Slot;L.Cat=L.Label.StartsWith(TEXT("pair"))?8:0;
+	for(const TCHAR* Slot:{TEXT("pairGrab"),TEXT("pairGrabVictim"),TEXT("pairForward"),TEXT("pairForwardVictim"),TEXT("pairBack"),TEXT("pairBackVictim"),TEXT("introWalk"),TEXT("introA"),TEXT("introB"),TEXT("showcase0"),TEXT("showcase1"),TEXT("showcase2"),TEXT("showcase3")}){FLabSlot L;L.Slot=Slot;L.Label=Slot;L.Cat=L.Label.StartsWith(TEXT("pair"))?8:0;
  const FString Key=Slot;
  if(Key.StartsWith(TEXT("pair"))){L.Label=Key.Contains(TEXT("Grab"))?TEXT("Hug bomb / slam"):Key.Contains(TEXT("Back"))?TEXT("Back throw"):TEXT("Forward / up throw");L.Label+=Key.EndsWith(TEXT("Victim"))?TEXT(" — receiver"):TEXT(" — performer");}
+ else if(Key.StartsWith(TEXT("intro")))L.Label=Key==TEXT("introWalk")?TEXT("Entrance / walk-in"):Key==TEXT("introA")?TEXT("Entrance / first fighter"):TEXT("Entrance / reply");
  else L.Label=FString::Printf(TEXT("Showcase pose %d"),FCString::Atoi(*Key.Right(1))+1);
  LabSlots.Add(L);}
  LabList.Reset();
@@ -618,7 +619,7 @@ void AGkMatch::LabClose()
 {
  SetupDrafts.FindOrAdd(LabSlots[LabSlot].Slot)=LabTry;
 	if (APlayerController* PC = GetWorld()->GetFirstPlayerController()) { PC->bShowMouseCursor = false; PC->SetInputMode(FInputModeGameOnly()); }
-	bLabDrop = false; LabTryAt = -2; Screen = 3; bMenu=true; bDebugMenu=true; MenuAt=9; Restart();
+	bLabDrop = false; LabTryAt = -2; Screen = 3; bMenu=false; bDebugMenu=false; MenuAt=0;
 }
 
 /** Puts a clip (or none: the hand pose) on the chosen move, and saves. */
@@ -855,7 +856,7 @@ void AGkMatch::EndPlay(const EEndPlayReason::Type Reason)
 
 void AGkMatch::Restart()
 {
- Director.Reset();
+ Director.Reset();bEntrance=false;bEntrancePlayed=false;EntranceFrame=0;
 	gk::newMatch(S, Mode == 1 && Screen == 3, 2); gk::aiMake(Cpu[0], Level); gk::aiMake(Cpu[1], Level);
 	OverTimer = 0; CallHold = 0; Hist.Reset(); LastIn = -1; Adv = -999; bExchange = false; Sparks.Reset();
 	for (int32 i = 0; i < 2; i++) { Combo[i] = 0; ComboTimer[i] = 0; NoteTimer[i] = 0; ActFrame[i] = 0; bWasIdle[i] = true; }
@@ -962,9 +963,11 @@ void AGkMatch::MenuInput()
 		if (bGot && ++BindAt >= 8) { BindAt = 0; MenuPage = MenuReturnPage; MenuAt=MenuReturnAt; SaveBinds(); }
 		return;
 	}
-	if(bSetupTesting){if(Hit(EKeys::F6)||Hit(EKeys::Escape)){SetupReturn();return;}if(Hit(EKeys::F5)){SetupReturn();SetupTest();return;}}
+	if(bSetupTesting){if(Hit(EKeys::LeftMouseButton) && (LabHot==32 || LabHot==33)){SetupAction(LabHot);return;}if(Hit(EKeys::F6)||Hit(EKeys::Escape)){SetupReturn();return;}if(Hit(EKeys::F5)){SetupReturn();SetupTest();return;}}
  if (Screen == 3 && !bMenu)
 	{
+  if(Hit(EKeys::F6)){LabOpen();return;}
+  if(bEntrance && (Hit(EKeys::Enter)||Hit(EKeys::SpaceBar)||bStart)){FinishEntrance();return;}
 		if (Hit(EKeys::R) || Hit(EKeys::Gamepad_Special_Left) || bSelect) { Restart(); }
 		if (Hit(EKeys::B)) { bBoxes = !bBoxes; }
 		if (bToggle || Hit(EKeys::Escape)) { MenuSound(2); bDebugMenu=Hit(EKeys::Tab); bMenu = true; MenuAt = 0; MenuPage = 0; MenuReturnPage=0; }
@@ -1107,6 +1110,7 @@ void AGkMatch::Tick(float DeltaSeconds)
 
 void AGkMatch::StepOnce(int32 Force0, int32 Force1)
 {
+ if(StepEntrance())return;
 	const int32 Human = InputNow; int32 I0 = Human, I1 = 0;
 	if (Force0 >= 0) { I0 = Force0; I1 = FMath::Max(0, Force1); }
 	else if (Mode == 2 || Screen != 3) { I0 = gk::aiThink(Cpu[0], S, 0); I1 = gk::aiThink(Cpu[1], S, 1); }   // behind the menus the CPU fights itself
@@ -1273,11 +1277,11 @@ void AGkMatch::OnEvent(const gk::Event& E)
 		case gk::E_ROUND:
 		{
 			const bool bFinal = E.a > 1 && E.a >= S.cfg.rounds * 2 - 1 && S.p[0].wins == S.p[1].wins;
-			if (bFinal) { Say(TEXT("FINAL ROUND"), 80); } else { Say(*FString::Printf(TEXT("ROUND %d"), E.a), 80); }
+			if (bFinal) { Say(TEXT("FINAL ROUND"), 36); } else { Say(*FString::Printf(TEXT("ROUND %d"), E.a), 36); }
 			break;
 		}
-		case gk::E_FIGHT: Say(TEXT("FIGHT!"), 50); break;
-		case gk::E_KO: Say(E.a == gk::KO_TIME ? TEXT("TIME OVER") : E.a == gk::KO_DOUBLE ? TEXT("DOUBLE K.O.") : E.a == gk::KO_DRAW ? TEXT("DRAW") : E.a == gk::KO_PERFECT ? TEXT("PERFECT K.O.") : TEXT("K.O."), 170); break;
+		case gk::E_FIGHT: Say(TEXT("FIGHT!"), 24); break;
+		case gk::E_KO: Say(E.a == gk::KO_TIME ? TEXT("TIME OVER") : E.a == gk::KO_DOUBLE ? TEXT("DOUBLE K.O.") : E.a == gk::KO_DRAW ? TEXT("DRAW") : E.a == gk::KO_PERFECT ? TEXT("PERFECT K.O.") : TEXT("K.O."), 40); break;
 		default: break;
 	}
 }
@@ -1452,6 +1456,7 @@ void AGkMatch::ShowFighter(int32 i)
   static const TCHAR* Deflections[]={TEXT("parryL"),TEXT("parryR"),TEXT("parryLean"),TEXT("parryLow")};
   Clip=Deflections[ParryVariant[i]];T=FMath::Max(0,AnimClock-ParryBeat[i]);Raw=T;MoveId=-1;
  }
+ if(bEntrance && Screen==3){Clip=EntranceClip(i);MoveId=-1;Roll=Turn=0;T=EntranceFrame;Raw=T;}
  const bool bShowcase = Screen==0 || Screen==1 || Screen==5 || Screen==7;
  if(bShowcase) {
   const int32 Performance=(int32(MenuIdleAge/7.f)+(Screen==1?1:0))%4;
@@ -1552,6 +1557,7 @@ void AGkMatch::ShowFighter(int32 i)
 		else { Sec = FMath::Lerp(A0, A1, FMath::Clamp(float(T) / float(Count - 1), 0.f, 1.f)); }
 		if(!bLab && S.freeze>0 && S.frzWho==i && MoveId>=0 && gk::move(MoveId).sup){const auto& M=gk::move(MoveId);const float u=1.f-float(S.freeze)/FMath::Max(1,M.frz);Sec=FMath::Lerp(A0+(A1-A0)*.10f,A0+(A1-A0)*.23f,u);}
 		if(bPair)Sec=PairSec;
+  if(bEntrance && Screen==3)Sec=EntranceSample(i,Len);
 		EvalClip(i, Use->Anim, FMath::Clamp(Sec, 0.f, Len), Tg, (bLab && bLabPair) || bPair);
   if(Clip==TEXT("blockC"))if(const FGkClip* Guard=Clips[2].Find(TEXT("blockS"))) {
    TArray<FTransform> Upper;EvalClip(i,Guard->Anim,Guard->Anim->GetPlayLength()*.25f,Upper);
@@ -1615,6 +1621,7 @@ void AGkMatch::ShowFighter(int32 i)
   Wh=Wd(Spot);if(bForestLook)Wh.Z+=Wd(FloorPoint(Spot)).Z-Wd(Spot).Z;
   Fq=Anchor.GetRotation()*FRotator(0,i?115:55,0).Quaternion();
  }
+ if(bEntrance && Screen==3){const FVector Spot=At(FMath::RoundToInt(EntranceX(i)*gk::F),0,i?8:-8);Wh=Wd(Spot);if(bForestLook)Wh.Z+=Wd(FloorPoint(Spot)).Z-Wd(Spot).Z;}
  if(Screen==6)Fq=Anchor.GetRotation()*FRotator(0,i?115:55,0).Quaternion();
  if(bLab && bLabPair && LabTry.Anim && LabPartner.Anim) {
   // Paired packs are exported in each performer's forward-facing local space.
@@ -1997,6 +2004,7 @@ void AGkMatch::RunScript()
   else if(Op==TEXT("setupaction")){SetupAction(Num(1));}
   else if(Op==TEXT("setupfind") && A.IsValidIndex(1)){for(int Id=0;Id<LabList.Num();++Id)if(LabList[Id].Path.Contains(A[1])){SetupAction(10000+Id);break;}}
   else if(Op==TEXT("setupslot") && A.IsValidIndex(1)){for(int Id=0;Id<LabSlots.Num();++Id)if(LabSlots[Id].Slot==FName(*A[1])){SetupSelect(Id);break;}}
+  else if(Op==TEXT("entranceassert")){const bool Pass=bEntrance==(Num(1)!=0) && S.phase==Num(2) && (!bEntrance || (S.time==99*60 && S.p[0].hp==1000 && S.p[1].hp==1000));UE_LOG(LogTemp,Display,TEXT("GkEntrance %s active%d phase%d hp%d/%d timer%d"),Pass?TEXT("PASS"):TEXT("FAIL"),int(bEntrance),S.phase,S.p[0].hp,S.p[1].hp,S.time);if(!Pass){UE_LOG(LogTemp,Error,TEXT("Entrance assertion failed"));FPlatformMisc::RequestExit(false);return;}}
   else if(Op==TEXT("setupassert")){const bool Pass=Screen==Num(1) && bSetupTesting==(Num(2)!=0);UE_LOG(LogTemp,Display,TEXT("GkSetup %s screen%d testing%d clips%d"),Pass?TEXT("PASS"):TEXT("FAIL"),Screen,int(bSetupTesting),LabList.Num());}
   else if(Op==TEXT("setupfilter")){SetupPack=Num(1);SetupFilter=Num(2,-1);if(A.IsValidIndex(3))SetupSearch=A[3];}
   else if (Op == TEXT("labui")) { bLabUi = true; LabOpen(); if (Num(1, -1) >= 0) { LabClick(1000 + Num(1)); } if (Num(2, -1) >= 0) { LabHot = 10000 + Num(2); } ScriptNote.Reset(); }
@@ -2642,9 +2650,11 @@ void AGkMatch::Present(float Real)
    }
   }
   if(Screen==4 && (!bScript || bLabUi) && Cam){
-   const FVector SetupFocus=Wd(FVector(0,25,45));const FVector SetupEye=Wd(FVector(-1150,25,45));
+   const float SetupZ=bSetupAdvanced?30.f:65.f,SetupDistance=bSetupAdvanced?1300.f:1000.f;
+   const FVector SetupFocus=Wd(FVector(0,155,SetupZ));const FVector SetupEye=Wd(FVector(-SetupDistance,155,SetupZ));
    Cam->SetActorLocationAndRotation(SetupEye,(SetupFocus-SetupEye).Rotation());Cam->GetCameraComponent()->SetFieldOfView(40);
   }
+  EntranceCamera();
   ApplyDirector();
   UpdateSpatialType(Real);
 		Fx.Yaw = float(FMath::DegreesToRadians(Rot.Yaw));

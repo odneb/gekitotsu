@@ -76,7 +76,13 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 	const FLinearColor Ink(0.008f, 0.006f, 0.009f, 1.f), Bone(0.98f, 0.88f, 0.68f, 1.f), Gold(1.f, 0.78f, 0.2f, 1.f), Red(0.9f, 0.16f, 0.12f, 1.f), Blue(0.35f, 0.65f, 1.f, 1.f), Ash(0.3f, 0.3f, 0.34f, 0.9f), Jade(0.25f, 0.9f, 0.5f, 1.f), Slate(0.55f, 0.55f, 0.6f, 1.f);
 	const FLinearColor Tint[2] = { bForestLook ? FLinearColor(.88f,.022f,.018f) : Red, Blue }; const FString Names[2] = { TEXT("PLAYER 1"), Mode == 1 ? TEXT("DUMMY") : TEXT("CPU") };
 	if (Screen == 4 && (!bScript || bLabUi)) { DrawCharacterSetup(Cv); return; }
- if(bSetupTesting){GkRect(Cv,0,75*U,W,40*U,Ink);GkText(Cv,TEXT("MOVE TEST   /   F5 RETRY   /   F6 BACK TO SETUP   /   B HITBOXES"),W*.5f,80*U,18*U,Bone,true);}
+ if(bEntrance && Screen==3 && !bMenu && !bNoHud){
+  const float Bars=H*.055f*(1-FMath::Clamp((EntranceFrame-EntranceDolly())/60.f,0.f,1.f));GkRect(Cv,0,0,W,Bars,Ink);GkRect(Cv,0,H-Bars,W,Bars,Ink);
+  if(EntranceFrame<72)GkText(Cv,Stages.IsValidIndex(Setup.Stage)?Stages[Setup.Stage].Name:TEXT("GEKITOTSU"),W*.06f,H*.78f,38*U,Bone);
+  else if(EntranceFrame<EntranceDolly())GkText(Cv,TEXT("ROBOT 1"),W*.06f,H*.80f,30*U,Bone);
+  GkText(Cv,TEXT("START / ENTER  SKIP"),W*.82f,H*.94f,15*U,Bone);
+  return;
+ }
 
 	if(bMenu && !bNoHud){DrawArcadeMenu(Cv);DrawMenuEffects(Cv);return;}
 
@@ -281,7 +287,7 @@ static void GkJapanese(UCanvas* Cv,const FString& Text,float X,float Y,float Siz
 }
 void AGkMatch::DrawArcadeCall(UCanvas* Cv)
 {
- if(CallHold<=0 || bMenu)return;
+ if(CallHold<=0 || bMenu || CallAge>12)return;
  const float W=Cv->SizeX,H=Cv->SizeY,U=H/1080.f,Mid=W*.5f;
  const bool KO=CallWord.Contains(TEXT("K.O.")),Fight=CallWord==TEXT("FIGHT!");
  const float Out=FMath::Clamp((CallHold-CallAge)/10.f,0.f,1.f),In=FMath::Clamp(CallAge/8.f,0.f,1.f);
