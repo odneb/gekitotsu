@@ -2,6 +2,7 @@
 #include "Components/PoseableMeshComponent.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "Engine/Texture2D.h"
 #include "Engine/SkeletalMesh.h"
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
@@ -24,20 +25,29 @@ void AGkMatch::SavePresentation()
 }
 void AGkMatch::MenuSound(int32 SoundKind)
 {
- // Short authored sounds; UI never depends on the combat-only sound gate.
+ MenuIdleAge=0;
  const TCHAR* Name=SoundKind==1?TEXT("AbilityReady_06"):SoundKind==2?TEXT("Vanish_01"):TEXT("Swing_03");
  if(const auto* Takes=SndSets.Find(FName(Name)))if(Takes->Num())
-  UGameplayStatics::PlaySound2D(this,(*Takes)[0],EffectsGain*(SoundKind==0?.16f:.32f),SoundKind==0?1.65f:SoundKind==1?1.25f:.85f);
+  UGameplayStatics::PlaySound2D(this,(*Takes)[0],EffectsGain*(SoundKind==0?.15f:.32f),SoundKind==0?1.35f+.07f*(MenuSoundStep++%4):SoundKind==1?1.05f:.85f);
+ if(SoundKind==1 && MenuPage==0){
+  MenuStampAge=0;
+  MenuStamp=Screen==5?TEXT("LET'S GO!"):Screen==1?FString(CostumeName(Setup.Costume[SelWho]))+TEXT(" / LOCKED"):Screen==2?TEXT("STAGE SET!"):Screen==6?TEXT("ONE MORE ROUND!"):TEXT("READY!");
+  if(const auto* Takes=SndSets.Find(TEXT("ImpactBurst_01")))if(Takes->Num())UGameplayStatics::PlaySound2D(this,(*Takes)[0],EffectsGain*.10f,1.4f);
+ }
+
  CursorAge=0;
 }
 void AGkMatch::UpdatePresentation(float Delta)
 {
- if(UiPageKey<0)LoadPresentation();
- UiTime+=Delta;PageAge+=Delta;CursorAge+=Delta;
+ if(UiPageKey<0){LoadPresentation();BrandLogo=LoadObject<UTexture2D>(nullptr,TEXT("/Game/GkUI/T_GekitotsuImpact.T_GekitotsuImpact"));}
+ UiTime+=Delta;PageAge+=Delta;CursorAge+=Delta;MenuIdleAge+=Delta;MenuCutAge+=Delta;MenuStampAge+=Delta;
+ const int32 Shot=(Screen==0 || Screen==5)?int32(MenuIdleAge/7.f)%3:0;
+ if(Shot!=AttractShot){AttractShot=Shot;MenuCutAge=0;}
  if(Announcer)Announcer->SetVolumeMultiplier(.85f*VoiceGain);for(auto Voice:FighterVoices)if(Voice)Voice->SetVolumeMultiplier(.82f*VoiceGain);
- const int32 Page=Screen*10+MenuPage+(bMenu?100:0);
- if(Page!=UiPageKey){UiPageKey=Page;PageAge=0;CursorAge=0;}
- const int32 Cursor=MenuAt+SelWho*100+StageAt*1000;
+ const int32 Page=Screen*10+MenuPage+(bMenu?100:0)+(Screen==1?SelWho*1000:0);
+ if(Page!=UiPageKey){UiPageKey=Page;PageAge=0;CursorAge=0;MenuCutAge=0;MenuIdleAge=0;}
+ if(Screen==2 && MenuPalette==0)PaletteOverride=int32(PageAge/6.f)%6;
+ const int32 Cursor=MenuAt+SelWho*100+StageAt*1000+(Screen==1?Setup.Costume[SelWho]*10000:0);
  if(Cursor!=UiCursorKey){UiCursorKey=Cursor;CursorAge=0;}
  // Stagger two small views: 15 Hz each, never a second full-resolution scene.
  PortraitDue-=Delta;if(PortraitDue>0 || Screen!=3 || bMenu || bNoHud || !bPlaced)return;

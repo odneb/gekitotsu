@@ -1451,7 +1451,7 @@ void AGkMatch::ShowFighter(int32 i)
   Clip=Deflections[ParryVariant[i]];T=FMath::Max(0,AnimClock-ParryBeat[i]);Raw=T;MoveId=-1;
  }
  const bool bShowcase = Screen==0 || Screen==1 || Screen==5 || Screen==7;
- if(bShowcase) { Clip=TEXT("win");T=int32(UiTime*60.f) % 240;MoveId=-1;Roll=Turn=0; }
+ if(bShowcase) { Clip=(AttractShot==1 && Screen!=1)?TEXT("idle"):TEXT("win");T=int32((Screen==1?PageAge:UiTime)*60.f) % 240;MoveId=-1;Roll=Turn=0; }
  const bool bLeft = !bLab && P.face < 0;
 	FVector Jit = FVector::ZeroVector;
 	if (P.hs > 0 && (P.st == gk::HIT || P.st == gk::AHIT || P.st == gk::BLOCK)) { Jit.Y = ((Ticks & 1) ? 1.0 : -1.0) * FMath::Min(4.0, P.hs * 0.6); }
@@ -1586,7 +1586,7 @@ void AGkMatch::ShowFighter(int32 i)
  }
  if(Screen==6)Fq=Anchor.GetRotation()*FRotator(0,i?115:55,0).Quaternion();
  C->SetWorldLocationAndRotation(Wh, Fq);
- C->SetVisibility(Screen!=2 && !((Screen==0 || Screen==5) && i==1));
+ C->SetVisibility(Screen!=2 && !(Screen==1 && i!=SelWho) && !((Screen==0 || Screen==5) && (i==1 || AttractShot==2)));
 	LookFighter(i);
 	Afterimage(i);
 }
@@ -2497,12 +2497,25 @@ void AGkMatch::Present(float Real)
   if(Cam && bPlaced && (Screen==0 || Screen==1 || Screen==2 || Screen==5 || Screen==6 || Screen==7 || (Screen==3 && S.phase==gk::PH_OVER && !bMenu))) {
    FVector Focus; float Distance=620.f; float Side=0.f;
    if(Screen==2) {Focus=Wd(FVector(0,440,ForestCameraGround+115));Distance=1200;}
-   else if(Screen==1 || Screen==7) {Focus=Wd(FVector(0,0,0));Focus.Z=(Body[0]->GetComponentLocation().Z+Body[1]->GetComponentLocation().Z)*.5+90;Distance=1050;}
-   else {int32 Who=(Screen==0 || Screen==5)?0:FMath::Clamp(S.winner,0,1);Focus=Body[Who]->GetBoneLocationByName(TEXT("spine_03"),EBoneSpaces::WorldSpace);Focus.Z-=14;Side=-110.f;}
+   else if(Screen==7) {Focus=Wd(FVector(0,0,0));Focus.Z=(Body[0]->GetComponentLocation().Z+Body[1]->GetComponentLocation().Z)*.5+90;Distance=1050;}
+   else {int32 Who=Screen==1?SelWho:(Screen==0 || Screen==5)?0:FMath::Clamp(S.winner,0,1);Focus=Body[Who]->GetBoneLocationByName(TEXT("spine_03"),EBoneSpaces::WorldSpace);Focus.Z-=14;Side=-110.f;
+    if(Screen==1){Distance=560.f;Focus.Z-=8;Side=-95+FMath::Sin(UiTime*.3f)*20;}
+    if((Screen==0 || Screen==5) && AttractShot==1){Distance=370;Focus.Z+=18;Side=-65;}
+    if((Screen==0 || Screen==5) && AttractShot==2){Focus=Wd(FVector(0,440,ForestCameraGround+140));Distance=1150;Side=150;}
+   }
    const FVector Offset=Anchor.TransformVectorNoScale(FVector(-Distance,Side+FMath::Sin(UiTime*.25f)*12.f,18));
-   const FVector Aim=Focus+Anchor.TransformVectorNoScale(FVector(0,(Screen==0 || Screen==5 || Screen==6 || Screen==3)?-90.f:0.f,0));
+   const FVector Aim=Focus+Anchor.TransformVectorNoScale(FVector(0,(Screen==0 || Screen==5 || Screen==6 || Screen==3 || Screen==1)?-90.f:0.f,0));
    Cam->SetActorLocationAndRotation(Focus+Offset,(Aim-Focus-Offset).Rotation());Cam->GetCameraComponent()->SetFieldOfView(35.f);
   }
+  if(Cam && bForestLook){
+   auto& Grade=Cam->GetCameraComponent()->PostProcessSettings;
+   const bool Graphic=(Screen==0 || Screen==5 || bMenu);
+   Grade.bOverride_ColorContrast=true;Grade.ColorContrast=Graphic?FVector4(1.22,1.22,1.22,1):FVector4(1.06,1.06,1.06,1);
+   if(Graphic){Grade.bOverride_ColorSaturation=true;Grade.ColorSaturation=FVector4(0,0,0,1);
+    Grade.bOverride_ColorGain=true;Grade.ColorGain=AttractShot==1?FVector4(1.07,.58,.39,1):FVector4(.96,.87,.68,1);
+   }
+  }
+  UpdateSpatialType(Real);
 		Fx.Yaw = float(FMath::DegreesToRadians(Rot.Yaw));
 	}
 
