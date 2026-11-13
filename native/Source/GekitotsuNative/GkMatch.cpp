@@ -932,7 +932,7 @@ void AGkMatch::MenuInput()
 	if (MenuPage == 1)
 	{
 		// the next button pressed becomes the action being asked for
-		if (Hit(EKeys::Tab) || Hit(EKeys::Escape)) { MenuSound(2); MenuPage = 0; LoadBinds(); return; }
+		if (Hit(EKeys::Tab) || Hit(EKeys::Escape)) { MenuSound(2); MenuPage = MenuReturnPage; MenuAt=MenuReturnAt; LoadBinds(); return; }
 		bool bGot = false;
 		if (PadCount > 0) { for (int32 b = 0; b < 32 && !bGot; b++) { if ((Fresh >> b) & 1u) { PadBind[BindAt] = b; bGot = true; } } }
 		else
@@ -940,16 +940,19 @@ void AGkMatch::MenuInput()
 			static const FKey Pad[] = { EKeys::Gamepad_FaceButton_Bottom, EKeys::Gamepad_FaceButton_Right, EKeys::Gamepad_FaceButton_Left, EKeys::Gamepad_FaceButton_Top, EKeys::Gamepad_LeftShoulder, EKeys::Gamepad_RightShoulder,
 				EKeys::Gamepad_LeftTrigger, EKeys::Gamepad_RightTrigger, EKeys::Gamepad_LeftThumbstick, EKeys::Gamepad_RightThumbstick };
 			for (const FKey& Key : Pad) { if (Hit(Key)) { Bind[BindAt] = Key; bGot = true; break; } }
+   if(!bGot){TArray<FKey> Keys;EKeys::GetAllKeys(Keys);for(const FKey& Key:Keys){
+    if(Key!=EKeys::AnyKey && !Key.IsGamepadKey() && !Key.IsMouseButton() && Hit(Key)){Bind[BindAt]=Key;bGot=true;break;}
+   }}
 		}
 		if(bGot)MenuSound(1);
-		if (bGot && ++BindAt >= 8) { BindAt = 0; MenuPage = 0; SaveBinds(); }
+		if (bGot && ++BindAt >= 8) { BindAt = 0; MenuPage = MenuReturnPage; MenuAt=MenuReturnAt; SaveBinds(); }
 		return;
 	}
 	if (Screen == 3 && !bMenu)
 	{
 		if (Hit(EKeys::R) || Hit(EKeys::Gamepad_Special_Left) || bSelect) { Restart(); }
 		if (Hit(EKeys::B)) { bBoxes = !bBoxes; }
-		if (bToggle || Hit(EKeys::Escape)) { MenuSound(2); bDebugMenu=Hit(EKeys::Tab); bMenu = true; MenuAt = 0; MenuPage = 0; }
+		if (bToggle || Hit(EKeys::Escape)) { MenuSound(2); bDebugMenu=Hit(EKeys::Tab); bMenu = true; MenuAt = 0; MenuPage = 0; MenuReturnPage=0; }
 		return;
 	}
 	const bool bUp = Hit(EKeys::W) || Hit(EKeys::Up) || Hit(EKeys::Gamepad_DPad_Up) || (FreshDir & gk::IN_U), bDown = Hit(EKeys::S) || Hit(EKeys::Down) || Hit(EKeys::Gamepad_DPad_Down) || (FreshDir & gk::IN_D);
@@ -966,12 +969,23 @@ void AGkMatch::MenuInput()
   if(bOk){if(MenuAt==0){Screen=7;}else if(MenuAt==1){Screen=1;SelWho=0;}else if(MenuAt==2){Screen=0;MenuAt=0;}else UKismetSystemLibrary::QuitGame(this,PC,EQuitPreference::Quit,false);}
   return;
  }
- if(MenuPage==3){if(bBack||bOk){MenuPage=0;MenuAt=0;}return;}
+ if(MenuPage==4){
+  Move(6);if(bBack){MenuPage=0;MenuAt=2;return;}
+  if(MenuAt==0 && Way){Level=1+(Level-1+Way+3)%3;Setup.Level=Level;gk::aiMake(Cpu[0],Level);gk::aiMake(Cpu[1],Level);}
+  if(bOk){MenuReturnPage=4;MenuReturnAt=MenuAt;switch(MenuAt){
+   case 1:Mode=2;Setup.Mode=2;SelWho=0;Screen=1;MenuPage=0;MenuAt=0;break;
+   case 2:MenuPage=1;BindAt=0;break;
+   case 3:MenuPage=3;break;
+   case 4:MenuPage=2;MenuAt=0;break;
+   case 5:MenuPage=0;MenuAt=2;break;
+  }}return;
+ }
+ if(MenuPage==3){if(bBack||bOk){MenuPage=MenuReturnPage;MenuAt=MenuReturnAt;}return;}
  if(MenuPage==2) {
   Move(6);
   float* Values[]={&MusicGain,&EffectsGain,&VoiceGain,&ShakeGain,&FlashGain};
   if(MenuAt<5 && Way!=0) { *Values[MenuAt]=FMath::Clamp(*Values[MenuAt]+Way*.1f,0.f,1.f); SavePresentation(); }
-  if(bBack || (MenuAt==5 && bOk)) { MenuPage=0; MenuAt=0; }
+  if(bBack || (MenuAt==5 && bOk)) { MenuPage=MenuReturnPage; MenuAt=MenuReturnAt; }
   return;
  }
  if (Screen == 4)
@@ -1007,23 +1021,19 @@ void AGkMatch::MenuInput()
 		}
 		return;
 	}
-	if (Screen == 0)
-	{   // the front menu: VERSUS CPU, TRAINING, WATCH, CPU LEVEL, SET UP BUTTONS, QUIT
-		if(bBack){Screen=5;return;}
-		Move(8);
-		if(MenuAt==6 && bOk) {MenuPage=2;MenuAt=0;return;}
-		if (MenuAt == 5 && bOk) { MenuPage=3; return; }
-		if (MenuAt <= 2 && bOk) { Mode = MenuAt; Setup.Mode = Mode; SelWho = 0; Screen = 1; MenuAt = 0; }
-		else if (MenuAt == 3 && Way != 0) { Level = 1 + (Level - 1 + Way + 3) % 3; Setup.Level = Level; gk::aiMake(Cpu[0], Level); gk::aiMake(Cpu[1], Level); }
-		else if (MenuAt == 4 && bOk) { MenuPage = 1; BindAt = 0; }
-		else if (MenuAt == 7 && bOk) { UKismetSystemLibrary::QuitGame(this, PC, EQuitPreference::Quit, false); }
-	}
+ if(Screen==0){
+  if(bBack){Screen=5;return;}Move(4);MenuReturnPage=0;
+  if(bOk){if(MenuAt<2){Mode=MenuAt;Setup.Mode=Mode;SelWho=0;Screen=1;MenuAt=0;}
+   else if(MenuAt==2){MenuPage=4;MenuAt=0;}
+   else UKismetSystemLibrary::QuitGame(this,PC,EQuitPreference::Quit,false);
+  }
+ }
 	else if (Screen == 1)
 	{   // choosing fighters: player one, then the other side
 		Setup.Char[0] = Setup.Char[1] = 2;
   if(bNext || bPrev)Setup.Costume[SelWho]=(Setup.Costume[SelWho]+(bNext?1:7))%8;
   if(bOk)FighterVoice(SelWho,TEXT("R6_Intro"),3);
-		if (bOk) { if (SelWho == 0) { SelWho = 1; } else { Screen = 2; StageAt = Setup.Stage; MenuPalette=0; } }
+		if (bOk) { if (SelWho == 0) { if(Setup.Costume[1]==Setup.Costume[0])Setup.Costume[1]=(Setup.Costume[0]+1)%8; SelWho = 1; } else { Screen = 2; StageAt = Setup.Stage; MenuPalette=0; } }
 		else if (bBack) { if (SelWho == 1) { SelWho = 0; } else { Screen = 0; MenuAt = Mode; } }
 	}
 	else if (Screen == 2)
@@ -1037,14 +1047,14 @@ void AGkMatch::MenuInput()
 	}
 	else
 	{   // the pause menu: RESUME, RESTART MATCH, CHARACTER SELECT, STAGE SELECT, MAIN MENU, TRAINING DUMMY, HIT BOXES, SET UP BUTTONS
-		if (bToggle || bBack) { bMenu = false; return; }
+		if (bToggle || bBack) { bMenu = false; bDebugMenu=false; return; }
 		if(!bDebugMenu){
    Move(7);
    if(bOk)switch(MenuAt){
     case 0:bMenu=false;break;
     case 1:bMenu=false;Screen=7;break;
-    case 2:MenuPage=3;break;
-    case 3:MenuPage=2;MenuAt=0;break;
+    case 2:MenuReturnAt=2;MenuPage=3;break;
+    case 3:MenuReturnAt=3;MenuPage=2;MenuAt=0;break;
     case 4:bMenu=false;Screen=1;SelWho=0;break;
     case 5:bMenu=false;Screen=0;MenuAt=0;break;
     case 6:UKismetSystemLibrary::QuitGame(this,PC,EQuitPreference::Quit,false);break;
@@ -1054,15 +1064,15 @@ void AGkMatch::MenuInput()
   Move(10);
 		switch (MenuAt)
 		{
-			case 0: if (bOk) { bMenu = false; } break;
-			case 1: if (bOk) { Restart(); bMenu = false; } break;
-			case 2: if (bOk) { bMenu = false; Screen = 1; SelWho = 0; } break;
-			case 3: if (bOk) { bMenu = false; Screen = 2; StageAt = Setup.Stage; } break;
-			case 4: if (bOk) { bMenu = false; Screen = 0; MenuAt = 0; } break;
+			case 0: if (bOk) { bMenu = false; bDebugMenu=false; } break;
+			case 1: if (bOk) { Restart(); bMenu = false; bDebugMenu=false; } break;
+			case 2: if (bOk) { bMenu = false; bDebugMenu=false; Screen = 1; SelWho = 0; } break;
+			case 3: if (bOk) { bMenu = false; bDebugMenu=false; Screen = 2; StageAt = Setup.Stage; } break;
+			case 4: if (bOk) { bMenu = false; bDebugMenu=false; Screen = 0; MenuAt = 0; } break;
 			case 5: if (Way != 0) { Dummy = (Dummy + Way + 5) % 5; Setup.Dummy = Dummy; } break;
 			case 6: if (Way != 0) { bBoxes = !bBoxes; } break;
-			case 7: if(bOk) {MenuPage=2;MenuAt=0;} break;
-			case 8: if (bOk) { MenuPage = 1; BindAt = 0; } break;
+			case 7: if(bOk) {MenuReturnAt=7;MenuPage=2;MenuAt=0;} break;
+			case 8: if (bOk) { MenuReturnAt=8;MenuPage = 1; BindAt = 0; } break;
    case 9: if(bOk)LabOpen();break;
 		}
 	}
@@ -1127,7 +1137,7 @@ void AGkMatch::StepOnce(int32 Force0, int32 Force1)
 	for (int32 k = Sparks.Num() - 1; k >= 0; k--) { if (++Sparks[k].Age > 12) { Sparks.RemoveAtSwap(k); } }
 	for (int32 i = 0; i < 2; i++) { if (ImpactT[i] > 0) { ImpactT[i]--; } if (PerfectT[i] > 0) { PerfectT[i]--; } Lean[i] *= 0.84f; Squash[i] *= 0.72f; StateFx(i); }
 	// A decided match stops at results; rematch requires an explicit menu choice.
-	if (S.phase == gk::PH_OVER) { if (++OverTimer > 90 && Screen==3) { Screen=6;MenuAt=0; } } else { OverTimer = 0; }
+	if (S.phase == gk::PH_OVER) { if (++OverTimer > 90 && Screen==3) { Screen=6;MenuAt=0;bDebugMenu=false; } } else { OverTimer = 0; }
 }
 
 /** Training: the last inputs with how long each was held, and who recovered first after the last exchange (as the browser shows it). */
@@ -1451,7 +1461,7 @@ void AGkMatch::ShowFighter(int32 i)
   Clip=Deflections[ParryVariant[i]];T=FMath::Max(0,AnimClock-ParryBeat[i]);Raw=T;MoveId=-1;
  }
  const bool bShowcase = Screen==0 || Screen==1 || Screen==5 || Screen==7;
- if(bShowcase) { Clip=(AttractShot==1 && Screen!=1)?TEXT("idle"):TEXT("win");T=int32((Screen==1?PageAge:UiTime)*60.f) % 240;MoveId=-1;Roll=Turn=0; }
+ if(bShowcase) { Clip=(Screen==5&&AttractShot!=1)||(Screen==0&&AttractShot==1)?TEXT("mv_5MP"):TEXT("win");T=Clip==TEXT("mv_5MP")?12:65+int32(FMath::Sin(UiTime*.7f)*5);Raw=T;MoveId=-1;Roll=Turn=0; }
  const bool bLeft = !bLab && P.face < 0;
 	FVector Jit = FVector::ZeroVector;
 	if (P.hs > 0 && (P.st == gk::HIT || P.st == gk::AHIT || P.st == gk::BLOCK)) { Jit.Y = ((Ticks & 1) ? 1.0 : -1.0) * FMath::Min(4.0, P.hs * 0.6); }
@@ -1490,7 +1500,8 @@ void AGkMatch::ShowFighter(int32 i)
 		const float Len = Use->Anim->GetPlayLength(), A0 = Use->From * Len, A1 = FMath::Max(Use->To * Len, A0 + 0.01f); float Sec = A0; const int32 Count = FMath::Max(2, Poses.Length(Clip));
 		const FString Cn = Clip.ToString();
 		if (bTry || (bLab && (!bScript || bLabUi) && (Use->bLoop || Poses.Length(Clip) <= 2))) { const float Span = A1 - A0; Sec = A0 + FMath::Min(Span, FMath::Fmod(LabClock, Span + 0.4f)); }
-		else if(Cn==TEXT("crouch") || Cn==TEXT("blockC")) {
+		else if(bShowcase && Cn==TEXT("mv_5MP")) {const float Impact=FMath::Clamp(ImpactOf(i,*Use,false)*Len,A0,A1);const float Beat=FMath::Fmod(MenuIdleAge,7.f);Sec=FMath::Lerp(FMath::Max(A0,Impact-.16f),Impact,FMath::SmoothStep(0.f,.55f,Beat));Sec+=.006f*FMath::Sin(FMath::FloorToFloat(UiTime*12.f)/12.f*2.f);}
+  else if(Cn==TEXT("crouch") || Cn==TEXT("blockC")) {
    float* Low=CrouchSample.Find(Use->Anim);
    if(!Low){float MinZ=1e9f,BestSec=Len*.5f;TArray<FTransform> Sample;
     for(int32 k=0;k<=30;++k){float AtSec=Len*k/30.f;EvalClip(i,Use->Anim,AtSec,Sample);if(Sample.IsValidIndex(KeyBone[i][0]) && Sample[KeyBone[i][0]].GetTranslation().Z<MinZ){MinZ=Sample[KeyBone[i][0]].GetTranslation().Z;BestSec=AtSec;}}
@@ -1586,7 +1597,7 @@ void AGkMatch::ShowFighter(int32 i)
  }
  if(Screen==6)Fq=Anchor.GetRotation()*FRotator(0,i?115:55,0).Quaternion();
  C->SetWorldLocationAndRotation(Wh, Fq);
- C->SetVisibility(Screen!=2 && !(Screen==1 && i!=SelWho) && !((Screen==0 || Screen==5) && (i==1 || AttractShot==2)));
+ C->SetVisibility(Screen!=2 && !(Screen==1 && i!=SelWho) && !((Screen==0 || Screen==5) && i==1));
 	LookFighter(i);
 	Afterimage(i);
 }
@@ -1659,6 +1670,7 @@ void AGkMatch::LookFighter(int32 i)
 		if (P.st==gk::PARRY) { Edge=FLinearColor(.08f,.45f,.65f); Thick=.85f; }
 		Amt=FMath::Min(Amt,(P.hs>0 && (P.st==gk::HIT || P.st==gk::AHIT)) ? .5f : .035f);
 	}
+	if((Screen!=3 && Screen!=4 && Screen!=2)||bMenu){Edge=FLinearColor(.006,.004,.003);Thick=.48f;}
 	InkMid[i]->SetVectorParameterValue(TEXT("Outlines Color"), Edge); InkMid[i]->SetScalarParameterValue(TEXT("Outlines_Thickness"), Thick);
 	// the rim: the colour of the lamp behind them, brighter in a storm's flashes and dimmed with the world under a super
 	const bool bRim = Kind != 0 || bLab; const FLinearColor Rim = (bForestLook ? ForestRim : RimCol) * ((bRim ? 1.f : 0.35f) * (1.f + 3.f * FMath::Min(Flash*FlashGain, 1.f)) * (1.f + 0.6f * Storm));
@@ -1682,6 +1694,16 @@ void AGkMatch::LookFighter(int32 i)
 			BodyMid[i][k]->SetVectorParameterValue(TEXT("Paint"), FMath::Lerp(Paint, Wash, Amt));
 			BodyMid[i][k]->SetVectorParameterValue(TEXT("Shadow"), FMath::Lerp(Shadow, Wash * 0.55f, Amt));
 			BodyMid[i][k]->SetVectorParameterValue(TEXT("Rim"), Rim * 0.95f);
+   if((Screen!=3 && Screen!=4 && Screen!=2)||bMenu){
+    const FVector L=Anchor.TransformVectorNoScale(FVector(-.65,-.35,.68)).GetSafeNormal();
+    const int32 Outfit=Screen==0||Screen==5?0:Setup.Costume[i];
+    const FLinearColor PrintPaint=bArmor?(Outfit==0?FLinearColor(.68,.006,.003):CostumeColor(Outfit)):(Outfit==0?FLinearColor(.90,.70,.43):CostumeColor(Outfit,true));
+    BodyMid[i][k]->SetVectorParameterValue(TEXT("Key"),FLinearColor(L.X,L.Y,L.Z));
+    BodyMid[i][k]->SetVectorParameterValue(TEXT("KeyTint"),FLinearColor::White);
+    BodyMid[i][k]->SetVectorParameterValue(TEXT("Paint"),PrintPaint);
+    BodyMid[i][k]->SetVectorParameterValue(TEXT("Shadow"),FLinearColor(.009,.006,.004));
+    BodyMid[i][k]->SetVectorParameterValue(TEXT("Rim"),FLinearColor(.66,.48,.27));
+   }
 			continue;
 		}
 		BodyMid[i][k]->SetVectorParameterValue(TEXT("Rimlight Color"), Rim); BodyMid[i][k]->SetScalarParameterValue(TEXT("Rimlight Thickness"), RimTune[0]); BodyMid[i][k]->SetScalarParameterValue(TEXT("Rimlight Opacity"), RimTune[1]); BodyMid[i][k]->SetScalarParameterValue(TEXT("Rim Brightness"), RimTune[2]);
@@ -2495,13 +2517,13 @@ void AGkMatch::Present(float Real)
 			if (bScout) { Cam->GetCameraComponent()->SetFieldOfView(ScoutFov); Cam->SetActorLocationAndRotation(ScoutPos, ScoutRot); }
 		}
   if(Cam && bPlaced && (Screen==0 || Screen==1 || Screen==2 || Screen==5 || Screen==6 || Screen==7 || (Screen==3 && S.phase==gk::PH_OVER && !bMenu))) {
-   FVector Focus; float Distance=620.f; float Side=0.f;
-   if(Screen==2) {Focus=Wd(FVector(0,440,ForestCameraGround+115));Distance=1200;}
+   FVector Focus; float Distance=570.f; float Side=0.f;
+   if(Screen==2) {Focus=Wd(FVector(0,440,ForestCameraGround+115));Distance=1140+FMath::Cos(PageAge*.17f)*70;Side=FMath::Sin(PageAge*.18f)*180;}
    else if(Screen==7) {Focus=Wd(FVector(0,0,0));Focus.Z=(Body[0]->GetComponentLocation().Z+Body[1]->GetComponentLocation().Z)*.5+90;Distance=1050;}
-   else {int32 Who=Screen==1?SelWho:(Screen==0 || Screen==5)?0:FMath::Clamp(S.winner,0,1);Focus=Body[Who]->GetBoneLocationByName(TEXT("spine_03"),EBoneSpaces::WorldSpace);Focus.Z-=14;Side=-110.f;
-    if(Screen==1){Distance=560.f;Focus.Z-=8;Side=-95+FMath::Sin(UiTime*.3f)*20;}
-    if((Screen==0 || Screen==5) && AttractShot==1){Distance=370;Focus.Z+=18;Side=-65;}
-    if((Screen==0 || Screen==5) && AttractShot==2){Focus=Wd(FVector(0,440,ForestCameraGround+140));Distance=1150;Side=150;}
+   else {int32 Who=Screen==1?SelWho:(Screen==0 || Screen==5)?0:FMath::Clamp(S.winner,0,1);Focus=Body[Who]->GetBoneLocationByName(TEXT("spine_03"),EBoneSpaces::WorldSpace);Focus.Z+=5;Side=-110.f;
+    if(Screen==1){Distance=590.f-32*FMath::Exp(-CursorAge*7);Focus.Z+=12;Side=-65+FMath::Sin(UiTime*.3f)*28+18*FMath::Exp(-CursorAge*7);}
+    if((Screen==0 || Screen==5) && AttractShot==1){Distance=300;Focus.Z+=24;Side=-55;}
+    if((Screen==0 || Screen==5) && AttractShot==2){Focus=Wd(FVector(0,440,ForestCameraGround+140));Distance=850;Side=70;}
    }
    const FVector Offset=Anchor.TransformVectorNoScale(FVector(-Distance,Side+FMath::Sin(UiTime*.25f)*12.f,18));
    const FVector Aim=Focus+Anchor.TransformVectorNoScale(FVector(0,(Screen==0 || Screen==5 || Screen==6 || Screen==3 || Screen==1)?-90.f:0.f,0));
@@ -2510,9 +2532,9 @@ void AGkMatch::Present(float Real)
   if(Cam && bForestLook){
    auto& Grade=Cam->GetCameraComponent()->PostProcessSettings;
    const bool Graphic=(Screen==0 || Screen==5 || bMenu);
-   Grade.bOverride_ColorContrast=true;Grade.ColorContrast=Graphic?FVector4(1.22,1.22,1.22,1):FVector4(1.06,1.06,1.06,1);
-   if(Graphic){Grade.bOverride_ColorSaturation=true;Grade.ColorSaturation=FVector4(0,0,0,1);
-    Grade.bOverride_ColorGain=true;Grade.ColorGain=AttractShot==1?FVector4(1.07,.58,.39,1):FVector4(.96,.87,.68,1);
+   Grade.bOverride_ColorContrast=true;Grade.ColorContrast=Graphic?FVector4(1.32,1.32,1.32,1):FVector4(1.06,1.06,1.06,1);
+   if(Graphic){Grade.bOverride_ColorSaturation=true;Grade.ColorSaturation=FVector4(1,1,1,1);
+    Grade.bOverride_ColorGain=true;Grade.ColorGain=FVector4(1,1,1,1);
    }
   }
   UpdateSpatialType(Real);

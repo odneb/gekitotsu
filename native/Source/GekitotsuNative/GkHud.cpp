@@ -63,7 +63,7 @@ static void GkText(UCanvas* Cv, const FString& Str, float X, float Y, float Size
     if (!Carrier) return;
 	const FFontOutlineSettings Line = Outline > 0 ? FFontOutlineSettings(Outline, FLinearColor(0.f, 0.f, 0.f, Col.A)) : FFontOutlineSettings();
 	FCanvasTextItem Item(FVector2D(X, Y), FText::FromString(Str), Carrier.Get(), Col);
-	static TSharedPtr<const FCompositeFont> Face=MakeShared<FCompositeFont>(FName(TEXT("Arcade")),FPaths::EngineContentDir()/TEXT("Slate/Fonts/Roboto-Black.ttf"),EFontHinting::Default,EFontLoadingPolicy::LazyLoad);
+	static TSharedPtr<const FCompositeFont> Face=MakeShared<FCompositeFont>(FName(TEXT("Arcade")),FPaths::ProjectContentDir()/TEXT("GkUI/Fonts/BarlowCondensed/BarlowCondensed-SemiBold.ttf"),EFontHinting::Default,EFontLoadingPolicy::LazyLoad);
  Item.SlateFontInfo=FSlateFontInfo(Face,FMath::Max(4.f,Size));Item.SlateFontInfo->OutlineSettings=Line;
 	Item.bCentreX = bCentre; Cv->DrawItem(Item);
 }
@@ -145,6 +145,8 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 		if (LabNoteTimer > 0) { GkText(Cv, LabNote, Pw + 30.f * U, 24.f * U, 18.f * U, Jade, false, 2); }
 		return;
 	}
+
+	if(bMenu && !bNoHud){DrawArcadeMenu(Cv);DrawMenuEffects(Cv);return;}
 
 	// hit and hurt boxes, straight from the rules: green where a fighter can be hit, red where a blow lands
 	if (bBoxes && Mode == 1)   // the boxes and move read-outs are training aids
@@ -299,12 +301,9 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 
  DrawArcadeCall(Cv);
  if(S.phase==gk::PH_OVER) {
-  const float X=W*.56f,Y=H*.57f;
-  GkHudPanel(Cv,X,Y,W*.42f,H*.31f,30*U,Ink);
-  GkText(Cv,TEXT("VICTORY"),X+42*U,Y+10*U,68*U,Gold,false,4);
-  GkText(Cv,S.winner>=0?Names[S.winner]+TEXT(" / ROBOT 1"):TEXT("DRAW GAME"),X+42*U,Y+100*U,23*U,Bone);
-  GkText(Cv,TEXT("LET'S DO THAT AGAIN."),X+42*U,Y+144*U,20*U,Tint[FMath::Clamp(S.winner,0,1)]);
-  if(OverTimer>50)GkText(Cv,TEXT("RESULTS UP NEXT"),X+42*U,Y+208*U,16*U,Bone);
+  GkHudPanel(Cv,W*.56f,H*.79f,W*.40f,H*.13f,25*U,Ink);
+  GkText(Cv,S.winner>=0?Names[S.winner]+TEXT(" / ROBOT 1"):TEXT("DRAW GAME"),W*.59f,H*.81f,28*U,Bone);
+  GkText(Cv,TEXT("RESULTS UP NEXT"),W*.59f,H*.87f,18*U,Gold);
  }
 
 	// Keep the input readout available in training.
@@ -369,19 +368,13 @@ void AGkMatch::DrawArcadeCall(UCanvas* Cv)
  GkJapanese(Cv,KO?TEXT("決着"):Fight?TEXT("勝負開始"):TEXT("準備はいいか"),X-65*U,Y+166*U,26*U,White);
 }
 
-// Title art is the only bitmap; controls, bursts, rails and motion are drawn at viewport resolution.
+// Display lettering and functional text use separate licensed faces. The title is world geometry.
 static void GkDisplay(UCanvas* Cv,const FString& Str,float X,float Y,float Size,FLinearColor Color,float Width=1.f,bool Center=false)
 {
  if(!AGkMatch::Current || !AGkMatch::Current->HudFont)return;
- static TSharedPtr<const FCompositeFont> Face=MakeShared<FCompositeFont>(FName(TEXT("Impact")),FPaths::EngineContentDir()/TEXT("Slate/Fonts/Roboto-Black.ttf"),EFontHinting::Default,EFontLoadingPolicy::LazyLoad);
+ static TSharedPtr<const FCompositeFont> Face=MakeShared<FCompositeFont>(FName(TEXT("Impact")),FPaths::ProjectContentDir()/TEXT("GkUI/Fonts/Machina/GekitotsuMachina.ttf"),EFontHinting::Default,EFontLoadingPolicy::LazyLoad);
  FCanvasTextItem Item(FVector2D(X,Y),FText::FromString(Str),AGkMatch::Current->HudFont.Get(),Color);
  Item.SlateFontInfo=FSlateFontInfo(Face,FMath::Max(8.f,Size));Item.Scale=FVector2D(Width,1);Item.bCentreX=Center;Cv->DrawItem(Item);
-}
-static void GkBrandLogo(UCanvas* Cv,UTexture2D* Logo,float X,float Y,float Width)
-{
- if(!Logo)return;
- FCanvasTileItem Item(FVector2D(X,Y),Logo->GetResource(),FVector2D(Width,Width*Logo->GetSizeY()/Logo->GetSizeX()),FLinearColor::White);
- Item.BlendMode=SE_BLEND_Translucent;Cv->DrawItem(Item);
 }
 static void GkSlash(UCanvas* Cv,float X,float Y,float Width,float Height,FLinearColor Color)
 {
@@ -389,160 +382,107 @@ static void GkSlash(UCanvas* Cv,float X,float Y,float Width,float Height,FLinear
  T.V0_Color=T.V1_Color=T.V2_Color=Color;FCanvasTriangleItem Item(T,GWhiteTexture);Item.BlendMode=SE_BLEND_Translucent;Cv->DrawItem(Item);
 }
 
+// Poster compositions: the model, physical lettering and print shapes share one native set.
 void AGkMatch::DrawArcadeMenu(UCanvas* Cv)
 {
  const float W=Cv->SizeX,H=Cv->SizeY,U=H/1080.f;
- const FLinearColor Ink(.008,.006,.009,1),White(.98,.88,.68),Red(.88,.022,.018),Gold(1,.57,.045),Muted(.57,.52,.46);
- const bool Pause=Screen==3;
- const float Enter=1-FMath::Pow(1-FMath::Clamp(PageAge/.36f,0.f,1.f),3.f);
- const float X=66*U-(1-Enter)*140*U,Y=290*U,PanelW=670*U;
- if(Pause)GkRect(Cv,0,0,W,H,FLinearColor(.015,0,.005,.32));
- // Solid ink and hard graphic crops replace the translucent dashboard panels.
- if(Screen==0 || Screen==6 || Screen==1 || MenuPage || Pause){
-  GkHudPanel(Cv,-H*.2f,0,W*.58f,H,H*.19f,Ink);
-  GkSlash(Cv,W*.35f,-H*.05f,W*.16f,H*.36f,Red);
- }
- if(Screen==5){
-  GkSlash(Cv,-W*.12f,-H*.3f,W*.88f,H*1.1f,Red);
-  GkHudPanel(Cv,-W*.1f,H*.66f,W*.62f,H*.24f,H*.09f,Ink);
- }
- // Halftone printing stays on the graphic margin, leaving the live character clear.
- for(int32 Row=0;Row<13;++Row)for(int32 Col=0;Col<7;++Col){
-  const float D=(Col+Row)%4==0?2.4f:1.5f;
-  GkRoundToken(Cv,W-14*U-Col*12*U,100*U+Row*12*U,D*U,GkFade(White,.23f));
- }
- GkRect(Cv,0,0,W,6*U,Red);
- if(Screen!=5)GkBrandLogo(Cv,BrandLogo,X,35*U,FMath::Min(W*.36f,640*U));
- const FString Footer=Screen==5?TEXT("START / ENTER   begin"):PadNames.IsEmpty()?TEXT("ARROWS / WASD   choose       ENTER / J   confirm       ESC / L   back"):TEXT("D-PAD   choose       LIGHT   confirm       HEAVY   back       START   pause");
- GkRect(Cv,0,H-64*U,W,64*U,Ink);
- GkRect(Cv,0,H-65*U,W,2*U,Red);
- GkText(Cv,Footer,66*U,H-43*U,17*U,White,false,0);
- GkText(Cv,TEXT("ROBOT 01 / DREADMARSH"),W-400*U,H-43*U,14*U,Muted,false,0);
- auto List=[&](const FString& Title,const TArray<FString>& Rows,int32 Selected,float RowHeight=65.f){
-  GkDisplay(Cv,Title,X,Y-10*U,22*U,Gold,.9f);
-  for(int32 k=0;k<Rows.Num();++k){const bool On=k==Selected;const float Stagger=FMath::Clamp((PageAge-k*.025f)/.24f,0.f,1.f);
-   const float Rx=X-(1-Stagger)*(1-Stagger)*90*U,Ry=Y+43*U+k*RowHeight*U;
-   const float Kick=On?14*FMath::Exp(-CursorAge*16):0;
-   if(On){GkHudPanel(Cv,Rx-23*U+Kick*U,Ry-3*U,PanelW,(RowHeight-5)*U,25*U,Gold);
-    GkSlash(Cv,Rx+PanelW-90*U,Ry-10*U,90*U,(RowHeight+10)*U,Red);
-    const float Burst=FMath::Clamp(1-CursorAge/.23f,0.f,1.f);
-    for(int32 q=0;q<5;++q)GkSlash(Cv,Rx-70*U-q*18*U*Burst,Ry+q*10*U,40*U*Burst,4*U,White);
-   }
-   GkDisplay(Cv,FString::Printf(TEXT("%02d"),k+1),Rx+3*U,Ry+12*U,14*U,On?Ink:Muted);
-   const float Font=FMath::Min(On?34.f:28.f,660.f/FMath::Max(1.f,Rows[k].Len()*.57f));
-   GkDisplay(Cv,Rows[k],Rx+49*U+(On?Kick*.3f*U:0),Ry+4*U,Font*U,On?Ink:White,.86f);
+ const FLinearColor Paper(.95,.81,.59),Ink(.009,.006,.004),Red(.76,.008,.004);
+ auto Label=[&](const FString& T,float X,float Y,float S,FLinearColor C){GkText(Cv,T,X*W,Y*H,S*U,C,false,0);};
+ auto Word=[&](const FString& T,float X,float Y,float S,FLinearColor C){GkDisplay(Cv,T,X*W,Y*H,S*U,C);};
+ auto Stroke=[&](float X,float Y,float Width,float Height,FLinearColor C){
+  GkHudPanel(Cv,X*W,Y*H,Width*W,Height*H,Height*H*.35f,C);
+  for(int q=0;q<5;++q)GkSlash(Cv,(X+Width-.025f+q*.004f)*W,(Y+.01f+q*.012f)*H,W*.038f,H*.012f,C);
+ };
+ auto Wear=[&](){
+  GkRect(Cv,3*U,3*U,W-6*U,1*U,Paper);GkRect(Cv,3*U,H-4*U,W-6*U,1*U,Paper);
+  GkRect(Cv,3*U,3*U,1*U,H-6*U,Paper);GkRect(Cv,W-4*U,3*U,1*U,H-6*U,Paper);
+  for(int k=0;k<120;++k){const uint32 Hash=uint32(k*747796405u+2891336453u);float X=(Hash%10000)/10000.f*W;float L=(2+(Hash/13)%13)*U;
+   GkRect(Cv,X,(k&1)?H-6*U:2*U,L,(1+(Hash/37)%3)*U,Paper);
+   if(k%4==0)GkSlash(Cv,k&1?W-10*U:0,(Hash%997)/997.f*H,12*U,4*U,Paper);
   }
  };
- if(!bPlaced){List(TEXT("GETTING THE STAGE READY"),{TEXT("DREADMARSH")},0);return;}
- if(MenuPage==2){
-  List(TEXT("SOUND & PRESENTATION"),{
-   FString::Printf(TEXT("MUSIC     < %d%% >"),FMath::RoundToInt(MusicGain*100)),
-   FString::Printf(TEXT("SOUND FX     < %d%% >"),FMath::RoundToInt(EffectsGain*100)),
-   FString::Printf(TEXT("VOICES     < %d%% >"),FMath::RoundToInt(VoiceGain*100)),
-   FString::Printf(TEXT("CAMERA SHAKE     < %d%% >"),FMath::RoundToInt(ShakeGain*100)),
-   FString::Printf(TEXT("LIGHT FLASHES     < %d%% >"),FMath::RoundToInt(FlashGain*100)),TEXT("BACK")},MenuAt);
-  GkText(Cv,TEXT("LEFT / RIGHT adjusts. Changes save automatically."),X,H-126*U,16*U,Gold,false,0);return;
+ Wear();
+ if(Screen==5 && MenuPage==0){
+  Stroke(.035,.865,.28,.082,Ink);Word(TEXT("PRESS START"),.052,.876,44,Paper);return;
  }
- if(MenuPage==3){
-  List(TEXT("MAKE SOME TROUBLE / MOVE LIST"),{
-   TEXT("L / M / H    normal attacks"),TEXT("ASSIST + L / M / H    kicks"),TEXT("SPECIAL    energy shot / air beam"),TEXT("FORWARD + SPECIAL    anti-air"),TEXT("HOMING    chase through the air"),TEXT("L + M    throw / M + H    run"),TEXT("H + SP    super / BACK    level 2"),TEXT("DOWN + H + SP    level 3"),TEXT("PARRY    read them / IMPACT    break in")},-1,59);
-  GkText(Cv,TEXT("Close the distance. Confirm your hit. Spend your meter."),X,H-123*U,16*U,Gold);return;
+ // Controls stay out of the artwork until they are useful.
+ if(Screen!=7)Label(MenuPage==1?TEXT("PRESS A BUTTON TO ASSIGN  /  ESC CANCELS"):Screen==1?TEXT("LEFT / RIGHT  COLOUR     ENTER  LOCK IN     ESC  BACK"):Screen==2?TEXT("LEFT / RIGHT  WEATHER     ENTER  READY     ESC  BACK"):TEXT("UP / DOWN  SELECT     ENTER  CONFIRM     ESC  BACK"),.045,.959,19,Paper);
+ auto Rows=[&](const TArray<FString>& Entries,int Selected,float Y=.34f,float Step=.09f){
+  for(int k=0;k<Entries.Num();++k){const bool On=k==Selected;const float At=Y+k*Step;
+   if(On)Stroke(.035,At-.007f,.59f,Step-.012f,Red);
+   Word(Entries[k],.06f,At,38,Paper);
+  }
+ };
+ if(MenuPage==4){
+  Rows({FString::Printf(TEXT("CPU LEVEL     < %d >"),Level),TEXT("WATCH A MATCH"),TEXT("BUTTON SETTINGS"),TEXT("MOVE LIST"),TEXT("SOUND & EFFECTS"),TEXT("BACK")},MenuAt,.34f,.088f);return;
+ }
+ if(MenuPage==2){
+  const TCHAR* Names[]={TEXT("MUSIC"),TEXT("SOUND FX"),TEXT("VOICES"),TEXT("CAMERA SHAKE"),TEXT("LIGHT FLASHES")};float Values[]={MusicGain,EffectsGain,VoiceGain,ShakeGain,FlashGain};
+  for(int k=0;k<5;++k){float Y=.34f+k*.09f;bool On=MenuAt==k;if(On)Stroke(.035,Y-.01f,.87f,.078f,Red);
+   Word(Names[k],.06,Y,38,Paper);
+   for(int j=0;j<10;++j)GkHudPanel(Cv,W*(.46f+j*.032f),H*(Y+.015f),W*.024f,H*.027f,6*U,j<FMath::RoundToInt(Values[k]*10)?Paper:FLinearColor(.16,.025,.018));
+   Label(FString::Printf(TEXT("%d"),FMath::RoundToInt(Values[k]*100)),.81,Y,34,Paper);
+  }
+  if(MenuAt==5)Stroke(.035,.79f,.29f,.072f,Red);Word(TEXT("BACK"),.06,.80,38,Paper);Label(TEXT("LEFT / RIGHT TO ADJUST"),.46,.835,23,Paper);return;
  }
  if(MenuPage==1){
-  static const TCHAR* Actions[]={TEXT("LIGHT"),TEXT("MEDIUM"),TEXT("HEAVY"),TEXT("SPECIAL"),TEXT("ASSIST"),TEXT("PARRY"),TEXT("IMPACT"),TEXT("HOMING")};
-  TArray<FString> Rows;for(int32 k=0;k<8;++k){FString Key=PadCount>0?FString::Printf(TEXT("BUTTON %d"),PadBind[k]+1):Bind[k].GetDisplayName().ToString();
-   Rows.Add(FString(Actions[k])+TEXT("    ")+(k==BindAt?TEXT("PRESS NOW"):k<BindAt?Key:TEXT("--")));}
-  List(TEXT("YOUR BUTTONS / YOUR STYLE"),Rows,BindAt,61.f);
-  GkText(Cv,TEXT("TAB / ESC cancels. Directions stay on the stick."),X,H-126*U,16*U,Gold,false,0);return;
+  const TCHAR* Actions[]={TEXT("LIGHT"),TEXT("MEDIUM"),TEXT("HEAVY"),TEXT("SPECIAL"),TEXT("ASSIST"),TEXT("PARRY"),TEXT("IMPACT"),TEXT("HOMING")};
+  for(int k=0;k<8;++k){float X=.055f+(k/4)*.46f,Y=.35f+(k%4)*.13f;bool On=k==BindAt;
+   if(On)Stroke(X-.02f,Y-.01f,.42f,.10f,Red);
+   Word(Actions[k],X,Y,42,Paper);
+   FString Key=PadCount>0?FString::Printf(TEXT("BUTTON %d"),PadBind[k]+1):Bind[k].GetDisplayName().ToString();
+   Label(On?TEXT("PRESS NOW"):k<BindAt?Key:TEXT("—"),X+.22f,Y+.025f,26,Paper);GkRect(Cv,W*X,H*(Y+.09f),W*.38f,1*U,Paper);
+  }return;
  }
- if(Screen==5){
-  const float Beat=FMath::Sin(UiTime*.85f)*4*U;
-  GkBrandLogo(Cv,BrandLogo,38*U,H*.13f+Beat,W*.69f);
-  GkDisplay(Cv,TEXT("PRESS START"),80*U,H*.70f,62*U,White,.78f);
-  const float Rail=FMath::Fmod(UiTime*.22f,1.f);
-  GkRect(Cv,80*U,H*.81f,W*.27f,6*U,Red);GkRect(Cv,80*U+Rail*W*.23f,H*.81f,W*.04f,6*U,Gold);
-  GkDisplay(Cv,AttractShot==2?TEXT("DREADMARSH / LIVE STAGE"):AttractShot==1?TEXT("ALL ATTITUDE. ALL ROBOT."):TEXT("SMALL FUSE. BIG PERSONALITY."),80*U,H*.85f,18*U,White,.9f);
+ if(MenuPage==3){
+  const TCHAR* Moves[]={TEXT("L / M / H     NORMALS"),TEXT("ASSIST + L / M / H     KICKS"),TEXT("SPECIAL     SHOT / AIR BEAM"),TEXT("FORWARD + SPECIAL     ANTI-AIR"),TEXT("HOMING     AIR CHASE"),TEXT("L + M     THROW       M + H     RUN"),TEXT("H + SP     SUPER       BACK     LEVEL 2"),TEXT("DOWN + H + SP     LEVEL 3"),TEXT("PARRY     READ       IMPACT     BREAK")};
+  for(int k=0;k<9;++k){float X=.055f+(k/5)*.47f,Y=.35f+(k%5)*.106f;Label(Moves[k],X,Y,28,Paper);GkRect(Cv,W*X,H*(Y+.066f),W*.40f,1*U,Red);}return;
+ }
+ if(Screen==0){
+  // The choices themselves are extruded lettering on the physical set.
+  Word(TEXT("01"),.84,.74,130,Paper);return;
+ }
+ if(Screen==1){
+  Stroke(.035,.05f,.27f,.065f,Red);Word(FString::Printf(TEXT("PLAYER %d"),SelWho+1),.055,.055,34,Paper);
+  for(int k=0;k<8;++k){float X=.066f+k*.12f;const bool On=Setup.Costume[SelWho]==k;
+   if(On)Stroke(X-.023f,.875f,.095f,.055f,Red);
+   Word(FString::Printf(TEXT("%02d"),k+1),X,.883f,28,Paper);
+  }
+  return;
+ }
+ if(Screen==2){
+  Word(TEXT("01"),.055,.065,65,Paper);Label(TEXT("DREADMARSH"),.055,.59,28,Paper);
+  const TCHAR* Weather[]={TEXT("DYNAMIC"),TEXT("DAYLIGHT"),TEXT("MOONLIGHT"),TEXT("STORM"),TEXT("HAZE"),TEXT("TOXIC"),TEXT("TWILIGHT")};
+  Stroke(.025,.715f,.355f,.085f,Red);Word(Weather[FMath::Clamp(MenuPalette,0,6)],.055,.727,39,Paper);
+  Label(MenuPalette==0?TEXT("WEATHER EVOLVES WITH THE FIGHT"):TEXT("WEATHER LOCKED"),.055,.825,19,Paper);
+  for(int k=0;k<7;++k)GkRect(Cv,W*(.057f+k*.04f),H*.875f,W*.026f,5*U,k==MenuPalette?Red:Paper);
   return;
  }
  if(Screen==7){
-  GkHudPanel(Cv,0,H*.63f,W,H*.28f,90*U,Ink);
-  GkText(Cv,TEXT("ROBOT 1"),W*.22f,H*.68f,58*U,Red,true,3);
-  GkText(Cv,TEXT("VS"),W*.5f,H*.65f,90*U,Gold,true,4);
-  GkText(Cv,TEXT("ROBOT 1"),W*.78f,H*.68f,58*U,FLinearColor(.3,.7,1),true,3);
-  GkText(Cv,TEXT("DREADMARSH / LET'S MAKE SOME NOISE"),W*.5f,H*.84f,18*U,White,true,1);return;
+  Stroke(.02,.79f,.38f,.12f,Ink);Stroke(.60,.79f,.38f,.12f,Ink);
+  Word(TEXT("ROBOT 1"),.055,.81,54,Paper);Word(TEXT("ROBOT 1"),.66,.81,54,Paper);return;
  }
  if(Screen==6){
-  List(TEXT("THAT'S A WRAP."),{TEXT("RUN IT BACK"),TEXT("CHARACTER SELECT"),TEXT("MAIN MENU"),TEXT("QUIT GAME")},MenuAt,82);
-  GkText(Cv,TEXT("VICTORY"),W*.57f,H*.74f,78*U,Gold,false,4);
-  GkText(Cv,S.winner<0?TEXT("DRAW GAME"):S.winner==0?TEXT("P1 / ROBOT 1"):TEXT("P2 / ROBOT 1"),W*.58f,H*.85f,26*U,White);return;
+  Label(S.winner<0?TEXT("DRAW GAME"):S.winner==0?TEXT("PLAYER 1 / WINNER"):TEXT("PLAYER 2 / WINNER"),.055,.12,27,Paper);
+  Rows({TEXT("RUN IT BACK"),TEXT("CHARACTER SELECT"),TEXT("MAIN MENU"),TEXT("QUIT")},MenuAt,.55f,.085f);return;
  }
- if(Screen==0){
-  List(TEXT("LET'S MAKE SOME NOISE."),{TEXT("VERSUS CPU"),TEXT("TRAINING"),TEXT("WATCH"),FString::Printf(TEXT("CPU LEVEL    < %d >"),Level),TEXT("SET UP BUTTONS"),TEXT("HOW TO PLAY"),TEXT("SOUND & PRESENTATION"),TEXT("QUIT GAME")},MenuAt,67);
-  GkDisplay(Cv,TEXT("ROBOT 01 / READY TO MAKE TROUBLE"),W*.55f,H*.88f,17*U,White,.86f);
- }
- else if(Screen==1){
-  GkDisplay(Cv,FString::Printf(TEXT("PLAYER %d / MAKE AN ENTRANCE"),SelWho+1),X,285*U,22*U,Gold,.9f);
-  GkDisplay(Cv,TEXT("ROBOT"),X-5*U,330*U,112*U,White,.72f);
-  GkDisplay(Cv,TEXT("01"),X+440*U,340*U,90*U,Red,.8f);
-  GkDisplay(Cv,TEXT("RUSH DOWN. SHOW OFF."),X,475*U,24*U,Gold,.9f);
-  GkDisplay(Cv,CostumeName(Setup.Costume[SelWho]),X,535*U,41*U,White,.88f);
-  for(int32 Outfit=0;Outfit<8;++Outfit){const float Sx=X+(Outfit%4)*137*U,Sy=620*U+(Outfit/4)*110*U;const bool Selected=Setup.Costume[SelWho]==Outfit;
-   const float Pop=Selected?8*FMath::Exp(-CursorAge*12):0;
-   GkHudPanel(Cv,Sx-4*U,Sy-4*U-Pop*U,126*U,90*U,15*U,Selected?Gold:Muted);
-   GkHudPanel(Cv,Sx,Sy-Pop*U,118*U,82*U,13*U,CostumeColor(Outfit));
-   GkSlash(Cv,Sx+55*U,Sy-Pop*U,63*U,82*U,CostumeColor(Outfit,true));
-   GkDisplay(Cv,FString::Printf(TEXT("%02d"),Outfit+1),Sx+10*U,Sy+50*U-Pop*U,20*U,White,.8f);
-  }
-  GkDisplay(Cv,TEXT("LEFT / RIGHT  colour    LIGHT  lock in"),X,865*U,17*U,Gold,.9f);
-  GkDisplay(Cv,SelWho==0?TEXT("01  YOUR LOOK"):TEXT("01  LOCKED     02  YOUR RIVAL"),X,930*U,17*U,White,.9f);
-  GkRect(Cv,W*.55f,H*.87f,W*.39f,4*U,Gold);
-  GkDisplay(Cv,SelWho==0?TEXT("MAKE SOME NOISE."):TEXT("SAME ROBOT. NEW TROUBLE."),W*.56f,H*.89f,18*U,White,.85f);
- }
- else if(Screen==2){
-  GkHudPanel(Cv,-H*.09f,H*.62f,W*1.1f,H*.30f,H*.08f,Ink);
-  GkSlash(Cv,W*.62f,H*.60f,W*.4f,H*.34f,Red);
-  GkText(Cv,TEXT("CHOOSE YOUR STAGE"),66*U,H*.64f,21*U,Gold);
-  const FString Stage=TEXT("DREADMARSH");
-  GkText(Cv,TEXT("SELECT YOUR WEATHER"),66*U,H*.69f,44*U,White,false,3);
-  GkText(Cv,FString::Printf(TEXT("<   %s   >"),MenuPalette==0?TEXT("DYNAMIC WEATHER"):MenuPalette==1?TEXT("DAYLIGHT"):MenuPalette==2?TEXT("MOONLIGHT"):MenuPalette==3?TEXT("STORM"):MenuPalette==4?TEXT("WARM HAZE"):MenuPalette==5?TEXT("TOXIC GREEN"):TEXT("TWILIGHT")),66*U,H*.80f,23*U,Red);
-  GkText(Cv,MenuPalette==0?TEXT("LIVE WEATHER REEL"):TEXT("WEATHER LOCKED"),W*.62f,H*.64f,19*U,Gold);
-  GkText(Cv,TEXT("DAY / NIGHT / STORM"),W*.62f,H*.71f,24*U,White);
-  GkText(Cv,TEXT("HAZE / TOXIC / TWILIGHT"),W*.62f,H*.76f,24*U,White);
- }
- else {
-  static const TCHAR* DummyNames[]={TEXT("STAND"),TEXT("CROUCH"),TEXT("JUMP"),TEXT("GUARD"),TEXT("FIGHT BACK")};
-  if(!bDebugMenu) {
-   List(TEXT("PAUSED / TAKE A BREATHER."),{TEXT("RESUME"),TEXT("RESTART MATCH"),TEXT("MOVE LIST"),TEXT("SOUND & PRESENTATION"),TEXT("CHARACTER SELECT"),TEXT("MAIN MENU"),TEXT("QUIT GAME")},MenuAt,67);return;
-  }
-  List(TEXT("DEBUG / QUICK ACCESS"),{TEXT("RESUME"),TEXT("RESTART MATCH"),TEXT("CHARACTER SELECT"),TEXT("STAGE SELECT"),TEXT("MAIN MENU"),
-   FString::Printf(TEXT("DUMMY    < %s >"),DummyNames[FMath::Clamp(Dummy,0,4)]),FString::Printf(TEXT("HIT BOXES    < %s >"),bBoxes?TEXT("ON"):TEXT("OFF")),TEXT("SOUND & PRESENTATION"),TEXT("SET UP BUTTONS"),TEXT("ANIMATION LAB")},MenuAt,58);
+ if(bMenu){
+  if(!bDebugMenu)Rows({TEXT("RESUME"),TEXT("RESTART"),TEXT("MOVE LIST"),TEXT("SOUND & EFFECTS"),TEXT("CHARACTER SELECT"),TEXT("MAIN MENU"),TEXT("QUIT")},MenuAt,.30f,.083f);
+  else {const TCHAR* DummyNames[]={TEXT("STAND"),TEXT("CROUCH"),TEXT("JUMP"),TEXT("GUARD"),TEXT("FIGHT BACK")};Rows({TEXT("RESUME"),TEXT("RESTART"),TEXT("CHARACTER SELECT"),TEXT("STAGE SELECT"),TEXT("MAIN MENU"),FString::Printf(TEXT("DUMMY  < %s >"),DummyNames[FMath::Clamp(Dummy,0,4)]),FString::Printf(TEXT("HIT BOXES  < %s >"),bBoxes?TEXT("ON"):TEXT("OFF")),TEXT("SOUND & EFFECTS"),TEXT("BUTTON SETTINGS"),TEXT("ANIMATION LAB")},MenuAt,.27f,.061f);}
  }
 }
 
 void AGkMatch::DrawMenuEffects(UCanvas* Cv)
 {
  const float W=Cv->SizeX,H=Cv->SizeY,U=H/1080.f;
- const FLinearColor Ink(.008,.006,.009),Cream(.98,.88,.68),Red(.88,.022,.018),Gold(1,.57,.045);
- if(Screen==1 || Screen==2 || Screen==7){
-  const int32 Active=Screen==1?1:Screen==2?2:3;
-  const TCHAR* Chapters[]={TEXT("MODE"),TEXT("FIGHTER"),TEXT("STAGE"),TEXT("SHOWTIME")};
-  for(int32 k=0;k<4;++k){const float X=W*.57f+k*W*.10f;
-   GkRect(Cv,X,28*U,W*.083f,4*U,k<=Active?Gold:Ink);
-   GkDisplay(Cv,Chapters[k],X,40*U,14*U,k<=Active?Cream:FLinearColor(.4,.4,.4),.85f);
-  }
- }
- if(MenuStampAge<.85f && !MenuStamp.IsEmpty() && Screen!=3){
-  const float In=FMath::Clamp(MenuStampAge/.09f,0.f,1.f),Out=FMath::Clamp((.85f-MenuStampAge)/.18f,0.f,1.f);
-  const float X=W*.58f+(1-In)*W*.30f+(1-Out)*W*.35f,Y=H*.70f;
-  GkSlash(Cv,X-30*U,Y-14*U,W*.39f,88*U,Red);
-  GkHudPanel(Cv,X,Y,W*.38f,65*U,28*U,Gold);
-  GkDisplay(Cv,MenuStamp,X+20*U,Y+12*U,27*U,Ink,.79f);
- }
+ const FLinearColor Ink(.009,.006,.004),Paper(.95,.81,.59),Red(.76,.008,.004);
  if(MenuCutAge<.34f && UiPageKey>=0){
-  const float P=MenuCutAge/.34f;
-  for(int32 k=0;k<4;++k){const float X=FMath::Lerp(-W*1.25f,W*1.35f,P)+k*W*.07f;
-   GkHudPanel(Cv,X,-H*.15f,W*.58f,H*1.3f,H*.34f,k==3?Red:Ink);
-   if(k==2)for(int32 j=0;j<9;++j)GkSlash(Cv,X+W*.28f,j*H*.12f,W*.16f,7*U,Cream);
+  const float T=MenuCutAge/.34f;
+  for(int k=0;k<3;++k){float X=FMath::Lerp(-W*1.4f,W*1.5f,T)+k*W*.10f;GkHudPanel(Cv,X,-H*.2f,W*.65f,H*1.4f,H*.5f,k==1?Red:Ink);
+   if(k==1)for(int j=0;j<6;++j)GkSlash(Cv,X+W*.18f,H*(j*.17f),W*.4f,10*U,Paper);
   }
+ }
+ if(MenuStampAge<.28f && Screen==1 && MenuPage==0 && FlashGain>0){
+  float K=1-MenuStampAge/.28f;for(int j=0;j<9;++j)GkSlash(Cv,W*(.45f+j*.06f),H*(.22f+j*.047f),W*.16f*K,H*.015f*K,FLinearColor(.95,.81,.59,FlashGain));
  }
 }

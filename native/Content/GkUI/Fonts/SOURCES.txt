@@ -1,0 +1,6 @@
+Original font files were obtained from the official google/fonts repository:
+https://github.com/google/fonts/tree/main/ofl/anton
+https://github.com/google/fonts/tree/main/ofl/barlowcondensed
+
+Each original font retains its SIL Open Font License in its own directory.
+Gekitotsu Machina is an original outline modification of Anton, renamed and distributed under the same OFL; see Machina/NOTICE.txt and tools/build_display_font.py.

@@ -39,7 +39,7 @@ void AGkMatch::MenuSound(int32 SoundKind)
 }
 void AGkMatch::UpdatePresentation(float Delta)
 {
- if(UiPageKey<0){LoadPresentation();BrandLogo=LoadObject<UTexture2D>(nullptr,TEXT("/Game/GkUI/T_GekitotsuImpact.T_GekitotsuImpact"));}
+ if(UiPageKey<0){LoadPresentation();}
  UiTime+=Delta;PageAge+=Delta;CursorAge+=Delta;MenuIdleAge+=Delta;MenuCutAge+=Delta;MenuStampAge+=Delta;
  const int32 Shot=(Screen==0 || Screen==5)?int32(MenuIdleAge/7.f)%3:0;
  if(Shot!=AttractShot){AttractShot=Shot;MenuCutAge=0;}

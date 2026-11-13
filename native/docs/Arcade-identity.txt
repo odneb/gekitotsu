@@ -1,63 +1,22 @@
-GEKITOTSU — native arcade identity
+GEKITOTSU / PHYSICAL PRINT SET
 
-The approved direction combines the Industrial Impact title with the Jazz Riot colour
-and motion language: vermilion, ink, cream and mustard, with hard cuts and large crops.
-The original transparent wordmark is title artwork. Menus remain native controls over
-live Unreal characters and the actual Dreadmarsh level. No full-screen menu mockup replaces
-the scene.
+The front end is rebuilt around a dedicated red, warm paper and ink-black physical set, 15,000 units above the existing arena. It uses the actual animated Robot 1 mesh, opaque extruded title geometry, Text3D headings and physical graphic planes. No runtime title PNG is loaded or drawn. Gameplay simulation remains in the arena below; menu models and planes are hidden and combat camera/postprocessing restored when a match begins.
 
-Coverage
-- Title and main menu: original logo, graphic monochrome grading, full-body/close/stage
-  camera cuts every seven idle seconds. Input resets the idle sequence without changing
-  the selected option. The live stage continues rendering under the native graphics.
-- Character select: one Robot 1 presented large; only the active player's model is shown.
-  Eight two-tone costumes, a new entrance when switching players, a 3D costume name,
-  swatch pulses, lock-in stamps and layered confirmation sounds.
-- Stage select: live level camera, extruded stage name, a weather preview reel when
-  Dynamic Weather is selected. Explicit weather choices stay fixed. The reel changes
-  every six seconds; choosing Dynamic still starts gameplay-driven weather.
-- Settings, controls, help, pause, debug, versus and results share the new layout, type,
-  selection treatment, footer and page transitions. Start/Escape remains normal pause;
-  Tab remains quick debug. The animation lab is a separate developer tool.
-- Combat HUD uses the same heavy type, cream/ink framing and vermilion P1 accents.
-  Round/FIGHT/KO and other major calls, plus combo counts, use real extruded Text3D meshes.
-  Native supporting labels stay sharp and readable. No combat timing or damage changed.
+The Latin title is custom polygon lettering with heavy stems, chamfered corners, angular counters and incisions, extruded four units. Japanese brush contours are a separate extruded mesh at their own depth. The opening holds a close punch composition, changes pose/framing every seven idle seconds, and uses independent lettering arrivals. The print surface has hard front/side shading; a subtle menu-only print finish unifies robot, geometry and text.
 
-3D type
-Epic's installed Text3D runtime plugin is enabled. Three reusable components cover the
-headline and two combo counters. Geometry changes only when the word/count changes;
-position, tilt and scale animate without regenerating the letters each frame. The owned
-M_GkInkType material uses three hard value bands, cream faces and red bevel/extrusion.
-The meshes do not cast interface-shaped shadows into the fighting stage. The title logo
-itself is a transparent artwork asset, not an extruded custom-lettering mesh.
+Main menu has four destinations: Versus, Training, Options and Quit. Options contains CPU level, Watch a Match, Button Settings, Move List, Sound & Effects and Back. Character selection displays the real hero plus eight live 3D costume previews. Player 2 is the same Robot 1 in an alternative costume. Stage selection frames the actual Dreadmarsh arena with a moving camera, six fixed weather palettes and a dynamic weather reel. Versus, pause, debug, results, controls and settings use the same identity. Start opens ordinary pause; Tab opens the debug menu.
 
-Build and tests
-Build GekitotsuNativeEditor Mac Development with UE 5.8.4.
-Copy tools/scripts/identity_acceptance.txt to Saved/script.txt and launch with -gkscript
--UseFixedTimeStep -FPS=60 for navigation assertions, actual KO/rematch, settings/help,
-weather-reel and combat captures, plus forced garbage collection.
-identity_capture.txt records real native transition frames. identity_realtime.txt checks
-menu audio and normal-clock CPU combat. Offline captured videos are not performance tests.
+Large headings, main choices, costume name, stage name, versus, victory, round/FIGHT/KO and combo counts use Text3D. The custom Gekitotsu Machina display font is a renamed OFL derivative of Anton; functional labels use Barlow Condensed SemiBold. Original font licenses and source URLs are included. Canvas labels, sliders, distress and transition strokes remain native runtime UI, not flattened artwork. Transitions use diagonal red/black cuts, confirmation streaks and existing menu sounds; character confirmation plays the existing Male 6 voice.
 
-Open normally using tools/preview_forest.sh or the supplied Launch Robot 1.command.
-A game process already open keeps its old build. Quit and relaunch when ready; no live
-coding reload or forced restart is performed during a player's session.
+Authoring:
+- tools/build_title_geometry.py creates both OBJ meshes.
+- tools/import_title_geometry.py imports the meshes in Unreal.
+- tools/build_display_font.py creates the custom display font.
+- tools/make_print_set.py creates the two native print materials.
+- tools/scripts/print_acceptance.txt exercises actual input routes, all costumes/weather, pause/debug, results/rematch, calls and garbage collection. It changes bindings and music volume: back up and restore Saved/gk_buttons.txt and Saved/presentation.txt around the run.
+- tools/scripts/print_capture.txt records real HUD-on native frames.
+- tools/scripts/print_realtime.txt exercises full audio and CPU matches on the real clock.
 
-Limits
-This is a tested native Development build. Shipping packaging and other hardware remain
-unvalidated. Engine font files and the enabled Text3D plugin must be included when packaging.
-The menu artwork and effects do not establish exact parity with the illustrative concepts.
+Launch tools/preview_forest.sh with no -gkfight argument to start at the title. Press Enter/Start, then choose Versus or Training. Arrow keys navigate, Enter confirms, Escape backs out. Gameplay keys are the user's saved bindings; Button Settings can remap all eight actions.
 
-Observed on this Mac, 2026-11-13
-- UE 5.8.4 Mac Development build succeeded; native Text3D runs on Metal SM6.
-- 14 navigation assertions passed, including normal Start pause vs Tab debug, settings,
-  controls, help, actual KO/results and rematch.
-- Actual viewport captures show title idle cuts, player lock-in, costume previews, weather
-  changes, settings, results, 3D FIGHT/ROUND/KO and a real four-hit combo counter.
-- Forced GC passed both the capture sequence and final real-time combat run; clean exits,
-  no fatal/error entries in those validation logs.
-- The final CPU-combat run sampled 68 rolling frame times: median 17.76 ms, 95th percentile
-  23.78 ms, 1280x720 and 100% render scale. The original editor remained open. This is not
-  a per-frame profiler trace or a locked-60 claim.
-- Recorded menu/intro mix: 9.68 seconds, peak -6.72 dBFS, RMS -25.41 dBFS.
-- The older player's game was not interrupted or hot-reloaded; it later exited normally.
+Scope: one character, eight costumes, one stage. This front-end rebuild does not add online modes, extra stages or a retail packaging pipeline. Purchased character, stage, voice and FluidNinja assets must be installed locally; they are not republished with source changes.

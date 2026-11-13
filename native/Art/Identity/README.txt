@@ -1,6 +1,8 @@
 Gekitotsu-Impact-Logo.png is original transparent title artwork generated with the built-in
-image tool from the user's approved GEKITOTSU identity exploration. It is used as a logo
-asset only; the robot, level, menus and 3D callouts are rendered by Unreal.
+image tool from the user's approved GEKITOTSU identity exploration. It is retained as authoring
+source for the Japanese mesh contours only. It is NOT loaded or drawn at runtime.
+The current title is two opaque extruded meshes; the Latin geometry is authored
+from bespoke polygon glyphs with chamfered corners and mechanical cuts. The robot, stage and typography are real Unreal geometry.
 
 Prompt:
 Create a production game title LOGO ASSET ONLY on a genuinely transparent background,
@@ -15,4 +17,6 @@ numbers, wear around page borders, FIGHT and KO. Do not produce a mood board or 
 Flat 2D ink shapes, NO opaque background, NO checkerboard painted into image, NO glow,
 NO gradients, NO extra writing. This asset will be layered over a live 3D stage in Unreal.
 
-Import with tools/import_identity.py. Rebuild the owned cel material with tools/make_ink_type.py.
+Build the meshes with tools/build_title_geometry.py and import with
+tools/import_title_geometry.py. Build the custom OFL display font with
+tools/build_display_font.py. The original image prompt above is historical.
