@@ -1,0 +1,197 @@
+GEKITOTSU — CHARACTER CHOREOGRAPHY AND MOVE PLAN, v1
+13 November 2026. Baseline inspected: 5782095.
+Status: design proposal and source audit. No combat or animation changes implemented by this document.
+
+CHARACTER
+A sincerely heroic, vain martial-arts showman. He believes his most ridiculous poses are inspirational. Ginyu-style theatrical silhouettes; impossible, photograph-ready defensive composure; explosive Dragon Ball energy. He is competent, good-hearted and unintentionally funny. He can become the user's human anime alter ego: no signature action should require detachable robot limbs or machinery.
+
+His acting has three registers:
+1. Relaxed confidence between attacks: open posture, chin lifted, composed hands.
+2. Bizarre but legible contact poses: asymmetry, extreme leg lines, theatrical free hand, purposeful gaze.
+3. Total commitment at decisive moments: throwing his entire body into a heroic attack, then trying to recover his dignity.
+Ordinary strikes remain responsive. The largest flourishes belong to heavy impact, successful parry, confirmed supers and recovery that can be interrupted when control returns. The opponent's reactions matter as much as the hero's pose.
+
+DESIGN CONTRACT
+Keep the familiar movement speeds, directional scheme, L/M/H, Assist, Special, Parry, Impact and dedicated Homing button as the starting point. Forward+Special remains anti-air on the ground and in the air. Neutral airborne Special remains beam; Down+Special remains the other air special. Six air normals only: L/M/H and Assist+L/M/H, independent of jump direction. Same character on both sides, eight colours.
+
+Do not advertise new damage, safety or combo guarantees until playtested. Keep the current normal attack timing wherever new choreography can fit it. Change hitboxes when necessary to follow the actual striking limb; don't stretch limbs to preserve a badly matched hitbox. Keep normal attacks and throws on the gameplay camera. Only a confirmed cinematic super earns a cutaway.
+
+THE SIGNATURE ANTI-AIR — 'STANDING OVATION' (working name)
+Forward+Special. One hand plants beside his foot; he folds sideways and whips a heel nearly vertically overhead, then springs from that hand into a compact rising scissor kick. His free arm makes an extravagant face-framing gesture. The impact silhouette is a one-handed, near-inverted hero pose, not a fist-first uppercut. He turns upright and lands chest-out as if the acrobatics were trivial.
+
+The grounded plant is a quick anticipation pose, not a long acrobatic preamble. Primary contact is the rising heel; the optional second leg is a controlled follow-through. No random pinwheeling or three full spins. Use original pose authoring and contact correction rather than merely rotating the existing punch clip. Test the silhouette from the actual side camera before dressing it with energy.
+
+Keep SRK_L/M/H as the existing strength variants of this one recognisable move. SRK_OD gets an extra energy crescent and the existing enhanced defensive role. QSRK uses the same family entered from run momentum. Air forward+Special (AUP) shares the rising scissor silhouette but has no ground plant. This could be a modest gameplay adjustment to the attack arc; full-body invulnerability must not be added to ordinary versions by accident. A missed anti-air or a blocked landing remains a real commitment.
+
+GROUND NORMALS — actual current bindings preserved
+Input / current slot / proposed choreography / purpose:
+L / 5LP / a dismissive short backhand, free hand open beside his face / fast interruption and easy confirm.
+Assist+L / 5LK / a quick, angled shin kick from a vain upright stance / short starter and light assist route.
+M / 5MK / a side kick with torso leaning away and hand framing his jaw / readable midrange reach.
+Assist+M / 5MP / compact turning elbow with theatrical shoulder line / close pressure and medium assist route.
+H / 5HK / a high, almost vertical heel that drops through a strong diagonal / committed heavy kick with an iconic held contact pose.
+Assist+H / 5HP / a whole-body palm strike, off-hand spread as if presenting the impact / heavy punish and heavy assist route.
+Down+L / 2LK / low toe cut from a genuinely lowered stance / low starter.
+Down+M / 2MK / long low kick with planted support foot / low reach and confirm.
+Down+H / 2HP / rising palm from a deep side crouch / grounded launcher/anti-air normal, visually separate from Standing Ovation.
+Down-forward+H / 2HK / one-hand-supported sweep with the head still watching the opponent / committed low knockdown.
+2LP / existing crouching-light chain/follow-up slot / a low, dismissive palm / reuse the low-body language; don't add a new button.
+TFK2, TFK3 / existing medium-kick target-chain steps / bent-knee step, then extended presentation kick / link 5MK into a coherent three-beat movement.
+CB2 / existing medium-punch target follow-up / short theatrical overhand/elbow drop / a weight shift that visibly follows 5MP.
+
+These labels are logical inputs, not the letters printed on the user's controller. The current M button maps to 5MK; Assist+M maps to 5MP. Do not accidentally swap their roles just because the internal names say punch or kick.
+
+ASSIST COMBOS AND BEGINNER EXPERIENCE
+The current ground Assist input also activates buffered assist routes. Preserve that feature while choreographing each route as a continuous body movement.
+Light route: 5LK -> JIN_L -> KAZE. Proposed rhythm: tap, driving hero step, low finishing cut. Low-start route adds the existing 2LK/5LP beats.
+Medium route: 5MP -> CB2 -> run -> QDL -> SA2 when affordable, otherwise SRK_H. Proposed rhythm: elbow, drop, pursuit, launch, optional cinematic payoff. Rebuild SA2 as a strike-confirm super so this route remains legal in principle; verify height and catch range. Until that conversion is validated, keep the existing SA2 rather than shipping a broken route.
+Heavy route: 5HP -> JIN_OD/JIN_M -> KAZE_OD/KAZE -> KASAI -> SA3 when affordable. Proposed rhythm: palm, hero step, low cut, explosive finish, optional beam.
+These are inspected existing routes, not a claim that the proposed animation/gameplay changes already combo. Revalidate all routes after timing/contact edits. Do not add a universal L>M>H chain merely because a written example looks attractive.
+Recommended gameplay change: make super spending explicit. Assist should provide a useful meterless ending; pressing H+Special confirms super expenditure. If adopted, update these AUTO routes, tutorials, AI and tests together. No new style meter or stance-management system.
+
+SPECIALS AND RUN FOLLOW-UPS
+Neutral Special / HAD_H, HAD_OD / 'Flashbulb': a compact palm-fired energy burst, released while the free hand theatrically frames his face. Tight solid core, inked contour, broken fragments; no translucent gradient ball. Preserve a punishable recovery and the one-projectile limit. It helps him approach without making long-range repetition his strongest plan.
+Down+Special / JIN_L/M/H/OD family / 'Hero Step': a committed forward knee/heel entry with a large, proud upper-body pose. Existing follow-ups become three legible endings: KAZE low cut, GORAI raised-heel overhead, SENKA straight launching kick. KASAI is the final explosive palm/heel punctuation. Keep follow-up routes and meter costs initially; clearly telegraph low versus overhead.
+Back+Special / DL_H, DL_OD / 'Grand Entrance': a folded, airborne diving heel with the free arm sweeping outward like a stage entrance. Shared theme with QDL in run and the medium assist route. Land convincingly, with a punishable bad approach.
+Existing quarter-circle-back family / TAT_L/M/H/OD / 'Victory Lap': one stylised turning kick sequence, punctuated by strong shapes. Keep as an optional advanced family; no new directional air normals. QTAT is its running entry; ATAT/OD is its existing airborne motion-input counterpart. Not part of the beginner's initial lesson.
+Run+M / TK / 'Curtain Kick': high theatrical heel from momentum.
+Run+H / FSK / 'Make an Entrance': fast advancing side kick, body stretched into a clean diagonal.
+Run+neutral/forward Special / QSRK / running Standing Ovation.
+Run+Down Special / QTAT / Victory Lap.
+Run+Back Special / QDL / Grand Entrance.
+Run+L retains stop. Run direction/speed baseline is preserved; author feet and torso to fit actual travel.
+
+AIR — six normals and two special silhouettes plus beam
+L / jLP / quick dismissive air palm: fastest close-air contact.
+M / jMP / twisted elbow with one knee folded: compact air continuation.
+H / jHK / dramatic spread-leg heel strike: clear jump-in silhouette.
+Assist+L / jLK / tucked-knee snap kick: compact alternative.
+Assist+M / jMK / long side kick, one hand posed by the face: reach.
+Assist+H / jHP / hammer-palm with asymmetrical folded legs: emphatic downward blow.
+Air neutral Special / ABEAM / 'Hot Shot': a slightly reclined suspended pose, one palm projecting a dense beam; recoil visibly pushes his body. Preserve once-per-airtime restriction. No free flight or repeated hover reset.
+Air forward Special / AUP / rising scissor kick, shared anti-air identity.
+Air down Special / ASPK / 'Hero Landing': a deliberate folded-leg dive with a clear heel/foot contact, followed by grounded landing recovery. Avoid a long forced hero pose during vulnerable gameplay.
+Homing / HOME, AHOME and OD versions / 'Hero Express': strong diagonal body line, one leading arm, trailing bent arm, purposeful legs. A brief flamboyant bank into pursuit, then clear committed travel. Only the dedicated Homing button initiates this. Preserve existing usage/reset restrictions.
+Legacy jUP, ABK, jDN, jBK and njHK are absent from the simplified normal selection path inspected. Keep them out of the player's move list; preserve data for compatibility until references in AI/tests/other tools are audited. They are not five more moves to teach or polish as separate playable normals.
+
+DEFENCE AND IMPACT
+Normal standing block: readable planted guard, a visible recoil at contact.
+Crouching block: hips and head actually lower; feet/knees carry weight. It must read as crouching from the fight camera.
+Parry / PARRY, PREC, parryL/parryR/parryLean/blockC: establish a three-quarter turned-away, photograph-ready base. Each successful event selects a high palm, mid wrist/elbow, or low shin-check response from the actual incoming hit location. His non-defending hand can frame the face, rest behind his head or occasionally fix his hair. Bounded contact adjustment, sensible elbow/knee bends, no full-arm teleporting or full-body pose cycling every hit. Return to a consistent base between hits. Hair animation is optional human-specific detail, not the move's foundation.
+Current code permits held parry with resource drain: this plan does not falsely assume a fresh timing input is already required for every hit. Preserve its rules initially and make visual precision respond to successful events. Perfect-parry timing receives a sharper pose and sound. Throws remain the answer to a vain defensive read. Changing parry rules requires a distinct balance pass.
+Impact / DI / 'Personal Space': a large open-chested shoulder/palm smash, with a recognisable silhouette throughout its telegraph. Retain readable wind-up and counterplay; flashy presentation must not disguise its startup.
+Guard reversal / DREV / 'Excuse Me': sharp outward elbow/palm that clears personal space, followed by an offended reset. Preserve defensive cost and existing rules.
+Drive rush: low forward acceleration into a loose upper-body pose; it must remain distinguishable from ordinary run and homing.
+
+THROWS — FIRST IMPLEMENTATION PRIORITY
+Source findings, not a fresh visual measurement: current THROWING logic pins the defender 30 simulation units from the attacker. The back-throw changes that offset's side at throw frame 5. A generic vertical lift and a shared release at throw frame 10 then hand off to an airborne reaction. ShowFighter uses handwritten grab/throw1..4 poses and a shared 'thrown' pose/roll. Detection permits a 58-unit gap with a legacy comment about ribbon reach. This combination is a strong explanation for disconnected hands, abrupt side changes and weightless bodies.
+The installed UnarmedFightingAnimationV4 pack includes Throw1/Throw2 plus paired React and mirrored variants. Their names establish availability, not visual quality or skeleton compatibility. Preview the pairs together and verify their original root relationship before selecting a foundation.
+
+Forward throw / 'After You': visibly catch wrist and upper arm, pivot on a planted foot, redirect the opponent over the hip/leg, release forward; finish with a small ushering palm. A real grip and weight transfer precede the flourish.
+Back throw / 'My Good Side': catch and rotate both bodies together through a quick dance-like turn, then release behind. No sudden defender side teleport. The hero finishes presenting his good profile.
+Up throw / 'Skyward Salute': compress under the opponent, support their weight through hip/forearm, then launch vertically and extend into an overdramatic salute. Existing juggle role retained initially.
+Down throw / 'Red Carpet': controlled turn into a grounded sweep/slam, with opponent contact and floor impact timed together. Preserve the existing single bounce only if follow-up damage and loop tests pass.
+Throw break: both fighters contest the grip, disengage and separate; no successful-throw animation should continue after the break.
+
+Implementation contract: paired attacker/defender tracks sampled on one throw clock, authored relative to one interaction origin. Keep hand-to-wrist/upper-arm contact during the locked phase; plant the supporting foot. Use bounded correction for skeleton proportions. Simulation still owns authoritative positions, facing, release, damage and corner constraints. Presentation follows that shared timeline rather than independently moving two actors. A corner limits the shared trajectory without pulling hands apart. Establish the exit velocity from the authored release and synchronize the reaction, sound, hit stop and floor impact. Match tech windows to the catch phase; never use a cinematic lock to remove a valid escape.
+
+Prove forward and back throws first, both facings and at both corners. Then implement up/down. Test throw whiff, throw break, simultaneous throws, parry punish, burnout/no-tech state, KO at release, pause/resume and return to ordinary movement. Original transfer timing may change to fit believable contact; document the new release frame and retest combos. Normal throws should stay short, readable and entirely on the gameplay camera.
+
+SUPERS
+Level 1 / SA1 / H+Special / 'Heroic Entrance': a quick, reliable rushdown cash-out. First hit confirms a short launch/pose-kick finish. Keep cinematic interruption short; the standing anti-air remains distinct. Current invulnerability must be reviewed deliberately if the opener changes.
+Level 2 / SA2 / Back+H+Special / 'Heroic Overreaction': advancing, blockable strike confirms a paired latch, energy compression, enormous detonation, then a smoking skid into a heroic recovery. Chiaotzu/Voltorb commitment with superhero comedy. It is a strike-confirm cinematic, not an unblockable command throw: this preserves a route for combo use and gives the defender ordinary blocking counterplay. Miss/block must not latch, move the defender or trigger the full movie. Two-bar cost is the baseline; no self-KO or health sacrifice by default. Needs the paired-throw foundation first.
+Level 3 / SA3 / Down+H+Special / 'Maximum Overkill': a compact sequence of angular heroic poses, close face/hand shot, then a huge dense beam with violent recoil, sharp shadow shapes and environmental response. Use hit-confirmed camera staging; on block retain spatial readability and punishability. Preserve a human-compatible energy source.
+Critical variant / CA / existing automatic SA3 substitution at <=25% health / 'Absolutely Unnecessary': he briefly drops the posing, commits everything, then cannot resist a final flourish. Same input, a heightened version of the same move; no fourth beginner super to learn.
+All working names may change. Use the licensed Male 6 clips that actually fit these beats; do not invent a spoken line that the pack does not contain.
+
+ANIMATION AND EFFECTS PRODUCTION RULES
+Build anticipation, contact and recovery key poses first. Preview silhouettes with effects hidden; then verify full motion at real game speed. Resolve awkward joints, foot sliding and grip separation before adding flashes. Reuse purchased clips as transitions or foundations where they fit, but author signature poses and the links between them. Avoid merely cutting generic attacks into a faster montage.
+Keep clear contact poses through hit stop, allow quick smears between them, and use stepped accents selectively rather than slowing every animation. Hands, fingers, gaze and the free arm carry personality. Human facial acting can be added later; the robot's body language must already work.
+Energy: solid brilliant cores, discrete cel-shaded shells, irregular inked contours, purposeful speed lines and asymmetric debris. Effects follow the attack direction and limb. Fog/dust should respond at takeoff, foot plant, dash and explosion. Save full-frame visual chaos for confirmed supers; respect existing flash/shake settings.
+
+BUILD ORDER / ACCEPTANCE
+1. Pair forward/back throws with correct grip, floor contact and release. Inspect real side-camera captures in both directions and corners.
+2. Author Standing Ovation and its airborne relative. Validate heel-hitbox contact, startup readability, block/whiff punishment and interrupted recovery.
+3. Author the parry base plus high/mid/low responses. Test rapid multi-hit sequences, both sides and low checks; keep successful visuals tied to actual parry events.
+4. Ground normals, movement and the six air normals. Make the three existing assist routes read as connected choreography. Review hit reactions and crouch/block at the same time.
+5. Projectile, beam, homing, Impact and special follow-ups. Then build the SA2 paired detonation and SA1/SA3 presentation.
+6. Balance and polish: confirm routes on standing/crouching/airborne opponents, hit and block; confirm no throw/air-beam/homing loops, accidental invulnerability or silent assist meter drains. Test CPU, training, controller and keyboard, menu return, round reset and all costumes. Record HUD-on real gameplay and performance on Mac Metal. A pose screenshot is not proof of animation quality.
+
+Engineering ownership: gk_moves.inl is generated; edit src/sim.js and regenerate through native/tools/gen_moves.js for data changes. Audit corresponding native routing/throw code in Core/gk_sim.inl. Choreography currently lives in GkMatch.cpp, GkPresentation.cpp and Content/Gk/picks.txt; a dedicated paired-interaction presentation module is preferable to extending the generic thrown-pose fallback. Existing purchased content remains local.
+
+COMPLETE CURRENT DATA-KEY CROSSWALK
+All 69 current move entries mapped exactly once. Variants and legacy entries are not separate new controls.
+
+5LP        Ground normals / preserve bindings, re-author choreography
+5LK        Ground normals / preserve bindings, re-author choreography
+2LK        Ground normals / preserve bindings, re-author choreography
+2LP        Ground normals / preserve bindings, re-author choreography
+5MK        Ground normals / preserve bindings, re-author choreography
+TFK2       Target-chain links / connect the body motion
+TFK3       Target-chain links / connect the body motion
+5MP        Ground normals / preserve bindings, re-author choreography
+CB2        Target-chain links / connect the body motion
+2MK        Ground normals / preserve bindings, re-author choreography
+5HK        Ground normals / preserve bindings, re-author choreography
+5HP        Ground normals / preserve bindings, re-author choreography
+2HP        Ground normals / preserve bindings, re-author choreography
+2HK        Ground normals / preserve bindings, re-author choreography
+jLP        Six air normals / no directional proliferation
+jMP        Six air normals / no directional proliferation
+jHK        Six air normals / no directional proliferation
+jLK        Six air normals / no directional proliferation
+jMK        Six air normals / no directional proliferation
+jHP        Six air normals / no directional proliferation
+jUP        Legacy air-normal data / exclude from beginner move list, audit before removal
+AUP        Air forward-special / rising scissor anti-air
+ABK        Legacy air-normal data / exclude from beginner move list, audit before removal
+jDN        Legacy air-normal data / exclude from beginner move list, audit before removal
+jBK        Legacy air-normal data / exclude from beginner move list, audit before removal
+ASPK       Air down-special / Hero Landing
+HOME       Dedicated homing / Hero Express
+HOME_OD    Dedicated homing / Hero Express
+AHOME      Dedicated homing / Hero Express
+AHOME_OD   Dedicated homing / Hero Express
+njHK       Legacy air-normal data / exclude from beginner move list, audit before removal
+throw      Paired interaction / four directional throws and throw break
+DI         Impact / Personal Space
+DREV       Guard reversal / Excuse Me
+TK         Run medium / Curtain Kick
+FSK        Run heavy / Make an Entrance
+HAD_H      Neutral projectile / Flashbulb
+HAD_OD     Neutral projectile / Flashbulb
+SRK_L      Ground anti-air / Standing Ovation; Q is running entry
+SRK_M      Ground anti-air / Standing Ovation; Q is running entry
+SRK_H      Ground anti-air / Standing Ovation; Q is running entry
+SRK_OD     Ground anti-air / Standing Ovation; Q is running entry
+QSRK       Ground anti-air / Standing Ovation; Q is running entry
+TAT_L      Turning-kick family / Victory Lap; Q is running, A is airborne motion entry
+TAT_M      Turning-kick family / Victory Lap; Q is running, A is airborne motion entry
+TAT_H      Turning-kick family / Victory Lap; Q is running, A is airborne motion entry
+TAT_OD     Turning-kick family / Victory Lap; Q is running, A is airborne motion entry
+QTAT       Turning-kick family / Victory Lap; Q is running, A is airborne motion entry
+ATAT       Turning-kick family / Victory Lap; Q is running, A is airborne motion entry
+ATAT_OD    Turning-kick family / Victory Lap; Q is running, A is airborne motion entry
+DL_H       Diving entry / Grand Entrance; Q is running
+DL_OD      Diving entry / Grand Entrance; Q is running
+QDL        Diving entry / Grand Entrance; Q is running
+JIN_L      Forward special sequence / Hero Step
+JIN_M      Forward special sequence / Hero Step
+JIN_H      Forward special sequence / Hero Step
+JIN_OD     Forward special sequence / Hero Step
+KAZE       Hero Step low ending
+GORAI      Hero Step overhead ending
+SENKA      Hero Step launching ending
+KAZE_OD    Hero Step low ending
+GORAI_OD   Hero Step overhead ending
+SENKA_OD   Hero Step launching ending
+KASAI      Hero Step final explosion punctuation
+SA1        One-bar super / Heroic Entrance
+SA2        Two-bar strike-confirm latch/detonation / Heroic Overreaction
+SA3        Three-bar beam / Maximum Overkill
+CA         Low-health three-bar variant / Absolutely Unnecessary
+ABEAM      Air neutral-special beam / Hot Shot
+
+Additional presentation slots covered above: idle, walkf/walkb, crouch, jump/land, dashf/dashb, run/drush, blockS/blockC, parry and reactions, hitL/M/H/Low/Cr, ahit, kd/getup, grab, throw1..4, thrown/tech, win. Review loss/KO acting as well as victory.
+
+UI correction required during implementation: the current short help describes Assist+L/M/H collectively as kicks; the actual ground routing uses 5LK, 5MP and 5HP. Replace that shorthand with accurate input-specific descriptions.

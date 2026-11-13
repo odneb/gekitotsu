@@ -143,6 +143,10 @@ public:
  void DrawFireball(int32 Index,bool Active);
  UPROPERTY() TObjectPtr<UStaticMeshComponent> FireballTail[4];
  void ApplyPersonality(int32 Who, FName Slot, float Frame, TArray<FTransform>& Pose);
+ bool BuildChoreography(int32 Who, FName Slot, TArray<FTransform>& Pose);
+ void UpdateThrowContact();
+ FVector ParryContact[2];
+ bool ThrowReleaseHold[2]={false,false};
  void DrawArcadeMenu(UCanvas* Canvas); void DrawArcadeCall(UCanvas* Canvas);
 	void LoadVfx(); bool PlayVfx(const TCHAR* Name, const FVector& Local, float Scale, float Dir, const TCHAR* Sound, float Volume = 1.f);
 	UPROPERTY() TObjectPtr<ACameraActor> Cam;

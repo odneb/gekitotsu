@@ -1,0 +1,19 @@
+# Real-clock performance run; omit fixed timestep and FPS flags. Enable -gkfullaudio.
+fight|0
+palette|0
+wait|180
+run|600|-1|-1
+audiodump
+palette|2
+wait|180
+fight|0
+run|600|-1|-1
+audiodump
+lab|mv_SRK_M|5
+wait|30
+shot|Release-lab-ovation
+menu|5|0|0|0|0
+wait|180
+assertui|5|0|0|0
+shot|Release-title
+quit

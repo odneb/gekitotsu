@@ -49,7 +49,7 @@ struct Fighter {
 	int32_t ch, x, y, vx, vy, pv, face, hp, sa, dr, bo, drT, sf, subf, mf, hitMask, contact, hitOK, hs, stun, prev, d66, d44, combo, comboDmg, jug;
 	int32_t wbUsed, gbUsed, wbPend, gbPend, jd, rec, cb, hitHi, tinv, wins, back, red, redT, air2, noTech;
 	int32_t ca, rq, part, jg, cxSeq, fum, mseq, cs, lastSeq, acq, rcn, sshift, drs, pok, roll, hard, arm, armHit, drb, mod, aci, crum, pp, plock, half, hm, hmc, fr, hmE, dj, wj, aa;
-	int32_t tk, tf, pmT, pmN, airBeamUsed;
+	int32_t tk, tf, pmT, pmN, airBeamUsed, superHold;
 	int32_t age[8], pd[8];
 	int16_t buf[NBUF];
 	int16_t mv, fuq;                       // move ids, -1 for none

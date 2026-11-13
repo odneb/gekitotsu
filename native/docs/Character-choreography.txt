@@ -1,0 +1,34 @@
+GEKITOTSU — character choreography pass, 13 November 2026
+
+Implemented in the native Unreal game, on codex/anime-stage-lighting.
+Baseline: 5782095062a725fd0934f4192f3e8cb12181aeef; tracked checkout clean before edits.
+
+ACTING AND MOVES
+GkChoreography.cpp authors frame-driven humanoid poses with two-bone contact correction using actual skeleton lengths. It covers the standing idle, run/drive rush, victory, throw break, four throws, standing normals/target chains, six playable air normals, anti-air variants, special/follow-up families, homing, Impact/reversal, projectile and all three super families. The free hand, head, hip angle and asymmetrical legs carry the vain superhero acting. Ordinary walk, jump, crouch/block, landing and damage clips remain the existing assets where appropriate. The five legacy directional air normals remain out of the player's simplified input path.
+
+Standing Ovation replaces the generic uppercut with a planted-hand heel rise and scissor recovery. Forward+Special remains the anti-air. Parry holds a turned-away upper body and uses actual successful-hit coordinates to adjust the palm or raise the checking leg. Normal held-parry resource/timing rules are unchanged.
+
+Throws use one catch/lift/release clock for both fighters, continuous back-throw travel, paired hand constraints and real support-foot contact. The defender's arms participate in the contact solve. Impact freeze holds the release pose before the ordinary airborne reaction begins. The up/down versions retain their juggle/bounce roles. Standard gameplay camera remains readable throughout.
+
+Heroic Overreaction (SA2) is now a blockable opening strike into a paired latch, compressed energy core, radial detonation and recoil. Only an actual hit earns the latch and explosion. Blocking, parrying, whiffing or interrupting the opener does not start the full sequence. Its confirmed camera move keeps both bodies in view. Stationary super poses no longer emit running afterimages. Existing music, Male 6 voice, announcer, environment sound, costumes, menus and controller bindings remain in use.
+
+DELIBERATE RULE CHANGES
+- Throws: nine-frame catch/escape phase retained; release is now throw-phase frame 18, previously 10. Recovery ends at throw-phase 40 for forward/back and 30 for up/down. Damage and tech eligibility retained. Corner correction moves the shared interaction instead of compressing the held body against the boundary.
+- Enhanced Standing Ovation: two distinct hits instead of six repeated hits; 160 raw damage retained, with the existing modern-input damage modifier. Two drive bars and the existing frames 0–9 invulnerability retained. Rise begins on frame 8; last active frame 14, with existing landing recovery.
+- SA2: two-bar cost and 280 raw total damage retained, now split 30/250. Startup freeze 36 frames, opening strike frames 5–14, confirmed detonation 40–42, total 66. First blocked hit retains 55 drive damage; the remaining drive damage belongs to the confirmed finish. No self-damage or unblockable grab. Assist routes still spend super automatically as before; the optional explicit-spend redesign from the plan was not adopted in this pass.
+- Other move frame data, basic handling, six-air-normal selection, once-per-airtime beam and dedicated homing inputs retained.
+
+VALIDATION
+Mac Unreal 5.8.4 / Metal SM6 build passed. Native tests cover 24 directional/facing/corner throw cases, continuous held positions, release timing, tech, simultaneous tech, whiff and parry punish. SA2 tests cover grounded and airborne confirms, block/parry/whiff, interruption, meter and recovery in both directions. Editable JavaScript source passes equivalent SA2 checks. Enhanced anti-air hits/blocks twice on either side, costs two drive bars and recovers; observed modern-input damage 128. All 69 move entries recover without getting stuck. Existing 60-air-input routing and beam reach/damage/guard tests passed. Light, medium and heavy assist routes were exercised, including the new SA2 ending.
+
+Actual HUD-on native frame sequences were reviewed for the anti-air, high/low parry, four throws, mirrored interactions, normals, run, victory and SA2. Several visual defects were repaired during review: unreachable one-sided grips, a floating support foot, premature slam-to-air-reaction blending, an oversized charge orb and stationary super ghosts. The animation lab now previews the authored move poses; explicit purchased-clip auditions remain available. Start pause, Tab debug, return to play and title assertions passed. Runtime validation logs contain no new Error/Fatal/assert/ensure failures; the test processes exited normally.
+
+Real-clock 1280x720, 100% render scale, with sound and both pre-existing Unreal sessions left open: daylight median 17.09 ms, sampled p95 17.89 ms; settled storm median 18.75 ms, sampled p95 19.95 ms. These are smoothed frame-time samples from CPU fights, not a locked-60 claim or an isolated benchmark. Music/wind were active in daylight; music/wind/gale/rain/pour were active in storm (75 sound sets, 6 songs, 3 cues loaded).
+
+RUN / REPRODUCE
+Launch native/tools/preview_forest.sh for the normal title menu. Do not add -gkfight for normal play. A currently running process retains its old code: restart after finishing the current match to use this build.
+For capture QA, copy tools/scripts/character_acceptance.txt to Saved/script.txt and launch with -gkscript -RenderOffscreen -nosound -UseFixedTimeStep -FPS=60. For real-clock performance use tools/scripts/character_performance.txt, omit fixed-timestep flags and add -gkfullaudio. Back up an existing Saved/script.txt first.
+Compile tools/check_choreography.cpp, check_moves.cpp, check_controls.cpp and check_beam.cpp with C++17 and Source/GekitotsuNative/Core as the include path; run their executables. Run node tools/check_choreography.js. Regenerate gk_moves.inl from src/sim.js with tools/gen_moves.js when changing move data.
+
+LIMITS
+This is a playable original choreography pass, not final competitive balance certification or a claim of matching a feature film in every frame. Hand poses and transitions can still benefit from playtest feedback. The authored human-compatible body language has been validated on the current Manny-based Robot1 only; a future human mesh still needs retargeting and facial acting. Existing secondary animation assets and effects remain part of the game. Purchased Content stays local and is not included in this source commit. No engine modifications or new plugins were needed.
