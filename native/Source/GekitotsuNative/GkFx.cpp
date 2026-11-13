@@ -24,7 +24,7 @@ void FGkFx::Init(AActor* Owner, USceneComponent* Root)
 FGkFx::FP& FGkFx::Add(int32 Layer, const FVector& Pos, const FVector& Vel, float Life, float Size0, float Size1, const FLinearColor& Col, float Alpha)
 {
 	if (Ps.Num() >= Pool * 2 - 4) { Ps.RemoveAt(0, 16, EAllowShrinking::No); }
-	FP& P = Ps.AddDefaulted_GetRef(); P.Pos = Pos; P.Vel = Vel; P.Age = 0.f; P.Life = Life; P.Size0 = Size0; P.Size1 = Size1; P.Stretch = 1.f; P.Grav = 0.f; P.Drag = 0.f; P.Alpha = Alpha; P.Col = Col; P.Layer = Layer; P.bSwell = false;
+	FP& P = Ps.AddDefaulted_GetRef(); P.Pos = Pos; P.Vel = Vel; P.Age = 0.f; P.Life = Life; P.Size0 = Size0; P.Size1 = Size1; P.Stretch = 1.f; P.Grav = 0.f; P.Drag = 0.f; P.Alpha = Alpha; P.Col = Col; P.Layer = Layer; P.bSwell = false; P.bCanyonHaze = false;
 	return P;
 }
 
@@ -115,6 +115,46 @@ void FGkFx::Dust(const FVector& At, float Amount, float Dir)
 			FVector(Rng.FRandRange(-30.f, 30.f), Side * Rng.FRandRange(40.f, 240.f) * Amount, Rng.FRandRange(15.f, 110.f) * Amount),
 			Rng.FRandRange(0.4f, 0.8f), Rng.FRandRange(12.f, 22.f), Rng.FRandRange(40.f, 72.f) * FMath::Clamp(Amount, 0.6f, 1.3f), DustCol, 0.24f);
 		D.Drag = 2.6f;
+	}
+}
+
+void FGkFx::CanyonHaze(double CentreY, float Dt)
+{
+	CanyonHazeDue -= FMath::Min(Dt, 0.05f);
+	if (CanyonHazeDue > 0.f) { return; }
+	CanyonHazeDue += 0.09f;
+	const FVector Position(Rng.FRandRange(-55.f, 32.f), CentreY + Rng.FRandRange(-650.f, 650.f), Rng.FRandRange(4.f, 13.f));
+	FP& Puff = Add(1, Position, FVector(0.0, Rng.FRandRange(22.f, 52.f), 1.5), Rng.FRandRange(2.2f, 3.5f),
+		75.f, 118.f, FLinearColor(0.83f, 0.63f, 0.43f), 0.26f);
+	Puff.bSwell = true;
+	Puff.bCanyonHaze = true;
+}
+
+void FGkFx::StirCanyonHaze(const FVector& Feet, double Speed, float Dt)
+{
+	for (FP& Puff : Ps)
+	{
+		if (!Puff.bCanyonHaze) { continue; }
+		const double Gap = Puff.Pos.Y - Feet.Y;
+		const double Weight = FMath::Clamp(1.0 - FMath::Abs(Gap) / 105.0, 0.0, 1.0);
+		if (Weight <= 0.0) { continue; }
+		const double Direction = Gap >= 0.0 ? 1.0 : -1.0;
+		Puff.Vel.Y += Direction * Weight * FMath::Min(FMath::Abs(Speed) * 3.0, 900.0) * Dt;
+		Puff.Vel.Z += Weight * 145.0 * Dt;
+		Puff.Drag = 1.2f;
+	}
+}
+
+void FGkFx::CanyonFootDust(const FVector& Feet, double Direction, bool bDash)
+{
+	const int32 Count = bDash ? 4 : 3;
+	for (int32 Index = 0; Index < Count; ++Index)
+	{
+		const FVector Offset(Rng.FRandRange(-35.f, -12.f), Rng.FRandRange(-20.f, 20.f), Rng.FRandRange(10.f, 23.f));
+		const FVector Velocity(Rng.FRandRange(-14.f, 8.f), -Direction * Rng.FRandRange(62.f, bDash ? 220.f : 135.f), Rng.FRandRange(8.f, 30.f));
+		FP& Puff = Add(1, Feet + Offset, Velocity, Rng.FRandRange(0.55f, 0.85f), bDash ? 58.f : 43.f,
+			bDash ? 114.f : 83.f, FLinearColor(0.92f, 0.72f, 0.49f), 0.8f);
+		Puff.Drag = 2.f;
 	}
 }
 

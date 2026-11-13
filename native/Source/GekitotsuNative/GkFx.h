@@ -10,8 +10,8 @@ class UInstancedStaticMeshComponent; class AActor; class USceneComponent;
  */
 struct FGkFx
 {
-	struct FP { FVector Pos, Vel; float Age, Life, Size0, Size1, Stretch, Grav, Drag, Alpha; FLinearColor Col; int32 Layer; bool bSwell; };
-	TArray<FP> Ps; UInstancedStaticMeshComponent* Mesh[2] = { nullptr, nullptr }; int32 Used[2] = { 0, 0 }; FRandomStream Rng; float MoteDue = 0.f, HazeDue = 0.f, Yaw = 0.f;   // Yaw: which way the camera is looking, so the squares can face it
+	struct FP { FVector Pos, Vel; float Age, Life, Size0, Size1, Stretch, Grav, Drag, Alpha; FLinearColor Col; int32 Layer; bool bSwell, bCanyonHaze; };
+	TArray<FP> Ps; UInstancedStaticMeshComponent* Mesh[2] = { nullptr, nullptr }; int32 Used[2] = { 0, 0 }; FRandomStream Rng; float MoteDue = 0.f, HazeDue = 0.f, CanyonHazeDue = 0.f, Yaw = 0.f;   // Yaw: which way the camera is looking, so the squares can face it
 	FLinearColor DustCol = FLinearColor(0.62f, 0.47f, 0.33f);
 	static constexpr int32 Pool = 420;
 
@@ -23,6 +23,9 @@ struct FGkFx
 	void Guard(const FVector& At, float Dir);
 	void Parry(const FVector& At, bool bPerfect);
 	void Dust(const FVector& At, float Amount, float Dir);
+	void CanyonHaze(double CentreY, float Dt);
+	void StirCanyonHaze(const FVector& Feet, double Speed, float Dt);
+	void CanyonFootDust(const FVector& Feet, double Direction, bool bDash);
 	void Aura(const FVector& At, const FLinearColor& Col, float Amount);
 	void Trail(const FVector& At, const FLinearColor& Col);
 	/** Motes and ground haze around the part of the stage in view. */

@@ -59,6 +59,7 @@ public:
 	// the menus: 0 the front menu, 1 choosing fighters, 2 choosing a stage, 3 the fight (bMenu is then its pause menu)
 	int32 Screen = 0, SelWho = 0, StageAt = 1, LightsClock = 0;
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> FloorSlab;
+	UPROPERTY() TObjectPtr<UStaticMeshComponent> ShrineWater;
 	void DressFighter(int32 i); void StartStage(int32 Index); bool TryPlace(); void QuietMapLights(); FString MapName() const;
 
 	UPROPERTY() TObjectPtr<UPoseableMeshComponent> Body[2];
@@ -117,7 +118,7 @@ public:
 	// a fluid that lies over the floor of the fight and is stirred by the fighters as they move through it.
 	FLinearColor RimCol = FLinearColor(1.f, 0.85f, 0.65f); float RimTune[3] = { 2.f, 2.f, 0.6f }, BoltT = 0.f, LensF = 1.8f, LampI = 5000.f, LampScatter = 3.f, WindDue = 0.f, SplashDue = 0.f; int32 AirKind = 0; bool bOwnLight = false, bNinjaTried = false, bNinjaQuiet = false;
 	UPROPERTY() TObjectPtr<class USpotLightComponent> BackLamp; UPROPERTY() TObjectPtr<class ULevelStreamingDynamic> NinjaLevel; UPROPERTY() TArray<TObjectPtr<AActor>> Stirrers;
-	bool bScout = false; FVector ScoutPos = FVector::ZeroVector; FRotator ScoutRot = FRotator::ZeroRotator; float ScoutFov = 60.f;
+	UMaterialInstanceDynamic* EdgeMid = nullptr; bool bEdgeAdd = false; bool bFly = false; bool bScout = false; FVector ScoutPos = FVector::ZeroVector; FRotator ScoutRot = FRotator::ZeroRotator; float ScoutFov = 60.f;
 	void StageLook(); void NinjaFog(); void Mist();
 	// afterimages: when a fighter moves fast (a dash, a rush, a drive impact, a super, being knocked flying) he leaves
 	// bright copies of himself behind for a few frames, each held in the pose he had there

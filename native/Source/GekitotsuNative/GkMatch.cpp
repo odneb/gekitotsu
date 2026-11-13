@@ -56,6 +56,49 @@
 
 AGkMatch* AGkMatch::Current = nullptr;
 static FString GkSkyForce; static double GkTimeForce = -1.0;   // a script trying a stage under another sky
+static double GkFovBase = 30.0;   // the fight lens, in degrees across: a stage may ask for a wider one
+static bool GkFlyOn() { static int32 On = -1; if (On < 0) { On = FPaths::FileExists(TEXT("/Users/Shared/Epic Games/GekitotsuNative/Saved/fly.on")) ? 1 : 0; } return On == 1; }   // a note left in Saved asks for a free camera on a stage
+/** Turns the map's sun to shine back at the camera, so the fight is lit from behind and its edges and the haze catch the light. Yaw and pitch are in degrees; Mult scales the sun's own strength. */
+static void GkApplySun(UWorld* W, double Yaw, double Pitch, double Mult, const FLinearColor& Col, bool bCol)
+{
+	if (!W) { return; }
+	static TMap<TWeakObjectPtr<UObject>, float> Orig;
+	for (TActorIterator<ADirectionalLight> It(W); It; ++It)
+	{
+		UDirectionalLightComponent* D = Cast<UDirectionalLightComponent>(It->GetLightComponent()); if (!D) { continue; }
+		float& O = Orig.FindOrAdd(TWeakObjectPtr<UObject>(D), D->Intensity);
+		D->SetIntensity(O * float(Mult)); It->SetActorRotation(FRotator(Pitch, Yaw, 0.0)); if (bCol) { D->SetLightColor(Col.ToFColor(true)); }
+	}
+}
+/** How the scene is lighting the fighters right now: the brightest sun or moon's colour, scaled by how strong it is and how high it stands, over a small ambient floor. 1 = as bright as the base colours were drawn for. */
+static float GkLitK = 1.f;
+static FLinearColor GkSceneTint(UWorld* W, float& Dir)
+{
+	Dir = 0.f; if (!W || GkLitK <= 0.f) { return FLinearColor::White; }
+	float Best = 0.f; FLinearColor Col = FLinearColor::White;
+	for (TActorIterator<ADirectionalLight> It(W); It; ++It)
+	{
+		UDirectionalLightComponent* D = Cast<UDirectionalLightComponent>(It->GetLightComponent()); if (!D || !D->IsVisible()) { continue; }
+		const float Elev = -It->GetActorRotation().Pitch; const float Up = FMath::SmoothStep(-6.f, 22.f, Elev);
+		const float B = FMath::Clamp(D->Intensity / 7.f, 0.f, 1.4f) * (0.3f + 0.7f * Up);
+		if (B > Best) { Best = B; Col = FLinearColor(D->GetLightColor()); }
+	}
+	const float Amb = 0.5f; const float Lv = FMath::Clamp(Amb + Best, 0.f, 1.35f);
+	Dir = Best;
+	const FLinearColor Warm = FLinearColor::LerpUsingHSV(FLinearColor::White, Col, 0.55f);
+	const FLinearColor T = Warm * Lv;
+	return FMath::Lerp(FLinearColor::White, FLinearColor(T.R, T.G, T.B, 1.f), FMath::Clamp(GkLitK, 0.f, 1.f));
+}
+/** The crisp edge light: numbers as a stage or the script gives them (thickness, softness, strength, red, green, blue as hundredths; near and far fade in cm; sharpness in hundredths). */
+static void GkEdge(UMaterialInstanceDynamic* M, const TArray<FString>& N)
+{
+	if (!M) { return; }
+	auto V = [&N](int32 k, float Def) { return N.IsValidIndex(k) && !N[k].IsEmpty() ? FCString::Atof(*N[k]) : Def; };
+	if (N.Num() == 1) { M->SetScalarParameterValue(TEXT("Strength"), V(0, 100.f) / 100.f); return; }
+	M->SetScalarParameterValue(TEXT("Thr"), V(0, 55.f) / 100.f); M->SetScalarParameterValue(TEXT("Soft"), V(1, 4.f) / 100.f); M->SetScalarParameterValue(TEXT("Strength"), V(2, 100.f) / 100.f);
+	M->SetVectorParameterValue(TEXT("Color"), FLinearColor(V(3, 55.f) / 100.f, V(4, 100.f) / 100.f, V(5, 90.f) / 100.f));
+	M->SetScalarParameterValue(TEXT("Near"), V(6, 2500.f)); M->SetScalarParameterValue(TEXT("Far"), V(7, 9000.f)); M->SetScalarParameterValue(TEXT("Exp"), V(8, 200.f) / 100.f);
+}
 static int32 GkScriptResume = 0;   // a script that changes stage carries on from here in the new map
 FGkSetup AGkMatch::Setup; TArray<FGkStage> AGkMatch::Stages;
 
@@ -64,7 +107,7 @@ void AGkMatch::LoadStages()
 {
 	if (Stages.Num() > 0) { return; }
 	{ FGkStage G; G.Name = TEXT("TRAINING ROOM"); G.Map = TEXT("/Engine/Maps/Entry"); G.Kind = 0; Stages.Add(G); }
-	{ FGkStage G; G.Name = TEXT("DESERT CANYON"); G.Map = TEXT("/Engine/Maps/Entry"); G.Kind = 1; G.Sky = TEXT("Desert"); G.Time = 500.0; G.Opt = TEXT("rim=1.0,0.62,0.3;air=sand"); Stages.Add(G); }
+	{ FGkStage G; G.Name = TEXT("DESERT CANYON"); G.Map = TEXT("/Game/GkStage/L_GkCanyonTerrain"); G.Kind = 1; G.Sky = TEXT("Desert"); G.Time = 500.0; G.Opt = TEXT("rim=1.0,0.62,0.3;air=sand"); Stages.Add(G); }
 	FString Text; if (!FFileHelper::LoadFileToString(Text, *(FPaths::ProjectContentDir() / TEXT("Gk/stages.txt")))) { return; }
 	TArray<FString> Lines; Text.ParseIntoArrayLines(Lines);
 	for (const FString& Ln : Lines)
@@ -112,9 +155,11 @@ void AGkMatch::BeginPlay()
 		Setup.Stage = Is; StageAt = Is; Mode = Setup.Mode; Level = Setup.Level; Dummy = Setup.Dummy;
 		Screen = Setup.bGo ? 3 : 0; Setup.bGo = false; bMenu = false; Anchor = GetActorTransform(); bPlaced = Kind != 2;
 		if (FParse::Param(FCommandLine::Get(), TEXT("gkfight"))) { Screen = 3; }
-		if (FParse::Param(FCommandLine::Get(), TEXT("gkscript")))
+		if (FParse::Param(FCommandLine::Get(), TEXT("gkscript")) || GkFlyOn())
 		{
-			FFileHelper::LoadFileToStringArray(Script, TEXT("/Users/Shared/Epic Games/GekitotsuNative/Saved/script.txt")); bScript = Script.Num() > 0; if (bScript) { Screen = 3; Mode = 1; ScriptAt = GkScriptResume; }
+			if (GkFlyOn()) { FString N; FFileHelper::LoadFileToString(N, TEXT("/Users/Shared/Epic Games/GekitotsuNative/Saved/fly.on")); Script = { FString::Printf(TEXT("stage|%d"), FCString::Atoi(*N)), TEXT("wait|400"), TEXT("fight|1"), TEXT("hud|0"), TEXT("storm|0") }; }
+			else { FFileHelper::LoadFileToStringArray(Script, TEXT("/Users/Shared/Epic Games/GekitotsuNative/Saved/script.txt")); }
+			bScript = Script.Num() > 0; if (bScript) { Screen = 3; Mode = 1; ScriptAt = GkScriptResume; }
 		}
 	}
 	StageLook();
@@ -165,8 +210,6 @@ void AGkMatch::BeginPlay()
 		UStaticMesh* Cone = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cone.Cone"));
 		auto Lit = [Flat](UStaticMeshComponent* C, const FLinearColor& Col, bool bShadow) { if (UMaterialInstanceDynamic* M = C->CreateDynamicMaterialInstance(0, Flat)) { M->SetVectorParameterValue(TEXT("Color"), Col); } C->SetCastShadow(bShadow); };
 		const FLinearColor Sand(0.62f, 0.36f, 0.17f), Rock(0.44f, 0.19f, 0.10f), Deep(0.27f, 0.11f, 0.07f);
-		{ UStaticMeshComponent* Floor = Piece(Plane, FVector(16000.0, 0.0, -0.5), FVector(800.0, 900.0, 1.0)); Lit(Floor, Sand, false);
-		  if (UMaterialInterface* Cel = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/GkStage/M_GkSand.M_GkSand"))) { Floor->SetMaterial(0, Cel); } }
 		FRandomStream R(4411);
 		auto Shade = [&R, Rock, Deep]() { return FMath::Lerp(Deep, Rock, R.FRandRange(0.35f, 1.f)); };
 		auto Mesa = [&](double X, double Y, double W, double H, double D)
@@ -280,7 +323,9 @@ void AGkMatch::StageLook()
 	{ TArray<FString> N; St->Get(TEXT("rim")).ParseIntoArray(N, TEXT(",")); if (N.Num() >= 3) { RimCol = FLinearColor(FCString::Atof(*N[0]), FCString::Atof(*N[1]), FCString::Atof(*N[2])); } }
 	static const TCHAR* Airs[8] = { TEXT("motes"), TEXT("petals"), TEXT("leaves"), TEXT("fireflies"), TEXT("snow"), TEXT("embers"), TEXT("spores"), TEXT("sand") };
 	const FString Air = St->Get(TEXT("air")); AirKind = 0; for (int32 k = 0; k < 8; k++) { if (Air == Airs[k]) { AirKind = k; } }
-	LampI = FCString::Atof(*St->Get(TEXT("lamp"), TEXT("5000"))); LensF = FCString::Atof(*St->Get(TEXT("lens"), TEXT("0")));   // no soft focus unless a stage asks for it
+	LampI = FCString::Atof(*St->Get(TEXT("lamp"), TEXT("5000"))); LensF = FCString::Atof(*St->Get(TEXT("lens"), TEXT("0")));
+	if (!EdgeMid) { if (UMaterialInterface* EM = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/GkFx/M_GkRim.M_GkRim"))) { EdgeMid = UMaterialInstanceDynamic::Create(EM, this); } }
+	{ TArray<FString> N; St->Get(TEXT("edge")).ParseIntoArray(N, TEXT(",")); if (N.Num() > 0) { GkEdge(EdgeMid, N); } } GkFovBase = FCString::Atod(*St->Get(TEXT("fov"), TEXT("30")));   // no soft focus unless a stage asks for it
 }
 
 /** FluidNinja LIVE's low fog, laid over the floor of the fight. It is a small level of its own (tools/make_ninja_fog.py takes
@@ -290,16 +335,21 @@ void AGkMatch::NinjaFog()
 {
 	bNinjaTried = true; UWorld* W = GetWorld(); const FGkStage* St = Stages.IsValidIndex(Setup.Stage) ? &Stages[Setup.Stage] : nullptr;
 	if (!W || (St && St->Get(TEXT("ninja")) == TEXT("0")) || FParse::Param(FCommandLine::Get(), TEXT("gknoninja"))) { return; }
-	const TCHAR* Path = TEXT("/Game/GkStage/L_GkNinjaMist");
-	bool bOk = false; const FTransform Where(Anchor.GetRotation(), Wd(FVector(30.0, 0.0, 250.0)));
-	NinjaLevel = ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr(W, TSoftObjectPtr<UWorld>(FSoftObjectPath(FString(Path) + TEXT(".L_GkNinjaMist"))), Where, bOk);
-	UE_LOG(LogTemp, Display, TEXT("GkNinja: mist level %s (package %s)"), bOk ? TEXT("streaming in") : TEXT("did not load"), FPackageName::DoesPackageExist(Path) ? TEXT("found") : TEXT("not found by name"));
-	for (int32 k = 0; k < 16; k++)
+	const bool bCanyonSand = Kind == 1;
+	const TCHAR* Path = bCanyonSand ? TEXT("/Game/GkStage/L_GkNinjaSand") : TEXT("/Game/GkStage/L_GkNinjaMist");
+	const FVector Offset = bCanyonSand ? FVector(0.0, 0.0, 8.0) : FVector(30.0, 0.0, 250.0);
+	bool bOk = false;
+	NinjaLevel = ULevelStreamingDynamic::LoadLevelInstance(W, FString(Path), Wd(Offset), Anchor.Rotator(), bOk);
+	UE_LOG(LogTemp, Display, TEXT("GkNinja: %s %s"), Path, bOk ? TEXT("streaming in") : TEXT("did not load"));
+	if (!bOk) { return; }
+	for (int32 k = 0; k < (bCanyonSand ? 4 : 16); k++)
 	{
-		AActor* A = W->SpawnActor<AActor>(Anchor.GetLocation(), FRotator::ZeroRotator); if (!A) { continue; }
+		AActor* A = W->SpawnActor<AActor>(Wd(FVector(0.0, 0.0, -6000.0)), FRotator::ZeroRotator);
+		Stirrers.Add(A);
+		if (!A) { continue; }
 		USphereComponent* Sp = NewObject<USphereComponent>(A); Sp->InitSphereRadius(k >= 12 ? 40.f : (k % 6) == 5 ? 34.f : 20.f); Sp->SetMobility(EComponentMobility::Movable);
 		Sp->SetCollisionObjectType(ECC_Pawn); Sp->SetCollisionEnabled(ECollisionEnabled::QueryOnly); Sp->SetCollisionResponseToAllChannels(ECR_Overlap); Sp->SetGenerateOverlapEvents(true);
-		A->SetRootComponent(Sp); Sp->RegisterComponent(); Stirrers.Add(A);
+		A->SetRootComponent(Sp); Sp->RegisterComponent();
 	}
 }
 
@@ -711,8 +761,28 @@ bool AGkMatch::TryPlace()
 	}
 	Anchor = FTransform(FRotator(0.0, BestYaw, 0.0), FVector(Best.X, Best.Y, BestTop + 1.0));
 	SetActorTransform(Anchor);
-	if (FloorSlab) { FloorSlab->SetVisibility(BestRange > 12.0); }
+	if (St) { TArray<FString> N; St->Get(TEXT("sun")).ParseIntoArray(N, TEXT(",")); if (N.Num() >= 3) { GkApplySun(W, Anchor.GetRotation().Rotator().Yaw + 180.0 + FCString::Atod(*N[0]), FCString::Atod(*N[1]), FCString::Atod(*N[2]) / 100.0, N.Num() >= 6 ? FLinearColor(FCString::Atof(*N[3]) / 100.f, FCString::Atof(*N[4]) / 100.f, FCString::Atof(*N[5]) / 100.f) : FLinearColor::White, N.Num() >= 6); } }
+	if (FloorSlab) { FloorSlab->SetVisibility(BestRange > 12.0 && !(St && St->Get(TEXT("slab")) == TEXT("off"))); }
 	if (SkyActor) { SkyActor->SetActorLocation(Anchor.GetLocation()); }
+	if (St && St->Map.Contains(TEXT("/DreamscapeEastLands/")) && !ShrineWater)
+	{
+		UStaticMesh* Plane = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane"));
+		UMaterialInterface* Water = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/DreamscapeSeries/DreamscapeEastLands/Materials/Water/MI_Eastlands_LakeSmall.MI_Eastlands_LakeSmall"));
+		if (Plane && Water)
+		{
+			ShrineWater = NewObject<UStaticMeshComponent>(this);
+			ShrineWater->SetMobility(EComponentMobility::Movable);
+			ShrineWater->SetupAttachment(RootComponent);
+			ShrineWater->SetStaticMesh(Plane);
+			ShrineWater->SetMaterial(0, Water);
+			ShrineWater->SetRelativeLocation(FVector(-35.0, 0.0, 3.0));
+			ShrineWater->SetRelativeScale3D(FVector(3.2, (2.0 * gk::STAGE * Cm + 100.0) / 100.0, 1.0));
+			ShrineWater->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			ShrineWater->SetCastShadow(false);
+			ShrineWater->RegisterComponent();
+			UE_LOG(LogTemp, Display, TEXT("GkStage: shrine water surface placed"));
+		}
+	}
 	PlaceNote = FString::Printf(TEXT("%.0f,%.0f,%.0f,%.0f  ground uneven by %.0f cm%s"), Best.X, Best.Y, BestTop + 1.0, FMath::Fmod(BestYaw + 720.0, 360.0), BestRange, bFound ? TEXT("") : TEXT("  (no clear level line found)"));
 	UE_LOG(LogTemp, Display, TEXT("GkStage placed at %s"), *PlaceNote);
 	return true;
@@ -1453,11 +1523,12 @@ void AGkMatch::LookFighter(int32 i)
 	InkMid[i]->SetVectorParameterValue(TEXT("Outlines Color"), Edge); InkMid[i]->SetScalarParameterValue(TEXT("Outlines_Thickness"), Thick);
 	// the rim: the colour of the lamp behind them, brighter in a storm's flashes and dimmed with the world under a super
 	const bool bRim = Kind != 0 || bLab; const FLinearColor Rim = RimCol * ((bRim ? 1.f : 0.35f) * (1.f + 3.f * FMath::Min(Flash, 1.f)) * (1.f + 0.6f * Storm));
+	float SceneDir = 0.f; const FLinearColor SceneT = GkSceneTint(GetWorld(), SceneDir); const FLinearColor SceneS = FLinearColor(0.92f, 0.95f, 1.f);
 	for (int32 k = 0; k < 4; k++)
 	{
 		if (!BodyMid[i][k]) { continue; }
 		BodyMid[i][k]->SetVectorParameterValue(TEXT("Rimlight Color"), Rim); BodyMid[i][k]->SetScalarParameterValue(TEXT("Rimlight Thickness"), RimTune[0]); BodyMid[i][k]->SetScalarParameterValue(TEXT("Rimlight Opacity"), RimTune[1]); BodyMid[i][k]->SetScalarParameterValue(TEXT("Rim Brightness"), RimTune[2]);
-		BodyMid[i][k]->SetVectorParameterValue(TEXT("Base  color"), FMath::Lerp(BaseCol[i][k], Wash, Amt)); BodyMid[i][k]->SetVectorParameterValue(TEXT("Shadow_Base"), FMath::Lerp(ShadeCol[i][k], Wash * 0.55f, Amt));
+		BodyMid[i][k]->SetVectorParameterValue(TEXT("Base  color"), FMath::Lerp(BaseCol[i][k] * SceneT, Wash, Amt)); BodyMid[i][k]->SetVectorParameterValue(TEXT("Shadow_Base"), FMath::Lerp(ShadeCol[i][k] * SceneT * SceneS, Wash * 0.55f, Amt));
 	}
 }
 
@@ -1490,10 +1561,38 @@ void AGkMatch::StateFx(int32 i)
 {
 	const gk::Fighter& P = S.p[i]; const FVector Chest = At(P.x, P.y) + FVector(-20.0, 0.0, 95.0); const gk::Move* M = (P.st == gk::ATK && P.mv >= 0) ? &gk::move(P.mv) : nullptr;
 	const FLinearColor Ki = i ? FLinearColor(1.5f, 3.5f, 8.f) : FLinearColor(7.f, 3.6f, 0.9f);
+	if (Kind == 1 && P.y <= 0 && P.vx != 0)
+	{
+		const bool bDash = P.st == gk::DASHF || P.st == gk::DASHB || P.st == gk::DRUSH;
+		const bool bMoving = bDash || P.st == gk::RUN || (P.st == gk::IDLE && P.sub != gk::CROUCH);
+		if (bMoving && (Ticks % (bDash ? 4 : 10)) == i)
+		{
+			Fx.CanyonFootDust(At(P.x, 0), P.vx > 0 ? 1.0 : -1.0, bDash);
+		}
+	}
 	// his feet: a heavy step as he walks, quicker when he runs
 	{
 		const bool bWalk = P.st == gk::IDLE && P.sub != gk::CROUCH && P.y <= 0 && FMath::Abs(P.vx) > 20, bRun = (P.st == gk::RUN || P.st == gk::DRUSH) && P.y <= 0;
-		if (bWalk || bRun) { if (++StepT[i] >= (bRun ? 13 : 24)) { StepT[i] = 0; Snd(TEXT("Step_01"), bRun ? 0.3f : 0.22f, bRun ? 1.15f : 1.f); } } else { StepT[i] = 16; }
+		if (bWalk || bRun)
+		{
+			if (++StepT[i] >= (bRun ? 13 : 24))
+			{
+				StepT[i] = 0;
+				Snd(TEXT("Step_01"), bRun ? 0.3f : 0.22f, bRun ? 1.15f : 1.f);
+				if (ShrineWater)
+				{
+					const FVector Foot = At(P.x, 0) + FVector(0.0, 0.0, 4.0);
+					const FLinearColor WaterTint(1.3f, 1.7f, 2.1f);
+					for (int32 Side : {-1, 1})
+					{
+						FGkFx::FP& Drop = Fx.Add(0, Foot, FVector(0.0, Side * 65.0, bRun ? 155.0 : 110.0), 0.22f, 4.f, 1.5f, WaterTint);
+						Drop.Grav = 800.f;
+						Drop.Stretch = 2.f;
+					}
+				}
+			}
+		}
+		else { StepT[i] = 16; }
 	}
 	if (P.st == gk::PARRY && (Ticks % 3) == 0)
 	{
@@ -1626,6 +1725,9 @@ void AGkMatch::RunScript()
 		else if (Op == TEXT("anchor") && A.Num() >= 5 && Stages.IsValidIndex(Setup.Stage)) { FGkStage& G = Stages[Setup.Stage]; G.bFixed = true; G.At = FVector(FCString::Atod(*A[1]), FCString::Atod(*A[2]), FCString::Atod(*A[3])); G.Yaw = FCString::Atod(*A[4]); PlaceWait = 10.f; TryPlace(); CamD.bSnap = true; ScriptNote = PlaceNote; }
 		else if (Op == TEXT("cam")) { bScout = A.Num() >= 6; if (bScout) { ScoutPos = FVector(FCString::Atod(*A[1]), FCString::Atod(*A[2]), FCString::Atod(*A[3])); ScoutRot = FRotator(FCString::Atod(*A[4]), FCString::Atod(*A[5]), 0.0); ScoutFov = A.Num() > 6 ? FCString::Atof(*A[6]) : 60.f; ScriptNote = FString::Printf(TEXT("%.0f,%.0f,%.0f p%.0f y%.0f"), ScoutPos.X, ScoutPos.Y, ScoutPos.Z, ScoutRot.Pitch, ScoutRot.Yaw); } }
 		else if (Op == TEXT("rim")) { for (int32 k = 0; k < 3; k++) { RimTune[k] = Num(1 + k, 100) / 100.f; } if (A.Num() >= 7) { RimCol = FLinearColor(Num(4) / 100.f, Num(5) / 100.f, Num(6) / 100.f); } }
+		else if (Op == TEXT("sun")) { GkApplySun(GetWorld(), Anchor.GetRotation().Rotator().Yaw + 180.0 + double(Num(1)), double(Num(2, -12)), double(Num(3, 100)) / 100.0, FLinearColor(Num(4, 100) / 100.f, Num(5, 100) / 100.f, Num(6, 100) / 100.f), A.Num() >= 7); }
+		else if (Op == TEXT("lit")) { GkLitK = float(Num(1, 100)) / 100.f; }
+		else if (Op == TEXT("edge")) { TArray<FString> N; for (int32 k = 1; k < A.Num(); k++) { N.Add(A[k]); } GkEdge(EdgeMid, N); }
 		else if (Op == TEXT("lamp")) { LampI = float(Num(1, 5000)); LampScatter = Num(2, 300) / 100.f; if (BackLamp) { BackLamp->SetIntensity(LampI); BackLamp->SetVolumetricScatteringIntensity(LampScatter); BackLamp->SetLightColor(RimCol); } }
 		else if (Op == TEXT("lens")) { LensF = Num(1, 18) / 10.f; }
 		else if (Op == TEXT("air")) { AirKind = Num(1); }
@@ -1635,10 +1737,10 @@ void AGkMatch::RunScript()
 		else if (Op == TEXT("exec") && A.IsValidIndex(1)) { if (GEngine) { GEngine->Exec(GetWorld(), *A[1]); } }
 		else if (Op == TEXT("storm")) { ScriptStorm = Num(1) / 100.f; }
 		else if (Op == TEXT("wait")) { ScriptWait = Num(1, 1); return; }
-		else if (Op == TEXT("shot")) { FScreenshotRequest::RequestScreenshot(FString(Root) + A[1] + TEXT(".png"), false, false); ScriptWait = 3; return; }
+		else if (Op == TEXT("shot")) { if (Cam) { const FVector CL = Cam->GetActorLocation(); const FRotator CR = Cam->GetActorRotation(); UE_LOG(LogTemp, Display, TEXT("GkCam %s %.0f,%.0f,%.0f p%.1f y%.1f fov %.1f"), *A[1], CL.X, CL.Y, CL.Z, CR.Pitch, CR.Yaw, Cam->GetCameraComponent()->FieldOfView); } FScreenshotRequest::RequestScreenshot(FString(Root) + A[1] + TEXT(".png"), false, false); ScriptWait = 3; return; }
 		else if (Op == TEXT("quit")) { break; }
 	}
-	GkScriptResume = 0; FFileHelper::SaveStringToFile(TEXT("done\n"), *(FString(Root) + TEXT("done.txt"))); bScript = false; FPlatformMisc::RequestExit(false);
+	GkScriptResume = 0; bScript = false; if (GkFlyOn()) { return; } FFileHelper::SaveStringToFile(TEXT("done\n"), *(FString(Root) + TEXT("done.txt"))); FPlatformMisc::RequestExit(false);
 }
 
 /** The clip each state and move starts with, for every character (the lab changes them; its choices are read last). */
@@ -1859,6 +1961,18 @@ void AGkMatch::Present(float Real)
 		}
 		Fx.DustCol = Place != 0 ? FMath::Lerp(FLinearColor(0.62f, 0.47f, 0.33f), FLinearColor(0.36f, 0.38f, 0.48f), Storm) : FLinearColor(0.45f, 0.47f, 0.52f);
 	}
+	if (Kind == 1 && Screen == 3 && !bMenu)
+	{
+		const float DustDt = FMath::Min(Real, 0.05f);
+		Fx.CanyonHaze(CamPos.Y, DustDt);
+		for (const gk::Fighter& Fighter : S.p)
+		{
+			if (Fighter.y <= 0 && Fighter.vx != 0)
+			{
+				Fx.StirCanyonHaze(At(Fighter.x, 0), Fighter.vx * Cm * 60.0, DustDt);
+			}
+		}
+	}
 	Fx.Air(CamPos.Y, Real, Place != 0 && (Storm < 0.5f || AirKind == 1 || AirKind == 2 || AirKind == 7), AirKind, Storm); Fx.Tick(Real);
 	// the balls the ground fog feels: one at each fighter's hips and one at his feet, and four more that ride the shots in
 	// the air, or are strung along the great beam while it burns
@@ -1870,6 +1984,22 @@ void AGkMatch::Present(float Real)
 		for (int32 k = 0; k < Stirrers.Num(); k++)
 		{
 			AActor* B = Stirrers[k]; if (!B) { continue; }
+			if (Kind == 1)
+			{
+				const int32 Who = k / 2;
+				const gk::Fighter& P = S.p[Who];
+				FVector Point = Wd(FVector(0.0, 0.0, -6000.0));
+				if (Screen == 3 && !bMenu && P.y <= 0 && P.vx != 0)
+				{
+					const bool bDash = P.st == gk::DASHF || P.st == gk::DASHB || P.st == gk::DRUSH;
+					const double Side = (k & 1) ? 1.0 : -1.0;
+					const double Direction = P.vx > 0 ? 1.0 : -1.0;
+					const double Along = bDash ? -Direction * ((k & 1) ? 58.0 : 18.0) : Side * 15.0;
+					Point = Wd(At(P.x, 0) + FVector(Side * 15.0, Along, 14.0));
+				}
+				B->SetActorLocation(Point, false);
+				continue;
+			}
 			if (k < 12)
 			{   // a ball on each hand and foot, the head and the chest of both fighters
 				const int32 Who = k / 6; const gk::Fighter& P = S.p[Who]; UPoseableMeshComponent* C = Body[Who];
@@ -1879,7 +2009,20 @@ void AGkMatch::Present(float Real)
 			const int32 q = k - 12;
 			if (Beamer >= 0) { const gk::Fighter& P = S.p[Beamer]; const double Run = 120.0 + FMath::Fmod(double(Ticks) * 55.0 + q * 420.0, 1700.0); B->SetActorLocation(Wd(At(P.x, P.y + 56 * gk::F) + FVector(0.0, P.face * Run, 0.0)), false); }
 			else if (q < S.nshots && !bMenu) { B->SetActorLocation(Wd(At(S.shot[q].x, S.shot[q].y)), false); }
-			else { B->SetActorLocation(Wd(FVector(0.0, 0.0, -6000.0)), false); }
+			else
+			{
+				// Reuse idle projectile stirrers for two low wake points per fighter.
+				const gk::Fighter& P = S.p[q / 2];
+				const bool bDash = P.st == gk::DASHF || P.st == gk::DASHB || P.st == gk::DRUSH;
+				FVector Point(0.0, 0.0, -6000.0);
+				if (Screen == 3 && !bMenu && bDash && P.y <= 0 && P.vx != 0)
+				{
+					const double Direction = P.vx > 0 ? 1.0 : -1.0;
+					const double Trail = (q & 1) ? 78.0 : 26.0;
+					Point = At(P.x, P.y) + FVector(0.0, -Direction * Trail, 22.0);
+				}
+				B->SetActorLocation(Wd(Point), false);
+			}
 		}
 	}
 	for (int32 k = 0; k < 4; k++)
@@ -1957,6 +2100,25 @@ void AGkMatch::Present(float Real)
 		else if (S.freeze > 0 && Place != 0 && !bMenu) { T.Zm = 0.84f; T.Fov = 6.f; T.K = 0.3f; }   // the held beat of a perfect parry
 	}
 	if (Place == 0 || bMenu || Screen == 4) { T = { 0.f, 4.f, 0.f, 1.f, 0.f, 0.2f, 0.f, false }; }
+	if (GkFlyOn() && Place != 0 && Screen == 3 && !bMenu && !bScript)
+	{   // a free camera on the stage: mouse looks, WASD moves, Q and E go down and up, shift is quick and control is slow, Z and X change the lens, F writes where it is to Saved/fly.txt
+		UWorld* FW = GetWorld(); APlayerController* PC = FW ? FW->GetFirstPlayerController() : nullptr;
+		if (PC && Cam)
+		{
+			if (!bFly) { bFly = true; bScout = true; ScoutPos = Cam->GetActorLocation(); ScoutRot = Cam->GetActorRotation(); ScoutFov = float(GkFovBase); PC->SetShowMouseCursor(false); PC->SetInputMode(FInputModeGameOnly()); }
+			float Dx = 0.f, Dy = 0.f; PC->GetInputMouseDelta(Dx, Dy);
+			ScoutRot.Yaw += Dx * 0.6f; ScoutRot.Pitch = FMath::Clamp(ScoutRot.Pitch + Dy * 0.6f, -89.f, 89.f); ScoutRot.Roll = 0.f;
+			static double FlySpeed = 3000.0; if (PC->WasInputKeyJustPressed(EKeys::MouseScrollUp)) { FlySpeed = FMath::Min(40000.0, FlySpeed * 1.4); } if (PC->WasInputKeyJustPressed(EKeys::MouseScrollDown)) { FlySpeed = FMath::Max(150.0, FlySpeed / 1.4); }
+			const double Sp = FlySpeed * (PC->IsInputKeyDown(EKeys::LeftShift) ? 4.0 : PC->IsInputKeyDown(EKeys::LeftControl) ? 0.15 : 1.0) * Real;
+			const FVector Fwd = ScoutRot.Vector(), Rgt = FRotationMatrix(FRotator(0.0, ScoutRot.Yaw, 0.0)).GetScaledAxis(EAxis::Y); FVector Mv = FVector::ZeroVector;
+			if (PC->IsInputKeyDown(EKeys::W)) { Mv += Fwd; } if (PC->IsInputKeyDown(EKeys::S)) { Mv -= Fwd; } if (PC->IsInputKeyDown(EKeys::D)) { Mv += Rgt; } if (PC->IsInputKeyDown(EKeys::A)) { Mv -= Rgt; }
+			if (PC->IsInputKeyDown(EKeys::E) || PC->IsInputKeyDown(EKeys::SpaceBar)) { Mv += FVector::UpVector; } if (PC->IsInputKeyDown(EKeys::Q) || PC->IsInputKeyDown(EKeys::C)) { Mv -= FVector::UpVector; }
+			ScoutPos += Mv * Sp;
+			if (PC->IsInputKeyDown(EKeys::Z)) { ScoutFov -= 25.f * float(Real); } if (PC->IsInputKeyDown(EKeys::X)) { ScoutFov += 25.f * float(Real); } ScoutFov = FMath::Clamp(ScoutFov, 15.f, 110.f);
+			ScriptNote = FString::Printf(TEXT("fly %.0f,%.0f,%.0f  p%.0f y%.0f  fov %.0f    WASD  Q/C down  E/Space up  shift fast  ctrl slow  wheel speed  Z X lens  F save"), ScoutPos.X, ScoutPos.Y, ScoutPos.Z, ScoutRot.Pitch, ScoutRot.Yaw, ScoutFov);
+			if (PC->WasInputKeyJustPressed(EKeys::F)) { FString Old; const FString Path(TEXT("/Users/Shared/Epic Games/GekitotsuNative/Saved/fly.txt")); FFileHelper::LoadFileToString(Old, *Path); FFileHelper::SaveStringToFile(Old + ScriptNote + TEXT("\n"), *Path); }
+		}
+	}
 	// ---- and the camera following it (camApply)
 	{
 		const float Rate = FMath::Clamp(Real * 60.f, 0.f, 4.f); auto Toward = [Rate](float k) { return 1.f - FMath::Pow(1.f - FMath::Clamp(k, 0.f, 0.95f), Rate); };
@@ -1966,7 +2128,7 @@ void AGkMatch::Present(float Real)
 		CamD.KRoll *= FMath::Pow(0.86f, Rate); CamD.KZm *= FMath::Pow(0.84f, Rate); CamD.KFov *= FMath::Pow(0.86f, Rate); CamD.KYaw *= FMath::Pow(0.88f, Rate);
 		// the browser's lens is far wider than this one, so its swings and widenings are scaled to suit
 		const double Yaw = FMath::DegreesToRadians(double(CamD.Yaw + CamD.KYaw) * 0.8), Pit = FMath::DegreesToRadians(double(CamD.Pit) - 4.0);
-		const double Fov = FMath::Clamp(30.0 + double(CamD.Fov + CamD.KFov) * 0.4, 26.0, 40.0), Hk = FMath::Tan(FMath::DegreesToRadians(Fov * 0.5)), Hk0 = FMath::Tan(HalfFov);
+		const double Fov = FMath::Clamp(GkFovBase + double(CamD.Fov + CamD.KFov) * 0.4, GkFovBase - 4.0, GkFovBase + 10.0), Hk = FMath::Tan(FMath::DegreesToRadians(Fov * 0.5)), Hk0 = FMath::Tan(HalfFov);
 		double D = -CamPos.X * (Hk0 / Hk) * double(CamD.Zm) * (1.0 + double(CamD.KZm));
 		if (!T.bSolo) { const double A = (FMath::Abs(Ax - Bx) * 0.5 + 36.0 + T.Pad) * Unit; D = FMath::Max(D, A * (FMath::Cos(Yaw) / (0.84 * Hk) + FMath::Abs(FMath::Sin(Yaw)))); }
 		const FVector Look(0.0, CamPos.Y, CamPos.Z); const double R = D * FMath::Cos(Pit);
@@ -1976,7 +2138,7 @@ void AGkMatch::Present(float Real)
 		if (Cam) { Cam->GetCameraComponent()->SetFieldOfView(float(Fov)); Cam->SetActorLocationAndRotation(Wd(Eye), Anchor.GetRotation() * Rot.Quaternion()); }
 		if (Cam)
 		{   // the lens: the fighters are held sharp, the far ground goes soft behind them (not in the training room, where the grid is read)
-			FPostProcessSettings& PP = Cam->GetCameraComponent()->PostProcessSettings; const bool bSoft = Place != 0 && LensF > 0.f && LensF < 20.f && !bScout;
+			FPostProcessSettings& PP = Cam->GetCameraComponent()->PostProcessSettings; if (EdgeMid && !bEdgeAdd) { PP.AddBlendable(EdgeMid, 1.f); bEdgeAdd = true; } const bool bSoft = Place != 0 && LensF > 0.f && LensF < 20.f && !bScout;
 			PP.bOverride_DepthOfFieldFstop = true; PP.DepthOfFieldFstop = bSoft ? LensF : 32.f; PP.bOverride_DepthOfFieldMinFstop = true; PP.DepthOfFieldMinFstop = 1.2f;
 			PP.bOverride_DepthOfFieldSensorWidth = true; PP.DepthOfFieldSensorWidth = 36.f; PP.bOverride_DepthOfFieldFocalDistance = true; PP.DepthOfFieldFocalDistance = bSoft ? float((Look - Eye).Size()) : 0.f;
 			if (bScout) { Cam->GetCameraComponent()->SetFieldOfView(ScoutFov); Cam->SetActorLocationAndRotation(ScoutPos, ScoutRot); }
