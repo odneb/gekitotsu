@@ -59,3 +59,34 @@ The editor's Python file watcher is opt-in. Launch the editor with
 `GK_EDITOR_WATCH=1` only when you need the watcher for a tool. Run material
 generation in a fresh Python commandlet. Avoid recompiling materials or replacing
 referenced assets from a Slate tick callback during an editing session.
+
+
+## Authored Robot 1 animation pass
+
+The selected performances and source timing windows are in
+`Source/GekitotsuNative/GkAuthoredClips.h`. These are licensed assets installed locally;
+the raw purchased packs are not distributed in this repository.
+
+Add Mega Taunt and Mega Emotes through Fab to supply `/Game/TauntBundle` and
+`/Game/EmotePack`. For the FBX packs, extract their files into `AnimeMartialArts`,
+`AnimePowerUp`, and `SuperheroGround` folders under a common directory. Set
+`GK_ANIMATION_SOURCE` to that directory and run `tools/import_authored_animations.py`
+with Unreal's Python editor commandlet. The script imports missing clips only onto
+the project's Manny skeleton, under `/Game/GkNewAnimations`, and writes a result
+manifest under Saved. Existing assets are preserved. The old Unarmed V4 pack supplies
+the paired Grab, Throw1 and Throw2 performances. Missing optional assignments keep
+the established animation fallback; a complete local install logs 36/36 selections.
+
+The two-bar SA2 is now a strike-confirm grab-bomb. Back + Heavy + Special activates
+it with simple controls; a blocked or parried attempt does not latch. Successful
+hits hold the pair on a shared clock and detonate after 60 unfrozen frames. The
+blast follows combo scaling, simple-input penalty, burnout and other damage modifiers.
+This version uses an adapted paired clinch, not a custom-authored back-cling animation.
+Directional normal throws retain the tech window and release at frame 24; recovery
+ends at frame 44. Their paired render spacing is 150 cm for this skeleton.
+
+`tools/run_film_checks.sh` covers controls, beams, every move recovering, the bomb,
+and directional throws for both players, facings and walls. `-gkscript` supports
+`pair|attacker asset|victim asset|source frame at 60 Hz|spacing cm` for paired auditions
+and `record|frame count|output folder|P1 input mask|P2 input mask` for native HUD-on
+frame exports. Run the full motion and contact checks after changing a selected clip.

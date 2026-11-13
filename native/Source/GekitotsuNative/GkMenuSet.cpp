@@ -4,6 +4,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/PoseableMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/SkinnedAsset.h"
 #include "Engine/GameViewportClient.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
@@ -56,12 +57,23 @@ void AGkMatch::UpdateMenuSet()
  if(Screen==0 && MenuPage==0){const float Rows[]={.48,.60,.72,.86};Plane(5,.17,Rows[FMath::Clamp(MenuAt,0,3)],.39,.135,158,-3,MenuBlack);}
  const int Who=Screen==1?SelWho:Screen==6?FMath::Clamp(S.winner,0,1):0;
  for(int I=0;I<2;++I){if(!Body[I])continue;auto* B=Body[I].Get();bool Show=(Screen==7||I==Who) && MenuPage==0;B->SetVisibility(Show);if(!Show)continue;
-  const bool Opening=Screen==5;const float D=Opening?(AttractShot==0?180.f:AttractShot==1?210.f:235.f):Screen==7?380.f:Screen==1?320.f:360.f;
-  const float X=Opening?(AttractShot==1?.80f:.84f):Screen==7?(I?.79f:.21f):.73f,Y=Opening?.20f:.19f;
+  const bool Opening=Screen==5;const float D=Opening?(AttractShot==0?180.f:AttractShot==1?210.f:235.f):Screen==7?380.f:Screen==1?320.f:Screen==6?720.f:360.f;
+  const float X=Opening?(AttractShot==1?.80f:.84f):Screen==7?(I?.79f:.21f):.73f,Y=Opening?.20f:Screen==6?.52f:.19f;
   const FVector Head=B->GetComponentTransform().InverseTransformPosition(B->GetBoneLocationByName(TEXT("head"),EBoneSpaces::WorldSpace));
   const float Response=Screen==1?10.f*FMath::Exp(-CursorAge*8):0;
   const FQuat Q=Anchor.GetRotation()*FRotator(0,Opening?(AttractShot==0?110.f:AttractShot==1?65.f:120.f):(Screen==0&&AttractShot==1?105.f:I?105.f:75.f)+Response,0).Quaternion();
-  B->SetWorldScale3D(FVector(1));B->SetWorldLocationAndRotation(Point(D,X,Y)-Q.RotateVector(Head),Q);
+  FVector Pivot=Head;
+  if(Screen==6){
+   float Low=1e9f,High=-1e9f;
+   const auto& Skeleton=B->GetSkinnedAsset()->GetRefSkeleton();
+   for(const TCHAR* Name:{TEXT("head"),TEXT("hand_l"),TEXT("hand_r"),TEXT("foot_l"),TEXT("foot_r")}){
+    int Bone=Skeleton.FindBoneIndex(FName(Name));if(!B->BoneSpaceTransforms.IsValidIndex(Bone))continue;
+    FTransform Pose=B->BoneSpaceTransforms[Bone];for(int Parent=Skeleton.GetParentIndex(Bone);Parent>=0;Parent=Skeleton.GetParentIndex(Parent))Pose=Pose*B->BoneSpaceTransforms[Parent];
+    Low=FMath::Min(Low,float(Pose.GetTranslation().Z));High=FMath::Max(High,float(Pose.GetTranslation().Z));
+   }
+   if(High>Low)Pivot=FVector(0,0,(Low+High)*.5f);
+  }
+  B->SetWorldScale3D(FVector(1));B->SetWorldLocationAndRotation(Point(D,X,Y)-Q.RotateVector(Pivot),Q);
  }
  if(Screen==1 && MenuPage==0 && Body[Who] && Body[Who]->GetSkinnedAsset()){
   auto* Source=Body[Who].Get();const FVector Key=Anchor.TransformVectorNoScale(FVector(-.65,-.35,.68)).GetSafeNormal();

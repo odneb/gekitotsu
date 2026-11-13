@@ -66,7 +66,7 @@ public:
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> ShotMesh[4];
 	// Noa moves by animation clips where there is one for what she is doing (bought packs, retargeted to her skeleton by
 	// tools/retarget_noa.py) and by the solved poses where there is not. Each clip is shown at the exact time the rules are on.
-	struct FGkClip { TObjectPtr<UAnimSequence> Anim; bool bLoop = false; float From = 0.f, To = 1.f; };
+	struct FGkClip { TObjectPtr<UAnimSequence> Anim; bool bLoop = false; float From = 0.f, To = 1.f, Impact = -1.f; bool bAuthored=false, bVertical=false; };
 	UPROPERTY() TObjectPtr<USkeletalMeshComponent> Anim[2];
 	UPROPERTY() TArray<TObjectPtr<UAnimSequence>> ClipKeep;
 	TMap<FName, FGkClip> Clips[3]; int32 ClipSet[2] = { -1, -1 }; TObjectPtr<UAnimSequence> Playing[2];   // clip sets: 0 Kagu's, 1 Noa's
@@ -76,7 +76,7 @@ public:
 	TArray<FTransform> PoseShown[2], PoseFrom[2], RefCS[2]; TArray<int32> SkelIdx[2], Twin[2]; const void* PoseMesh[2] = { nullptr, nullptr }; const void* SkelFor[2] = { nullptr, nullptr };
 	const void* ShownAnim[2] = { nullptr, nullptr }; FName ShownClip[2]; int32 BlendAt[2] = { 0, 0 }, BlendLen[2] = { 0, 0 }, LastT[2] = { 0, 0 }, AnimClock = 0, KeyBone[2][5];
 	TMap<const UAnimSequence*, float> HitAt, ThrustAt; TSet<FString> Picked;
-	void EvalClip(int32 i, UAnimSequence* A, float Time, TArray<FTransform>& Out); float ImpactOf(int32 i, const FGkClip& C, bool bThrust = false);
+	void EvalClip(int32 i, UAnimSequence* A, float Time, TArray<FTransform>& Out, bool bIncludeRoot=false); float ImpactOf(int32 i, const FGkClip& C, bool bThrust = false);
 	// How a fighter's state is told at a glance: his colours and outline change with it (guard blue, parry cyan, a perfect
 	// parry gold, burnout grey, a blow landing white), with a word over his head and particles to match.
 	UPROPERTY() TArray<TObjectPtr<UMaterialInstanceDynamic>> Mids;
@@ -96,7 +96,7 @@ public:
 	// What is chosen is kept in Content/Gk/anims.txt (set | slot | clip | from | to | loop) and used by the game from then on.
 	struct FLabSlot { FName Slot; FString Label; int32 Cat = 0; };
 	struct FLabClip { FString Path, Label; int32 Cat = 0; };
-	TArray<FLabSlot> LabSlots; TArray<FLabClip> LabList; int32 LabSlot = 0, LabFrame = 0, LabSet = 2, LabCat = 0, LabDropCat = 0, LabScroll = 0, LabHot = 0, LabNoteTimer = 0, LabTryAt = -2; bool bLabDrop = false, bLabMouse = false; int32 LabKey = -2; float LabClock = 0.f; FString LabNote; FGkClip LabTry;
+	TArray<FLabSlot> LabSlots; TArray<FLabClip> LabList; int32 LabSlot = 0, LabFrame = 0, LabSet = 2, LabCat = 0, LabDropCat = 0, LabScroll = 0, LabHot = 0, LabNoteTimer = 0, LabTryAt = -2; bool bLabDrop = false, bLabMouse = false; int32 LabKey = -2; float LabClock = 0.f; FString LabNote; FGkClip LabTry; FGkClip LabPartner; bool bLabPair=false; float LabPairSpacing=200.f;
 	void LabOpen(); void LabClose(); void LabClick(int32 Id); void LabPick(int32 ClipIndex); void LabSave(); void LoadPicks(); FString PicksFile(bool bProject) const;
 	// hit, guard and dust effects and their sounds (Vefects' Combat Flipbook VFX)
 	UPROPERTY() TMap<FName, TObjectPtr<UNiagaraSystem>> Vfx;

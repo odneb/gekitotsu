@@ -139,8 +139,10 @@ const SIM = (function () {
     const big = [-4, 0, 84, 104], rq = (s, d) => ({ s: s, e: s + 1, hb: big, d: d, stun: 34, kb: 0, air: [0, 250], lvl: 1, hsp: 6, bstun: 20, req: 2, lk: 1 });
     // Shippu Jinrai-kyaku: kicks on the ground, then a rising Tatsumaki that carries them into the air
     const tk2 = (st, d) => ({ s: st, e: st + 1, hb: big, d: d, stun: 34, kb: 0, air: [0, 300], lvl: 1, hsp: 5, bstun: 20, req: 2, lk: 1, carry: [22, 2] });
-    N('SA2', { n: 'Bad Idea Barrage', sup: 1, sa: 2, su: 6, t: 999, frz: 44, minScale: 40, mv: [[4, 14, 1300]], stopOnHit: 1, dd: 500, wEnd: [88, -1], rise: [38, 110, 1060], landRec: 14,
-      hits: [{ s: 5, e: 14, hb: [0, 6, 64, 110], d: 30, stun: 34, kb: 0, air: [0, 300], lk: 1, pop: [40, 640], lvl: 1, hsp: 10, bstun: 33 }, rq(20, 30), rq(26, 30), rq(32, 30), tk2(40, 15), tk2(44, 15), tk2(48, 15), tk2(52, 15), { s: 57, e: 59, hb: [-10, -10, 90, 110], d: 100, launch: [900, 900], air: [900, 900], wb: 1, lvl: 2, hsp: 18, req: 2, bstun: 27 }] });
+    // Strike-confirm latch. Block/whiff stay punishable; only a clean hit starts the paired bomb.
+    N('SA2', { n: 'Bad Idea: Hug Bomb', sup: 1, sa: 2, su: 12, t: 54, frz: 36, minScale: 40,
+      mv: [[4, 14, 900]], stopOnHit: 1, dd: 500,
+      hits: [{ s: 11, e: 15, hb: [0, 6, 64, 104], d: 30, stun: 34, kb: 0, lvl: 1, hsp: 10, bstun: 20 }] });
     const fl = s => ({ s: s, e: s + 1, hb: big, d: 60, stun: 34, kb: 0, air: [0, 260], lvl: 1, hsp: 7, bstun: 20, lk: 1 });
     // Maximum Overkill is a committed horizontal beam: the visible shaft and hit regions agree.
     const beamHit = (s, d, finish = false) => ({ s, e: s + 2, hb: [24, 20, 900, 74], d,
@@ -163,7 +165,7 @@ const SIM = (function () {
         ['Super Attacks', 'H + SP   ← H + SP   ↓ H + SP', 'Rocket Ruckus, Bad Idea Barrage, Maximum Overkill.'], ['Critical Overload', '↓ H + SP   at 25% health or less', 'Absolutely Unnecessary replaces Maximum Overkill when nearly dead. Seven hits with a bigger final blast and longer recovery.']],
       cmd2: [['Air Normals', 'L / M / H   Assist + L / M / H', 'Six attacks. Direction does not change the selected normal.'], ['Air Specials', 'SP beam   →SP anti-air   ↓SP dive', 'Hot Shot commits in the air; Riptide rises; Falling Star spikes. Homing has its own button.'],
         ['Air Movement', '↑ again   ↑ at the wall   ← →', 'Double jump, wall jump, drift. Hold ↓ to fall fast.'], ['Air Cancels', 'after an air normal hits', '↑ jump-cancels it; SP cancels it into an air special.'],
-        ['Juggle Loop', 'launch, Homing, air combo, ↓ + SP', 'Slipstream pops them up twice per combo; the spike bounces them once.'], ['Grab', 'L + M   then any attack button', 'Holds them. Pummel up to five times before throwing.'],
+        ['Juggle Loop', 'launch, Homing, air combo, ↓ + SP', 'Slipstream pops them up twice per combo; the spike bounces them once.'], ['Grab', 'L + M + direction', 'Forward, back, up or down throw. The first direction chooses the finish.'],
         ['Throws', '→   ←   ↑   ↓   while holding', 'Forward, back, straight up (juggle), slam into a ground bounce.'], ['Assist Combos', 'hold Assist, tap L / M / H', 'L x3, M x5 (ends in Bad Idea Barrage), H x5 (ends in Maximum Overkill, or the Critical Overload).']]
     };
   }
@@ -482,29 +484,38 @@ const SIM = (function () {
       case 'getup': p.vx = p.roll && p.sf < 10 ? -p.face * 300 : 0; if (p.sf >= GETUP) { p.tinv = 1; toIdle(p); neutral(s, p, o, inp, i); } break;
       case 'tech': if (p.sf >= 24) { toIdle(p); neutral(s, p, o, inp, i); } break;
       case 'throwing': {
-        const pv = p.buf[p.buf.length - 2] || 0, np = inp & ~pv, k = o.noTech ? 17 : 10;
+        if (p.tk === 5) {
+          ++p.tf;
+          if (o.st === 'thrown') { o.x=p.x+p.face*24*F; o.y=p.y; o.vx=o.vy=o.pv=0; }
+          if (p.tf===60 && o.st==='thrown') {
+            const damage=p.pmT;
+            o.hp=Math.max(s.cfg.training?1:0,o.hp-damage); o.combo++; o.comboDmg+=damage; o.redT=50;
+            o.st='ahit'; o.sf=0; o.y=Math.max(1,p.y+20*F); o.vx=p.face*900; o.vy=900; o.hard=1; o.jug=3;
+            o.hs=p.hs=18; o.wbPend=1; o.gbPend=0;
+            s.ev.push({t:'hit',who:i,x:o.x,y:o.y+45*F,lvl:2,dmg:damage,combo:o.combo,total:o.comboDmg,sp:1,fin:1,ko:o.hp<=0?1:0});
+          }
+          if(p.tf>=76){p.tk=0;p.pmT=0;p.y=Math.max(1,p.y);p.vx=-p.face*180;p.vy=420;p.st='jump';p.sf=0;p.mv='';}
+          break;
+        }
+        const k = o.noTech ? 17 : 10;
         if (!p.tk) {
           if (o.st === 'thrown') { o.x = p.x + p.face * 30 * F; o.y = 0; o.vx = 0; o.vy = 0; }
           if (p.sf < 9 && o.st === 'thrown' && (o.prev & 16) && (o.prev & 32) && o.age[0] <= 10 && o.age[1] <= 10 && !o.noTech) {
             p.st = 'tech'; o.st = 'tech'; p.sf = 0; o.sf = 0; o.y = 0; p.pv = -p.face * 620; o.pv = p.face * 620; s.ev.push({ t: 'tech', x: (p.x + o.x) >> 1, y: 60 * F }); break;
           }
-          if (p.pmT > 0) p.pmT--;
-          if (p.sf >= 9 && p.pmT <= 0) {
-            const fw = inp & (p.face > 0 ? 8 : 4), bw = inp & (p.face > 0 ? 4 : 8);
-            // any attack button pummels (up to five); a direction, or running out of time, throws
-            if ((p.age[0] <= 6 || p.age[1] <= 6 || p.age[2] <= 6 || p.age[3] <= 6) && p.pmN < 5 && p.sf < 70) { p.age[0] = p.age[1] = p.age[2] = p.age[3] = 99; p.pmN++; p.pmT = 9; const d = tr(8 * k / 10); o.hp = Math.max(1, o.hp - d); o.redT = 50; o.hs = 3; p.hs = 3; s.ev.push({ t: 'hit', x: o.x, y: 56 * F, lvl: 0, who: i, dmg: d, combo: p.pmN, total: d * p.pmN, thr: 1, ch: 0 }); }
-            else if (p.sf >= 12 && (fw || bw || (inp & 3) || p.sf >= 54)) { p.tk = bw ? 2 : fw ? 1 : (inp & 1) ? 3 : (inp & 2) ? 4 : 1; p.tf = 0; p.back = p.tk === 2 ? 1 : 0; }
-          }
+          const fw=inp & (p.face>0?8:4), bw=inp & (p.face>0?4:8);
+          if(!p.pmN)p.pmN=bw?2:(inp&2)?4:(inp&1)?3:fw?1:0;
+          if(p.sf>=9){p.tk=p.pmN?p.pmN:1;p.tf=0;p.back=p.tk===2?1:0;}
         } else {
           p.tf++; const side = p.tk === 2 && p.tf >= 5 ? -1 : 1;
           if (o.st === 'thrown') { o.x = p.x + p.face * side * 30 * F; o.y = p.tk === 4 ? 0 : Math.min(p.tf, 10) * 3 * F; o.vx = 0; o.vy = 0; }
-          if (p.tf === 10 && o.st === 'thrown') {
-            const d = tr(120 * k / 10), V = [0, [430, 720], [430, 720], [40, 1480], [150, 1080]][p.tk];
-            o.hp = Math.max(s.cfg.training ? 1 : 0, o.hp - d); o.st = 'ahit'; o.sf = 0; o.y = p.tk === 4 ? 1 : 30 * F; o.vx = p.face * side * V[0]; o.vy = V[1]; o.combo = 1; o.comboDmg = d; o.jug = p.tk >= 3 ? 0 : 3; o.hard = p.tk >= 3 ? 0 : 1; o.hs = 8; p.hs = 8; o.redT = 50; o.gbUsed = 0; o.wbUsed = 0;
+          if (p.tf === 24 && o.st === 'thrown') {
+            const d = tr(120 * k / 10), V = [0, [430, 720], [430, 720], [40, 1480], [-70, 1260]][p.tk];
+            o.hp = Math.max(s.cfg.training ? 1 : 0, o.hp - d); o.st = 'ahit'; o.sf = 0; o.y = p.tk === 4 || p.tk === 2 ? 1 : 60 * F; o.x=p.x+p.face*side*45*F; o.vx = p.face * side * V[0]; o.vy = V[1]; o.combo = 1; o.comboDmg = d; o.jug = p.tk >= 3 ? 0 : 3; o.hard = p.tk >= 3 ? 0 : 1; o.hs = 8; p.hs = 8; o.redT = 50; o.gbUsed = 0; o.wbUsed = 0;
             p.sa = Math.min(3000, p.sa + 200); o.sa = Math.min(3000, o.sa + 40); if (!p.bo) p.dr = Math.min(DMAX, p.dr + 200); if (o.noTech && !o.bo) { o.dr -= 1000; burn(s, o, 1 - i); }
             s.ev.push({ t: 'hit', x: o.x, y: 50 * F, lvl: 2, who: i, dmg: d, combo: 1, total: d, thr: 1, ch: o.noTech ? 2 : 0 }); if (p.tk === 4) s.ev.push({ t: 'gbounce', x: o.x, y: 0, who: 1 - i });
           }
-          if (p.tf >= (p.tk >= 3 ? 20 : 30)) { p.tk = 0; toIdle(p); }
+          if (p.tf >= 44) { p.tk = 0; toIdle(p); }
         }
         break;
       }
@@ -523,7 +534,7 @@ const SIM = (function () {
     } else if (p.st === 'jump') { p.st = 'land'; p.sf = 0; p.rec = 2; p.vx = 0; s.ev.push({ t: 'land', who: i }); }
   }
   function physics(s, p, o, i) {
-    if (p.st === 'thrown') return;
+    if (p.st === 'thrown' || (p.st==='throwing' && p.tk===5)) return;
     const lim = STAGE - PW;
     if (p.y > 0) {
       const ag = p.st === 'atk' ? CH[p.ch].mv[p.mv].ag : 0;
@@ -680,6 +691,15 @@ const SIM = (function () {
     a.sa = Math.min(3000, a.sa + (m.sup ? 0 : m.sg != null ? tr(m.sg / Math.max(1, m.hits.length || (m.proj ? m.proj.hits : 1))) : tr(dmg * 7 / 10))); d.sa = Math.min(3000, d.sa + tr(dmg * 3 / 10));
     if (!a.bo) a.dr = Math.min(DMAX, a.dr + tr(dmg * 3 / 2));
     s.ev.push({ t: 'hit', x: cx, y: cy, lvl: h.lvl, who: ai, dmg: dmg, combo: d.combo, total: d.comboDmg, ch: kind, ko: ko ? 1 : 0, sp: special ? 1 : 0, di: m.di ? 1 : 0, crum: crumple ? 1 : 0, wrong: wrong, free: a.fr === 1 ? 1 : 0, fin: h.fin ? 1 : 0 });
+    if(!isProj && a.mv==='SA2' && !ko){
+      const height=Math.max(a.y,d.y);
+      let blast=tr(270*pct/100);
+      if(kind)blast=tr(blast*120/100);if(mod)blast=tr(blast*80/100);if(a.part)blast=tr(blast*6/10);if(d.half)blast=tr(blast/2);if(a.bo)blast=tr(blast*90/100);
+      a.st='throwing';a.tk=5;a.tf=0;a.sf=0;a.pmT=Math.max(1,blast);a.vx=a.vy=a.pv=0;a.y=height;
+      d.st='thrown';d.sf=0;d.mv='';d.vx=d.vy=d.pv=0;d.y=height;d.face=-a.face;d.noTech=1;
+      a.x=Math.max(-STAGE+PW+36*F,Math.min(STAGE-PW-36*F,a.x));d.x=a.x+a.face*24*F;
+      s.ev.push({t:'grab',who:ai,x:d.x,y:d.y+60*F,kind:5});
+    }
   }
   function kindOf(d) { if (d.st === 'prec' || d.st === 'parry') return 2; if (d.st === 'run' || d.st === 'drush' || d.st === 'dashf' || d.st === 'dashb') return 1; if (d.st !== 'atk') return 0; const m = CH[d.ch].mv[d.mv]; return d.mf > m.lastAct ? 2 : 1; }
   function resolveHits(s) {

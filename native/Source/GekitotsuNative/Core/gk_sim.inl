@@ -457,6 +457,20 @@ static void update(State& s, Fighter& p, Fighter& o, int inp, int i)
 		case TECH: if (p.sf >= 24) { toIdle(p); neutral(s, p, o, inp, i); } break;
 		case THROWING:
 		{
+            if(p.tk==5) {
+                // Confirmed super: both participants share this clock. No input can restart the latch.
+                ++p.tf;
+                if(o.st==THROWN){o.x=p.x+p.face*24*F;o.y=p.y;o.vx=o.vy=o.pv=0;}
+                if(p.tf==60 && o.st==THROWN){
+                    const int damage=p.pmT;
+                    o.hp=imax(s.cfg.training?1:0,o.hp-damage);o.combo++;o.comboDmg+=damage;o.redT=50;
+                    o.st=AHIT;o.sf=0;o.y=imax(1,p.y+20*F);o.vx=p.face*900;o.vy=900;o.hard=1;o.jug=3;
+                    o.hs=p.hs=18;o.wbPend=1;o.gbPend=0;
+                    push(s,E_HIT,i,o.x,o.y+45*F,2,damage,o.combo,o.comboDmg,0,H_SPECIAL|H_FINISH|(o.hp<=0?H_KO:0));
+                }
+                if(p.tf>=76){p.tk=0;p.pmT=0;p.y=imax(1,p.y);p.vx=-p.face*180;p.vy=420;p.st=JUMP;p.sf=0;p.mv=-1;}
+                break;
+            }
 			const int k = o.noTech ? 17 : 10;
 			if (!p.tk)
 			{
@@ -477,16 +491,16 @@ static void update(State& s, Fighter& p, Fighter& o, int inp, int i)
 			{
 				p.tf++; const int side = p.tk == 2 && p.tf >= 5 ? -1 : 1;
 				if (o.st == THROWN) { o.x = p.x + p.face * side * 30 * F; o.y = p.tk == 4 ? 0 : imin(p.tf, 10) * 3 * F; o.vx = 0; o.vy = 0; }
-				if (p.tf == 10 && o.st == THROWN)
+				if (p.tf == 24 && o.st == THROWN)
 				{
 					static const int V[5][2] = { { 0, 0 }, { 430, 720 }, { 430, 720 }, { 40, 1480 }, { -70, 1260 } };
 					const int d = 120 * k / 10;
-					o.hp = imax(s.cfg.training ? 1 : 0, o.hp - d); o.st = AHIT; o.sf = 0; o.y = p.tk == 4 ? 1 : 30 * F; o.vx = p.face * side * V[p.tk][0]; o.vy = V[p.tk][1]; o.combo = 1; o.comboDmg = d;
+					o.hp = imax(s.cfg.training ? 1 : 0, o.hp - d); o.st = AHIT; o.sf = 0; o.y = p.tk == 4 || p.tk==2 ? 1 : 60 * F; o.x=p.x+p.face*side*45*F; o.vx = p.face * side * V[p.tk][0]; o.vy = V[p.tk][1]; o.combo = 1; o.comboDmg = d;
 					o.jug = p.tk >= 3 ? 0 : 3; o.hard = p.tk >= 3 ? 0 : 1; o.hs = 8; p.hs = 8; o.redT = 50; o.gbUsed = 0; o.wbUsed = 0;
 					p.sa = imin(3000, p.sa + 200); o.sa = imin(3000, o.sa + 40); if (!p.bo) { p.dr = imin(DMAX, p.dr + 200); } if (o.noTech && !o.bo) { o.dr -= 1000; burnOther(s, o, 1 - i); }
 					push(s, E_HIT, i, o.x, 50 * F, 2, d, 1, d, o.noTech ? 2 : 0, H_THROW); if (p.tk == 4) { push(s, E_GBOUNCE, 1 - i, o.x, 0); }
 				}
-				if (p.tf >= (p.tk >= 3 ? 20 : 30)) { p.tk = 0; toIdle(p); }
+				if (p.tf >= 44) { p.tk = 0; toIdle(p); }
 			}
 			break;
 		}
@@ -510,7 +524,7 @@ static void land(State& s, Fighter& p, int i)
 
 static void physics(State& s, Fighter& p, Fighter& o, int i)
 {
-	if (p.st == THROWN) { return; }
+	if (p.st == THROWN || (p.st == THROWING && p.tk==5)) { return; }
 	const int lim = STAGE - PW;
 	if (p.y > 0)
 	{
@@ -731,6 +745,16 @@ static void applyHit(State& s, int ai, const Hit& h, int fromX, int cx, int cy, 
 	if (!a.bo) { a.dr = imin(DMAX, a.dr + dmg * 3 / 2); }
 	push(s, E_HIT, ai, cx, cy, h.lvl, dmg, d.combo, d.comboDmg, kind,
 		(ko ? H_KO : 0) | (special ? H_SPECIAL : 0) | (m.di ? H_IMPACT : 0) | (crumple ? H_CRUMPLE : 0) | wrong | (a.fr == 1 ? H_FREE : 0) | (h.fin ? H_FINISH : 0));
+    if(!isProj && a.mv==M_SA2 && !ko) {
+        const int height=imax(a.y,d.y);
+        int blast=270*pct/100;
+        if(kind)blast=blast*120/100;if(mod)blast=blast*80/100;if(a.part)blast=blast*6/10;if(d.half)blast/=2;if(a.bo)blast=blast*90/100;
+        a.st=THROWING;a.tk=5;a.tf=0;a.sf=0;a.pmT=imax(1,blast);a.vx=a.vy=a.pv=0;a.y=height;
+        d.st=THROWN;d.sf=0;d.mv=-1;d.vx=d.vy=d.pv=0;d.y=height;d.face=-a.face;d.noTech=1;
+        // Leave room for the pair at either wall; simulation and render share the anchor.
+        a.x=imax(-STAGE+PW+36*F,imin(STAGE-PW-36*F,a.x));d.x=a.x+a.face*24*F;
+        push(s,E_GRAB,ai,d.x,d.y+60*F,5);
+    }
 }
 
 static void resolveHits(State& s)

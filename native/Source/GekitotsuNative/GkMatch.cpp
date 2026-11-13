@@ -1131,6 +1131,10 @@ void AGkMatch::StepOnce(int32 Force0, int32 Force1)
 	else { I1 = gk::aiThink(Cpu[1], S, 1); }
 	gk::step(S, I0, I1);
 	for (int32 e = 0; e < S.nev; e++) { OnEvent(S.ev[e]); }
+ for(int32 i=0;i<2;++i){const auto& P=S.p[i];if(P.st==gk::THROWING && P.tk==5 && P.hs==0 && (P.tf==18 || P.tf==36 || P.tf==50)){
+  PlayVfx(TEXT("NS_Radial_Spiky_Hit_01"),At(P.x+P.face*20*gk::F,P.y+60*gk::F,-12),.35f+P.tf*.008f,0,nullptr);
+  Snd(TEXT("AbilityCharge_11"),.45f,1.f+P.tf*.006f);Shake=FMath::Max(Shake,2.f+P.tf*.05f);
+ }}
 	if (Mode == 1 && Screen == 3) { Track(I0); }
 	if (CallHold > 0 && ++CallAge > CallHold) { CallHold = 0; }
 	for (int32 i = 0; i < 2; i++) { if (ComboTimer[i] > 0) { ComboTimer[i]--; } if (NoteTimer[i] > 0) { NoteTimer[i]--; } }
@@ -1233,10 +1237,17 @@ void AGkMatch::OnEvent(const gk::Event& E)
 			Combo[Who] = E.c; ComboDmg[Who] = E.d; ComboTimer[Who] = 80;
 			Lean[1 - Who] = (E.f & gk::H_KO) ? 22.f : 6.f + 5.f * FMath::Clamp(E.a, 0, 2); Flash = FMath::Max(Flash, (E.f & gk::H_KO) ? 1.f : E.a >= 2 ? 0.22f : 0.f);
 			if (E.f & gk::H_SPECIAL) { Shake = FMath::Max(Shake, 7.f); Flash = FMath::Max(Flash, 0.3f); }
-			if ((E.f & gk::H_FINISH) && S.p[Who].st == gk::ATK && S.p[Who].mv >= 0 && gk::move(S.p[Who].mv).sup)
+			if ((E.f & gk::H_FINISH) && S.p[Who].mv >= 0 && gk::move(S.p[Who].mv).sup)
 			{   // a super ends on the kit's beam, fired from the chest through the other fighter, and a shockwave under him
 				const gk::Fighter& Lp = S.p[1 - Who];
-				PlayVfx(TEXT("NS_Ground_ShockWave"), At(Lp.x, 0, -10.0), 1.6f, 0.f, nullptr); PlayVfx(TEXT("NS_Thunder"), At(Lp.x, Lp.y, -10.0), 1.4f, 0.f, nullptr);
+                if(S.p[Who].tk==5){
+                    PlayVfx(TEXT("NS_Explosion_02_Once"),At(E.x,E.y,-30),4.f,0,nullptr);
+                    PlayVfx(TEXT("NS_Radial_Spiky_Hit_01"),At(E.x,E.y,-45),4.f,0,nullptr);
+                    PlayVfx(TEXT("NS_Ground_ShockWave"),At(E.x,0,-10),2.f,0,nullptr);
+                    Flash=FMath::Max(Flash,.8f);Shake=FMath::Max(Shake,16.f);
+                } else {
+                PlayVfx(TEXT("NS_Ground_ShockWave"), At(Lp.x, 0, -10.0), 1.6f, 0.f, nullptr); PlayVfx(TEXT("NS_Thunder"), At(Lp.x, Lp.y, -10.0), 1.4f, 0.f, nullptr);
+                }
 			}
 			if (E.f & gk::H_IMPACT) { Remark(Who, (E.f & gk::H_CRUMPLE) ? TEXT("CRUMPLE!") : TEXT("BREACH!")); }
 			else if (E.f & gk::H_FREE) { Remark(Who, TEXT("CHASE")); }
@@ -1277,6 +1288,7 @@ void AGkMatch::OnEvent(const gk::Event& E)
 		case gk::E_RUSH: Fx.Aura(Feet, Ki, 0.9f); Remark(Who, TEXT("GHOST STEP")); break;
 		case gk::E_BURNOUT: Remark(Who, TEXT("BURNOUT")); Say(TEXT("BURNOUT"), 45); Shake = FMath::Max(Shake, 8.f); Fx.Aura(Feet, FLinearColor(0.5f, 0.55f, 0.5f), 1.3f); Fx.Dust(Feet, 1.6f, 0.f); break;
 		case gk::E_SPECIAL: if(!bForestLook)PlayVfx(TEXT("NS_Aura2"), Feet + FVector(-10.0, 0.0, 0.0), 1.f, 0.f, nullptr); Fx.Aura(Feet, Ki, 0.9f); CamKick(0.f, -0.04f, 6.f); Shake = FMath::Max(Shake, 2.5f); break;
+        case gk::E_GRAB: if(E.a==5){Remark(Who,TEXT("BAD IDEA!"));CamKick(S.p[Who].face*5.f,-.1f,4.f);PlayVfx(TEXT("NS_Radial_Burst"),At(E.x,E.y,-10),.65f,0,nullptr);} break;
 		case gk::E_SUPER: if(!bForestLook)PlayVfx(TEXT("NS_Aura"), Feet + FVector(-10.0, 0.0, 0.0), 1.5f, 0.f, nullptr); else PlayVfx(TEXT("NS_Directional_Dust_01_Once"),FloorPoint(Feet),.35f,0.f,nullptr); Fx.Aura(Feet, bForestLook?FLinearColor(.1f,1.2f,2.3f):Ki, 2.6f); Flash = FMath::Max(Flash, 0.9f); BoltDue = 0.35f; if(!bForestLook)Say(*FString(UTF8_TO_TCHAR(gk::moveName(E.c))).ToUpper(), 70); Shake = FMath::Max(Shake, 6.f); break;
 		case gk::E_ROUND:
 		{
@@ -1383,7 +1395,7 @@ void AGkMatch::ShowFighter(int32 i)
 	const bool bLab = Screen == 4; int32 LabMove = -1, MoveId = -1, Raw = P.sf;
 	if (bLab)
 	{
-		if (i == 1) { C->SetVisibility(false); if (Anim[1]) { Anim[1]->SetVisibility(false); } return; }
+		if (i == 1 && !bLabPair) { C->SetVisibility(false); if (Anim[1]) { Anim[1]->SetVisibility(false); } return; }
 		if (bScript && !bLabUi) { Clip = ScriptSlot; } else if (LabSlots.IsValidIndex(LabSlot)) { Clip = LabSlots[LabSlot].Slot; }
 		T = LabFrame; Raw = LabFrame; LabMove = MoveClip.Find(Clip); MoveId = LabMove;
 	}
@@ -1442,7 +1454,7 @@ void AGkMatch::ShowFighter(int32 i)
 		}
 		default: break;
 	}
-	if (!bLab && P.st == gk::ATK && (P.mv == gk::moveByKey("SA1") || P.mv == gk::moveByKey("SA2")))
+	if (!bLab && P.st == gk::ATK && P.mv == gk::moveByKey("SA1"))
 	{
 		const gk::Move& M=gk::move(P.mv);
 		int32 Hit=0;
@@ -1457,12 +1469,36 @@ void AGkMatch::ShowFighter(int32 i)
 		T=P.mf;
 	}
 	if(!bLab && (P.st==gk::PARRY || (P.st==gk::IDLE && PerfectT[i]>0)) && AnimClock-ParryBeat[i]<22){
-  static const TCHAR* Deflections[]={TEXT("parryL"),TEXT("parryR"),TEXT("parryLean"),TEXT("blockC")};
+  static const TCHAR* Deflections[]={TEXT("parryL"),TEXT("parryR"),TEXT("parryLean"),TEXT("parryLow")};
   Clip=Deflections[ParryVariant[i]];T=FMath::Max(0,AnimClock-ParryBeat[i]);Raw=T;MoveId=-1;
  }
  const bool bShowcase = Screen==0 || Screen==1 || Screen==5 || Screen==7;
- if(bShowcase) { Clip=(Screen==5&&AttractShot!=1)||(Screen==0&&AttractShot==1)?TEXT("mv_5MP"):TEXT("win");T=Clip==TEXT("mv_5MP")?12:65+int32(FMath::Sin(UiTime*.7f)*5);Raw=T;MoveId=-1;Roll=Turn=0; }
- const bool bLeft = !bLab && P.face < 0;
+ if(bShowcase) {
+  const int32 Performance=(int32(MenuIdleAge/7.f)+(Screen==1?1:0))%4;
+  Clip=FName(*FString::Printf(TEXT("showcase%d"),Performance));T=int32(FMath::Fmod(MenuIdleAge,7.f)*60.f);Raw=T;MoveId=-1;Roll=Turn=0;
+ }
+ // A paired throw samples both performers at one source time. Never run two independent clips.
+ const int32 PairOwner=!bLab && !bShowcase ? (P.st==gk::THROWING?i:P.st==gk::THROWN && O.st==gk::THROWING?1-i:-1) : -1;
+ bool bPair=PairOwner>=0;
+ const gk::Fighter& Leader=S.p[bPair?PairOwner:i];
+ const bool bPairVictim=bPair && i!=PairOwner;
+ float PairSec=0.f;
+ FName PairSlot=TEXT("pairGrab");
+ if(bPair){
+  if(Leader.tk==0)PairSec=FMath::Lerp(20.f,32.f,FMath::Clamp(Leader.sf/9.f,0.f,1.f))/60.f;
+  else {
+   PairSlot=Leader.tk==2?TEXT("pairBack"):(Leader.tk==4 || Leader.tk==5)?TEXT("pairGrab"):TEXT("pairForward");
+   if(Leader.tk==5){
+    // Secure the opponent, suspend the lift, then complete it as the charge detonates.
+    PairSec=(Leader.tf<18?FMath::Lerp(27.f,36.f,Leader.tf/18.f):Leader.tf<60?36.f:FMath::Lerp(36.f,70.f,FMath::Clamp((Leader.tf-60)/16.f,0.f,1.f)))/60.f;
+   }else{
+    const float Release=Leader.tk==2?50.f:Leader.tk==3?48.f:Leader.tk==4?62.f:55.f;
+    PairSec=(Leader.tf<=24?FMath::Lerp(32.f,Release,Leader.tf/24.f):FMath::Lerp(Release,92.f,FMath::Clamp((Leader.tf-24)/20.f,0.f,1.f)))/60.f;
+   }
+  }
+  if(ClipFor(2,PairSlot,-1) && ClipFor(2,FName(*(PairSlot.ToString()+TEXT("Victim"))),-1)){Clip=bPairVictim?FName(*(PairSlot.ToString()+TEXT("Victim"))):PairSlot;MoveId=-1;Roll=Turn=0;}else bPair=false;
+ }
+ const bool bLeft = !bLab && !bPair && P.face < 0;
 	FVector Jit = FVector::ZeroVector;
 	if (P.hs > 0 && (P.st == gk::HIT || P.st == gk::AHIT || P.st == gk::BLOCK)) { Jit.Y = ((Ticks & 1) ? 1.0 : -1.0) * FMath::Min(4.0, P.hs * 0.6); }
 	// The skeleton faces its own +Y, which is the rules' "right"; the camera looks along +X. Facing left he is the mirrored
@@ -1474,7 +1510,7 @@ void AGkMatch::ShowFighter(int32 i)
 		Where.Z += Wd(FloorPoint(Local)).Z - Wd(Local).Z;
 	}
 	const bool bTry = bLab && bLabDrop && LabTryAt >= -1;
-	const FGkClip* Use = bTry ? (LabTry.Anim ? &LabTry : nullptr) : (ClipSet[i] >= 0 ? ClipFor(ClipSet[i], Clip, SuperImpact >= 0 ? -1 : MoveId) : nullptr);
+	const FGkClip* Use = bTry ? (i==1 && bLabPair ? &LabPartner : LabTry.Anim ? &LabTry : nullptr) : (ClipSet[i] >= 0 ? ClipFor(ClipSet[i], Clip, SuperImpact >= 0 ? -1 : MoveId) : nullptr);
 	if (Anim[i]) { Anim[i]->SetVisibility(false); } C->SetVisibility(true);
 	USkinnedAsset* SA = C->GetSkinnedAsset(); if (!SA) { return; }
 	const FReferenceSkeleton& RS = SA->GetRefSkeleton(); const int32 N = RS.GetNum(); const TArray<FTransform>& RefLocal = RS.GetRefBonePose();
@@ -1499,8 +1535,11 @@ void AGkMatch::ShowFighter(int32 i)
 	{
 		const float Len = Use->Anim->GetPlayLength(), A0 = Use->From * Len, A1 = FMath::Max(Use->To * Len, A0 + 0.01f); float Sec = A0; const int32 Count = FMath::Max(2, Poses.Length(Clip));
 		const FString Cn = Clip.ToString();
+        if(Use->bAuthored && MoveId>=0 && gk::move(MoveId).has_home)Roll=-FMath::Clamp(FMath::RadiansToDegrees(FMath::Atan2(float(P.vy),FMath::Abs(float(P.vx))+1.f)),-70.f,70.f);
 		if (bTry || (bLab && (!bScript || bLabUi) && (Use->bLoop || Poses.Length(Clip) <= 2))) { const float Span = A1 - A0; Sec = A0 + FMath::Min(Span, FMath::Fmod(LabClock, Span + 0.4f)); }
-		else if(bShowcase && Cn==TEXT("mv_5MP")) {const float Impact=FMath::Clamp(ImpactOf(i,*Use,false)*Len,A0,A1);const float Beat=FMath::Fmod(MenuIdleAge,7.f);Sec=FMath::Lerp(FMath::Max(A0,Impact-.16f),Impact,FMath::SmoothStep(0.f,.55f,Beat));Sec+=.006f*FMath::Sin(FMath::FloorToFloat(UiTime*12.f)/12.f*2.f);}
+		else if(bShowcase && Use->bAuthored) { Sec=A0+FMath::Min(float(T)/60.f,A1-A0); }
+  else if(Use->bAuthored && Cn==TEXT("win")) {Sec=A0+FMath::Min(float(T)/60.f,A1-A0);}
+  else if(bShowcase && Cn==TEXT("mv_5MP")) {const float Impact=FMath::Clamp(ImpactOf(i,*Use,false)*Len,A0,A1);const float Beat=FMath::Fmod(MenuIdleAge,7.f);Sec=FMath::Lerp(FMath::Max(A0,Impact-.16f),Impact,FMath::SmoothStep(0.f,.55f,Beat));Sec+=.006f*FMath::Sin(FMath::FloorToFloat(UiTime*12.f)/12.f*2.f);}
   else if(Cn==TEXT("crouch") || Cn==TEXT("blockC")) {
    float* Low=CrouchSample.Find(Use->Anim);
    if(!Low){float MinZ=1e9f,BestSec=Len*.5f;TArray<FTransform> Sample;
@@ -1511,7 +1550,7 @@ void AGkMatch::ShowFighter(int32 i)
   }
   else if(Cn.StartsWith(TEXT("parry")) && Cn!=TEXT("parry")) {Sec=FMath::Lerp(A0,A1,FMath::Clamp(.20f+float(T)/30.f,0.f,1.f));}
   else if(Cn==TEXT("win")) {float Show=FMath::SmoothStep(0.f,55.f,float(T));if(bShowcase)Show*=1.f-FMath::SmoothStep(180.f,235.f,float(T));Sec=FMath::Lerp(A0,A1,Show);}
-		else if (Use->bLoop) { const float Span = FMath::Max(0.05f, A1 - A0); Sec = A0 + FMath::Fmod((bLab ? LabFrame * 4 : bShowcase ? int32(UiTime*60.f) : S.frame + i * 17) / 60.f, Span); }
+		else if (Use->bLoop) { const float Span = FMath::Max(0.05f, A1 - A0); Sec = A0 + FMath::Fmod((bLab ? LabFrame * 4 : bShowcase ? int32(UiTime*60.f) : Use->bAuthored && Cn.StartsWith(TEXT("walk")) ? P.subf : Use->bAuthored && Cn!=TEXT("idle") ? P.sf : S.frame + i * 17) / 60.f, Span); }
 		else if (SuperImpact>=0)
 		{
 			const float Impact=FMath::Clamp(ImpactOf(i,*Use,false)*Len,A0,A1);
@@ -1522,7 +1561,7 @@ void AGkMatch::ShowFighter(int32 i)
 		{
 			// one blow: wind up to the clip's furthest reach on the first active frame, hold through the active frames, then recover
 			const gk::Move& M = gk::move(MoveId); const bool bMany = M.nhits > 1; const int32 Su = FMath::Max(1, M.has_proj ? M.pf : bMany ? M.hits[0].s : M.su), Ac = FMath::Max(1, bMany ? M.hits[M.nhits - 1].e - M.hits[0].s + 1 : M.ac), Tot = M.t < 900 ? FMath::Max(M.t, Su + Ac + 1) : Su + Ac + FMath::Max(M.rc, 20), Rc = FMath::Max(1, Tot - Su - Ac);
-			const float Th = FMath::Clamp(ImpactOf(i, *Use, M.has_proj || M.sup) * Len, A0, A1), T0 = FMath::Max(A0, Th - Su / 60.f * 2.5f), Hold = Ac / 60.f * 0.4f, T1 = FMath::Max(Th + Hold + 0.01f, FMath::Min(A1, Th + Hold + Rc / 60.f * 1.8f));
+			const float Th = FMath::Clamp(ImpactOf(i, *Use, M.has_proj || M.sup) * Len, A0, A1), T0 = Use->bAuthored ? A0 : FMath::Max(A0, Th - Su / 60.f * 2.5f), Hold = Ac / 60.f * 0.4f, T1 = Use->bAuthored ? A1 : FMath::Max(Th + Hold + 0.01f, FMath::Min(A1, Th + Hold + Rc / 60.f * 1.8f));
 			// (the blow is fully out a frame before the first active one, so the frame it lands on, and is held on, shows it at full reach)
 			if (T < Su - 1) { Sec = T0 + (Th - T0) * FMath::Pow(float(T) / float(FMath::Max(1, Su - 1)), 1.5f); }
 			else if (T < Su + Ac) { Sec = Th + FMath::Max(0, T - Su) / 60.f * 0.4f; }
@@ -1532,18 +1571,19 @@ void AGkMatch::ShowFighter(int32 i)
 		else if (Cn.StartsWith(TEXT("hit")) || Cn == TEXT("crumple") || Cn == TEXT("crouch") || Cn == TEXT("blockS") || Cn == TEXT("ahit") || Cn == TEXT("kd")) { Sec = FMath::Min(A1, A0 + Raw / 60.f * 1.25f); }
 		else { Sec = FMath::Lerp(A0, A1, FMath::Clamp(float(T) / float(Count - 1), 0.f, 1.f)); }
 		if(!bLab && S.freeze>0 && S.frzWho==i && MoveId>=0 && gk::move(MoveId).sup){const auto& M=gk::move(MoveId);const float u=1.f-float(S.freeze)/FMath::Max(1,M.frz);Sec=FMath::Lerp(A0+(A1-A0)*.10f,A0+(A1-A0)*.23f,u);}
-		EvalClip(i, Use->Anim, FMath::Clamp(Sec, 0.f, Len), Tg);
+		if(bPair)Sec=PairSec;
+		EvalClip(i, Use->Anim, FMath::Clamp(Sec, 0.f, Len), Tg, (bLab && bLabPair) || bPair);
   if(Clip==TEXT("blockC"))if(const FGkClip* Guard=Clips[2].Find(TEXT("blockS"))) {
    TArray<FTransform> Upper;EvalClip(i,Guard->Anim,Guard->Anim->GetPlayLength()*.25f,Upper);
    const int32 Spine=RS.FindBoneIndex(TEXT("spine_01"));
    for(int32 Bone=0;Bone<N;++Bone){int32 Parent=Bone;while(Parent>=0 && Parent!=Spine)Parent=RS.GetParentIndex(Parent);if(Parent==Spine && Upper.IsValidIndex(Bone))Tg[Bone]=Upper[Bone];}
   }
-  ApplyPersonality(i,Clip,float(T),Tg);
+  if(!Use->bAuthored && !bTry)ApplyPersonality(i,Clip,float(T),Tg);
 		// the rules own where he stands: the hips may shift their weight but not walk off
-		if (KeyBone[i][0] > 0)
+		if (!bTry && !bPair && KeyBone[i][0] > 0)
 		{
 			const FVector R0 = RefLocal[KeyBone[i][0]].GetTranslation(); FVector Dl = Tg[KeyBone[i][0]].GetTranslation() - R0;
-			Dl.X = 18.0 * FMath::Tanh(Dl.X / 18.0); Dl.Y = 35.0 * FMath::Tanh(Dl.Y / 35.0); if (Dl.Z > 0.0) { Dl.Z = 14.0 * FMath::Tanh(Dl.Z / 14.0); } Tg[KeyBone[i][0]].SetTranslation(R0 + Dl);
+			Dl.X = 18.0 * FMath::Tanh(Dl.X / 18.0); Dl.Y = 35.0 * FMath::Tanh(Dl.Y / 35.0); if (Dl.Z > 0.0 && !Use->bVertical) { Dl.Z = 14.0 * FMath::Tanh(Dl.Z / 14.0); } Tg[KeyBone[i][0]].SetTranslation(R0 + Dl);
 		}
 		if (bLeft)
 		{
@@ -1588,14 +1628,39 @@ void AGkMatch::ShowFighter(int32 i)
 	else { for (int32 b = 0; b < N; b++) { FTransform Bl; Bl.Blend(PoseFrom[i][b], Tg[b], Al); PoseShown[i][b] = Bl; } }
 	C->BoneSpaceTransforms = PoseShown[i]; C->MarkRefreshTransformDirty();
 	// a blow rocks him back on his heels; a landing squashes him for an instant
-	if (!bLab && FMath::Abs(Lean[i]) > 0.3f) { Fq = Fq * FQuat(FVector(1, 0, 0), FMath::DegreesToRadians(Lean[i])); }
-	const float Sq = bLab ? 0.f : Squash[i]; C->SetWorldScale3D(FVector(1.0 + 0.07 * Sq, 1.0 + 0.07 * Sq, 1.0 - 0.12 * Sq));
+	if (!bLab && !bPair && FMath::Abs(Lean[i]) > 0.3f) { Fq = Fq * FQuat(FVector(1, 0, 0), FMath::DegreesToRadians(Lean[i])); }
+	const float Sq = bLab || bPair ? 0.f : Squash[i]; C->SetWorldScale3D(FVector(1.0 + 0.07 * Sq, 1.0 + 0.07 * Sq, 1.0 - 0.12 * Sq));
 	if(bShowcase) {
   const FVector Spot=At((i?115:-115)*gk::F,0,i?8:-8);
   Wh=Wd(Spot);if(bForestLook)Wh.Z+=Wd(FloorPoint(Spot)).Z-Wd(Spot).Z;
   Fq=Anchor.GetRotation()*FRotator(0,i?115:55,0).Quaternion();
  }
  if(Screen==6)Fq=Anchor.GetRotation()*FRotator(0,i?115:55,0).Quaternion();
+ if(bLab && bLabPair && LabTry.Anim && LabPartner.Anim) {
+  // Paired packs are exported in each performer's forward-facing local space.
+  // Place the partner two metres ahead, facing the performer, and follow the pair's midpoint.
+  TArray<FTransform> PairPose[2];
+  float Mid=0;
+  for(int32 Side=0;Side<2;++Side){UAnimSequence* Seq=Side?LabPartner.Anim.Get():LabTry.Anim.Get();
+   EvalClip(Side,Seq,FMath::Min(LabClock,Seq->GetPlayLength()),PairPose[Side],true);
+   if(PairPose[Side].Num()>1){const FVector Hip=(PairPose[Side][1]*PairPose[Side][0]).GetTranslation();Mid+=(Side?LabPairSpacing-Hip.Y:Hip.Y)*.5f;}
+  }
+  Wh=Wd(FVector(0,(i?LabPairSpacing:0.f)-Mid,0));Fq=Anchor.GetRotation()*FRotator(0,i?180:0,0).Quaternion();
+ }
+ if(bPair && Use) {
+  if(const FGkClip* LeadClip=ClipFor(2,PairSlot,-1)){
+   TArray<FTransform> LeadPose;EvalClip(PairOwner,LeadClip->Anim,PairSec,LeadPose,true);
+   const int32 Hip=KeyBone[PairOwner][0];
+   if(LeadPose.IsValidIndex(Hip)){
+    FTransform HipCS=LeadPose[Hip];for(int32 Parent=RS.GetParentIndex(Hip);Parent>=0;Parent=RS.GetParentIndex(Parent))HipCS=HipCS*LeadPose[Parent];
+    const FVector H=HipCS.GetTranslation();
+    const FVector Origin=At(Leader.x,Leader.y,0);
+    Wh=Wd(Origin+FVector(-H.X*Leader.face,((bPairVictim?150.f:0.f)-H.Y)*Leader.face,0));
+    if(bForestLook && bPlaced)Wh.Z+=Wd(FloorPoint(At(Leader.x,0,0))).Z-Wd(At(Leader.x,0,0)).Z;
+    Fq=Anchor.GetRotation()*FRotator(0,(Leader.face<0?180.f:0.f)+(bPairVictim?180.f:0.f),0).Quaternion();
+   }
+  }
+ }
  C->SetWorldLocationAndRotation(Wh, Fq);
  C->SetVisibility(Screen!=2 && !(Screen==1 && i!=SelWho) && !((Screen==0 || Screen==5) && i==1));
 	LookFighter(i);
@@ -1673,7 +1738,8 @@ void AGkMatch::LookFighter(int32 i)
 	if((Screen!=3 && Screen!=4 && Screen!=2)||bMenu){Edge=FLinearColor(.006,.004,.003);Thick=.48f;}
 	InkMid[i]->SetVectorParameterValue(TEXT("Outlines Color"), Edge); InkMid[i]->SetScalarParameterValue(TEXT("Outlines_Thickness"), Thick);
 	// the rim: the colour of the lamp behind them, brighter in a storm's flashes and dimmed with the world under a super
-	const bool bRim = Kind != 0 || bLab; const FLinearColor Rim = (bForestLook ? ForestRim : RimCol) * ((bRim ? 1.f : 0.35f) * (1.f + 3.f * FMath::Min(Flash*FlashGain, 1.f)) * (1.f + 0.6f * Storm));
+	const bool bRim = Kind != 0 || bLab; const float BombRim=P.st==gk::THROWING && P.tk==5 && P.tf<60 ? 1.f+P.tf*.045f : 1.f;
+	const FLinearColor Rim = BombRim * (bForestLook ? ForestRim : RimCol) * ((bRim ? 1.f : 0.35f) * (1.f + 3.f * FMath::Min(Flash*FlashGain, 1.f)) * (1.f + 0.6f * Storm));
 	float SceneDir = 0.f; const FLinearColor SceneT = GkSceneTint(GetWorld(), SceneDir); const FLinearColor SceneS = FLinearColor(0.92f, 0.95f, 1.f);
 	for (int32 k = 0; k < 4; k++)
 	{
@@ -1868,7 +1934,7 @@ void AGkMatch::StateFx(int32 i)
 }
 
 /** One clip's pose at a time, bone by bone in the mesh's own order; the root stays where the mesh has it. */
-void AGkMatch::EvalClip(int32 i, UAnimSequence* A, float Time, TArray<FTransform>& Out)
+void AGkMatch::EvalClip(int32 i, UAnimSequence* A, float Time, TArray<FTransform>& Out, bool bIncludeRoot)
 {
 	UPoseableMeshComponent* C = Body[i]; USkinnedAsset* SA = C ? C->GetSkinnedAsset() : nullptr; if (!SA || !A) { return; }
 	const FReferenceSkeleton& RS = SA->GetRefSkeleton(); const int32 N = RS.GetNum(); Out = RS.GetRefBonePose();
@@ -1879,12 +1945,13 @@ void AGkMatch::EvalClip(int32 i, UAnimSequence* A, float Time, TArray<FTransform
 		for (int32 b = 0; b < N; b++) { SkelIdx[i][b] = KS.FindBoneIndex(RS.GetBoneName(b)); }
 	}
 	const FAnimExtractContext Ctx(double(Time), false);
-	for (int32 b = 1; b < N; b++) { const int32 Si = SkelIdx[i][b]; if (Si != INDEX_NONE) { FTransform T; A->GetBoneTransform(T, FSkeletonPoseBoneIndex(Si), Ctx, false); Out[b] = T; } }
+	for (int32 b = bIncludeRoot ? 0 : 1; b < N; b++) { const int32 Si = SkelIdx[i][b]; if (Si != INDEX_NONE) { FTransform T; A->GetBoneTransform(T, FSkeletonPoseBoneIndex(Si), Ctx, false); Out[b] = T; } }
 }
 
 /** Where in a clip the blow lands, as a part of its length: the moment a hand or a foot is furthest out in front (or highest, for an uppercut). */
 float AGkMatch::ImpactOf(int32 i, const FGkClip& C, bool bThrust)
 {
+	if(C.Impact>=0.f)return FMath::Clamp(C.Impact,C.From,C.To);
 	if (const float* H = (bThrust ? ThrustAt : HitAt).Find(C.Anim.Get())) { return FMath::Clamp(*H, C.From, C.To); }
 	UPoseableMeshComponent* Mesh = Body[i]; USkinnedAsset* SA = Mesh ? Mesh->GetSkinnedAsset() : nullptr; if (!SA || !C.Anim) { return 0.5f; }
 	const FReferenceSkeleton& RS = SA->GetRefSkeleton(); const int32 N = RS.GetNum(); const float Len = C.Anim->GetPlayLength();
@@ -1912,7 +1979,9 @@ void AGkMatch::RunScript()
 	if (!bPlaced) { return; }
 	// Export actual HUD-on viewport frames at one deterministic simulation step per frame.
  if(ScriptCaptureLeft>0){
-  if(Screen==3 && !bMenu)StepOnce(ScriptIn[0],ScriptIn[1]);++AnimClock;
+  if(Screen==3 && !bMenu)StepOnce(ScriptIn[0],ScriptIn[1]);
+  if(Screen==4){LabClock+=1.f/60.f;++LabFrame;}
+  ++AnimClock;
   IFileManager::Get().MakeDirectory(*(Root+ScriptCaptureName),true);
   FScreenshotRequest::RequestScreenshot(Root+ScriptCaptureName+FString::Printf(TEXT("/%04d.png"),ScriptCaptureFrame++),!bNoHud,false);
   --ScriptCaptureLeft;return;
@@ -1925,7 +1994,7 @@ void AGkMatch::RunScript()
 		const FString& Op = A[0];
 		if (Op == TEXT("lab"))
 		{
-			Screen = 4; bMenu = false; ScriptSlot = FName(*A[1]); LabFrame = Num(2); LabClock = LabFrame / 60.f; bLabDrop = false; LabTryAt = -2; LabTry = FGkClip();
+			Screen = 4; bMenu = false; ScriptSlot = FName(*A[1]); LabFrame = Num(2); LabClock = LabFrame / 60.f; bLabDrop = false; LabTryAt = -2; LabTry = FGkClip(); bLabPair=false; LabPartner=FGkClip();
 			if (A.IsValidIndex(3) && A[3] == TEXT("none")) { bLabDrop = true; LabTryAt = -1; }
 			else if (A.IsValidIndex(3))
 			{
@@ -1935,6 +2004,12 @@ void AGkMatch::RunScript()
 			}
 			ScriptNote = FString::Printf(TEXT("%s  f%d"), *A[1], LabFrame);
 		}
+        else if (Op == TEXT("pair") && A.IsValidIndex(2)) {
+            Screen=4;bMenu=false;bLabUi=false;bLabPair=true;bLabDrop=true;LabTryAt=0;ScriptSlot=TEXT("idle");
+            LabTry=FGkClip();LabPartner=FGkClip();LabClock=Num(3)/60.f;LabFrame=Num(3);LabPairSpacing=Num(4,200);
+            LabTry.Anim=LoadObject<UAnimSequence>(nullptr,*A[1]);LabPartner.Anim=LoadObject<UAnimSequence>(nullptr,*A[2]);
+            if(LabTry.Anim)ClipKeep.Add(LabTry.Anim);if(LabPartner.Anim)ClipKeep.Add(LabPartner.Anim);
+        }
 		else if (Op == TEXT("labui")) { bLabUi = true; LabOpen(); if (Num(1, -1) >= 0) { LabClick(1000 + Num(1)); } if (Num(2, -1) >= 0) { LabHot = 10000 + Num(2); } ScriptNote.Reset(); }
 		else if (Op == TEXT("menu")) { Screen = Num(1); bMenu = Num(2) != 0; MenuAt = Num(3);MenuPage=Num(4);bDebugMenu=Num(5)!=0; Mode = 0; ScriptNote.Reset(); }
 		else if(Op==TEXT("call") && A.IsValidIndex(1)){Say(*A[1],Num(2,100));CallAge=Num(3,12);}
@@ -1954,6 +2029,15 @@ void AGkMatch::RunScript()
    ScriptIn[0]=Num(3);ScriptIn[1]=Num(4);return;
   }
   else if (Op == TEXT("run")) { ScriptRunLeft = Num(1); ScriptIn[0] = Num(2); ScriptIn[1] = Num(3); if (ScriptRunLeft > 0) { return; } }
+        else if(Op==TEXT("fxprobe") && A.IsValidIndex(1)){
+            if(UNiagaraSystem* System=LoadObject<UNiagaraSystem>(nullptr,*A[1])){
+#if WITH_EDITOR
+                System->RequestCompile(false);System->WaitForCompilationComplete(true,false);
+#endif
+                const FQuat R=Anchor.GetRotation()*FRotator(Num(3),Num(4),Num(5)).Quaternion();
+                UNiagaraFunctionLibrary::SpawnSystemAtLocation(this,System,Wd(At(0,60*gk::F,-30)),R.Rotator(),FVector(Num(2,2)),true,true,ENCPoolMethod::AutoRelease);
+            }
+        }
 		else if (Op == TEXT("mv")) { const int32 Id = gk::moveByKey(TCHAR_TO_UTF8(*A[2])); if (Id >= 0) { S.nev=0;gk::debugStart(S, Num(1), Id);for(int32 Ev=0;Ev<S.nev;++Ev)OnEvent(S.ev[Ev]); } }
 		else if (Op == TEXT("set"))
 		{
@@ -2067,6 +2151,16 @@ void AGkMatch::LoadClips()
 		}
 		UE_LOG(LogTemp, Display, TEXT("GkClip: %d clips for set %d, %d missing"), Clips[Set].Num(), Set, Missing);
 	}
+    struct FAuthoredPick {const TCHAR* Slot;const TCHAR* Path;float From,To;bool Loop;float Impact;bool Vertical;};
+    static const FAuthoredPick Authored[]={
+#include "GkAuthoredClips.h"
+    };
+    int32 AuthoredCount=0;
+    for(const auto& Pick:Authored)if(UAnimSequence* Sequence=LoadObject<UAnimSequence>(nullptr,Pick.Path)){
+        FGkClip C;C.Anim=Sequence;C.From=Pick.From;C.To=Pick.To;C.bLoop=Pick.Loop;C.Impact=Pick.Impact;C.bAuthored=true;C.bVertical=Pick.Vertical;
+        Clips[2].Add(FName(Pick.Slot),C);ClipKeep.Add(Sequence);++AuthoredCount;
+    }
+    UE_LOG(LogTemp,Display,TEXT("GkAuthored: %d/%d selected performances loaded"),AuthoredCount,UE_ARRAY_COUNT(Authored));
 	LoadPicks();
 }
 
@@ -2083,6 +2177,10 @@ void AGkMatch::LoadVfx()
 	const FString H = TEXT("/Game/Vefects/Combat_Flipbook_VFX/VFX/Hit/Particles/Once/"), D = TEXT("/Game/Vefects/Combat_Flipbook_VFX/VFX/Dust/Particles/Once/");
 	auto Sys = [this](const FString& Dir, const TCHAR* Name) { if (UNiagaraSystem* N = LoadObject<UNiagaraSystem>(nullptr, *(Dir + Name + TEXT(".") + Name))) { Vfx.Add(FName(Name), N); } else { UE_LOG(LogTemp, Warning, TEXT("GkVfx: %s is not there"), Name); } };
 	for (const TCHAR* N : { TEXT("NS_Hit_01_Once"), TEXT("NS_Hit_04_Once"), TEXT("NS_Hit_06_Directional_Once"), TEXT("NS_Radial_Spiky_Hit_01"), TEXT("NS_Block_Radial_01_Once"), TEXT("NS_Radial_Burst") }) { Sys(H, N); }
+	Sys(TEXT("/Game/Vefects/Combat_Flipbook_VFX/VFX/Explosion/Particles/Once/"),TEXT("NS_Explosion_02_Once"));
+#if WITH_EDITOR
+    if(auto* Explosion=Vfx.Find(TEXT("NS_Explosion_02_Once"))){(*Explosion)->RequestCompile(false);(*Explosion)->WaitForCompilationComplete(true,false);}
+#endif
 	for (const TCHAR* N : { TEXT("NS_Directional_Dust_Jump_01_Once"), TEXT("NS_Directional_Dust_01_Once"), TEXT("NS_Directional_Dust_03_Once_Fast"), TEXT("NS_Directional_Dust_03_Once_Fast_Flip") }) { Sys(D, N); }
 	// the sounds: every take of the old-school shonen pack that was brought in, grouped by its sound ("Melee_06" holds Melee_06_1 to _6)
 	{
@@ -2119,7 +2217,16 @@ bool AGkMatch::PlayVfx(const TCHAR* Name, const FVector& Local, float Scale, flo
 	if (Sound && Screen == 3) { if (TObjectPtr<USoundBase>* Sn = Sfx.Find(FName(Sound))) { UGameplayStatics::PlaySound2D(this, *Sn, Volume * EffectsGain); } }
 	TObjectPtr<UNiagaraSystem>* Sy = Vfx.Find(FName(Name)); if (!Sy || !*Sy) { return false; }
 	const FQuat Turn = Anchor.GetRotation() * FRotator(0.0, Dir > 0.f ? 90.0 : Dir < 0.f ? -90.0 : 0.0, 0.0).Quaternion();
-	UNiagaraFunctionLibrary::SpawnSystemAtLocation(this, *Sy, Wd(Local), Turn.Rotator(), FVector(Scale), true, true, ENCPoolMethod::AutoRelease);
+ const bool bExplosion=FCString::Strcmp(Name,TEXT("NS_Explosion_02_Once"))==0;
+ if(UNiagaraComponent* Component=UNiagaraFunctionLibrary::SpawnSystemAtLocation(this,*Sy,Wd(Local),Turn.Rotator(),FVector(bExplosion?1.f:Scale),true,false,ENCPoolMethod::AutoRelease)){
+  if(bExplosion){
+   const FNiagaraVariable Size(FNiagaraTypeDefinition::GetFloatDef(),TEXT("User.Scale"));
+   const float Base=(*Sy)->GetExposedParameters().GetParameterValueOrDefault<float>(Size,1.f);
+   Component->SetVariableFloat(TEXT("User.Scale"),FMath::Max(.01f,Base)*Scale);
+   UE_LOG(LogTemp,Display,TEXT("GkExplosion scale %.2f -> %.2f"),Base,FMath::Max(.01f,Base)*Scale);
+  }
+  Component->Activate(true);
+ }
 	return true;
 }
 
