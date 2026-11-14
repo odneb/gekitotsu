@@ -173,9 +173,9 @@ FluidNinja vapor, reflective wet patches, original landscape normals, and enviro
 cel blend 0.92. The later posterization/matte-ground experiments are removed.
 The one deliberate change from that video is atmosphere: preserve the map author's
 fog position, falloff, scattering and both layer profiles, scaling both densities to
-28% (gk.Look.FogScale=0.28). Other palettes still shift fog density and tint.
+34% (gk.Look.FogScale=0.34). Other palettes still shift fog density and tint.
 Personal animation picks are not part of this rollback.
 
-Environment sun-facing contours now receive a narrow directional highlight (gk.Look.WorldRim=0.65, WorldRimWidth=0.12). Bloom diffusion scale is 0.6 with grain 0.02; depth of field remains disabled. Compared actual HUD-on captures at 20%, 35%, and 50% authored fog: the stronger variants washed the background yellow, so the final density is 28%.
+Environment sun-facing contours now receive a narrow directional highlight (gk.Look.WorldRim=0.65, WorldRimWidth=0.12). Bloom diffusion scale is 0.6 with grain 0.02; depth of field remains disabled. Compared actual HUD-on captures at 20%, 35%, and 50% authored fog: the stronger variants washed the background yellow, so the density was 28%, subsequently raised to 34% at user request.
 
 Forest gameplay uses a restrained 46-degree horizontal lens (8% narrower than the stage’s authored 50 degrees) and 5% tighter base framing. The previous 18-degree / 70%-height experiment was rejected because it hid too much of the stage. Both-fighter horizontal safety remains unchanged.

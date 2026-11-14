@@ -58,7 +58,7 @@ namespace
     TAutoConsoleVariable<float> GkSunScale(TEXT("gk.Look.SunScale"),1.f,TEXT("Multiplier for authored forest sunlight."));
     TAutoConsoleVariable<float> GkSunPitch(TEXT("gk.Look.SunPitch"),-8.f,TEXT("Forest sunlight pitch offset in degrees."));
     TAutoConsoleVariable<float> GkSunYaw(TEXT("gk.Look.SunYaw"),4.f,TEXT("Forest sunlight yaw offset in degrees."));
-    TAutoConsoleVariable<float> GkFogScale(TEXT("gk.Look.FogScale"),.28f,TEXT("Multiplier for forest atmospheric density."));
+    TAutoConsoleVariable<float> GkFogScale(TEXT("gk.Look.FogScale"),.34f,TEXT("Multiplier for forest atmospheric density."));
     TAutoConsoleVariable<float> GkCelStrength(TEXT("gk.Look.CelStrength"),.92f,TEXT("Environment cel shading blend."));
     TAutoConsoleVariable<float> GkCelShadow(TEXT("gk.Look.CelShadow"),.32f,TEXT("Environment shadow illumination threshold."));
     TAutoConsoleVariable<float> GkCelHigh(TEXT("gk.Look.CelHigh"),.72f,TEXT("Environment highlight illumination threshold."));
