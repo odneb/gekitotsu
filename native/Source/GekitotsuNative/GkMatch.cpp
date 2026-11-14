@@ -2622,7 +2622,7 @@ void AGkMatch::Present(float Real)
 	// the camera frames both fighters the way the browser does: wide enough for the two of them and for the higher one's head
 	const bool bLabCam = Screen == 4;
 	const double Ax = bLabCam ? -60.0 : S.p[0].x / double(gk::F), Bx = bLabCam ? 60.0 : S.p[1].x / double(gk::F), Hy = bLabCam ? 0.0 : FMath::Max(S.p[0].y, S.p[1].y) / double(gk::F);
-	const double FrameScale = (bForestLook && Screen == 3 && !bMenu) ? .70 : 1.0;
+	const double FrameScale = (bForestLook && Screen == 3 && !bMenu) ? .95 : 1.0;
 	const double Tw = FrameScale * FMath::Max3(236.0, FMath::Min(480.0, FMath::Abs(Ax - Bx) + 150.0), FMath::Min(600.0, (Hy + 150.0) * 2.0)), Ty = Tw * 9.0 / 32.0 - 17.0, Unit = Cm * gk::F;
 	const double HalfFov = FMath::DegreesToRadians(15.0), Dist = (Tw * 0.5 * Unit) / FMath::Tan(HalfFov);
 	const double Edge = FMath::Max(0.0, (gk::STAGE / double(gk::F) + 30.0) - Tw * 0.5), Tx = FMath::Clamp((Ax + Bx) * 0.5, -Edge, Edge);
@@ -2703,16 +2703,16 @@ void AGkMatch::Present(float Real)
 		CamD.KRoll *= FMath::Pow(0.86f, Rate); CamD.KZm *= FMath::Pow(0.84f, Rate); CamD.KFov *= FMath::Pow(0.86f, Rate); CamD.KYaw *= FMath::Pow(0.88f, Rate);
 		// the browser's lens is far wider than this one, so its swings and widenings are scaled to suit
 		const double Yaw = FMath::DegreesToRadians(double(CamD.Yaw + CamD.KYaw) * 0.8), Pit = FMath::DegreesToRadians(double(CamD.Pit) - 4.0);
-		const double FightLens = (bForestLook && Screen == 3 && !bMenu) ? 18.0 : GkFovBase;
+		const double FightLens = (bForestLook && Screen == 3 && !bMenu) ? GkFovBase * .92 : GkFovBase;
 		const double Fov = FMath::Clamp(FightLens + double(CamD.Fov + CamD.KFov) * 0.4, FightLens - 4.0, FightLens + 10.0), Hk = FMath::Tan(FMath::DegreesToRadians(Fov * 0.5)), Hk0 = FMath::Tan(HalfFov);
 		double D = -CamPos.X * (Hk0 / Hk) * double(CamD.Zm) * (1.0 + double(CamD.KZm));
-		if (!T.bSolo) { const double A = (FMath::Abs(Ax - Bx) * 0.5 + 36.0 + T.Pad) * Unit; D = FMath::Max(D, A * (FMath::Cos(Yaw) / ((bForestLook ? 0.92 : 0.84) * Hk) + FMath::Abs(FMath::Sin(Yaw)))); }
+		if (!T.bSolo) { const double A = (FMath::Abs(Ax - Bx) * 0.5 + 36.0 + T.Pad) * Unit; D = FMath::Max(D, A * (FMath::Cos(Yaw) / (0.84 * Hk) + FMath::Abs(FMath::Sin(Yaw)))); }
 		double LookZ = CamPos.Z;
 		if (bForestLook && bPlaced && Screen == 3)
 		{
 			const double GroundZ = 0.5 * (FloorPoint(At(S.p[0].x, 0)).Z + FloorPoint(At(S.p[1].x, 0)).Z);
 			ForestCameraGround = FMath::FInterpTo(ForestCameraGround, GroundZ, Real, 5.0);
-			LookZ = ForestCameraGround + 100.0 + Hy * Unit * .5;
+			LookZ += ForestCameraGround - 37.0;
 		}
 		if (bForestLook && Screen == 3) { D *= .99; }
 		FVector Look(0.0, CamPos.Y, LookZ);

@@ -178,4 +178,4 @@ Personal animation picks are not part of this rollback.
 
 Environment sun-facing contours now receive a narrow directional highlight (gk.Look.WorldRim=0.65, WorldRimWidth=0.12). Bloom diffusion scale is 0.6 with grain 0.02; depth of field remains disabled. Compared actual HUD-on captures at 20%, 35%, and 50% authored fog: the stronger variants washed the background yellow, so the final density is 28%.
 
-Forest gameplay uses an 18-degree horizontal lens with a more distant camera and tighter framing. Both-fighter horizontal safety takes priority over the roughly 70% height target at close range. Menus and animation-lab cameras retain their lenses.
+Forest gameplay uses a restrained 46-degree horizontal lens (8% narrower than the stage’s authored 50 degrees) and 5% tighter base framing. The previous 18-degree / 70%-height experiment was rejected because it hid too much of the stage. Both-fighter horizontal safety remains unchanged.
