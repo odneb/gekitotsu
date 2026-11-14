@@ -42,6 +42,12 @@ return smoothstep(Threshold-.035,Threshold+.035,n)*smoothstep(.82,.97,Slope.z)*s
   assert E.connect_material_expressions(end,'',mix,'B')
   assert E.connect_material_expressions(alpha,'',mix,'Alpha')
   assert E.connect_material_property(mix,'',prop)
+if not any(n.get_editor_property('desc')=='GK_PAINTED_NORMAL' for n in E.get_material_expressions(m)):
+ prev=E.get_material_property_input_node(m,unreal.MaterialProperty.MP_NORMAL)
+ output=E.get_material_property_input_node_output_name(m,unreal.MaterialProperty.MP_NORMAL)
+ n=E.create_material_expression(m,unreal.MaterialExpressionCustom);n.set_editor_property('desc','GK_PAINTED_NORMAL');n.set_editor_property('output_type',unreal.CustomMaterialOutputType.CMOT_FLOAT3)
+ i=unreal.CustomInput();i.set_editor_property('input_name','N');n.set_editor_property('inputs',[i]);n.set_editor_property('code','return normalize(float3(N.xy*.18,N.z));')
+ assert E.connect_material_expressions(prev,output,n,'N');assert E.connect_material_property(n,'',unreal.MaterialProperty.MP_NORMAL)
 # Keep reruns and fresh reconstructions on the same defaults.
 for expression in E.get_material_expressions(m):
  if isinstance(expression,unreal.MaterialExpressionScalarParameter):

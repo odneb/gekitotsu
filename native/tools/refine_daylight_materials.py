@@ -85,7 +85,13 @@ float light=smoothstep(ShadowThreshold-aa,ShadowThreshold+aa,illum), top=smooths
 float high2=smoothstep(1.7-aa,1.7+aa,illum), high3=smoothstep(3.5-aa,3.5+aa,illum);
 float bands=.18+.40*light+.55*top+1.17*high2+2.0*high3;
 float3 tint=lerp(float3(.70,.73,1.12),float3(1.06,1.00,.94),light);
-float3 c=Scene.rgb*(bands/max(illum,.05))*tint;
+// Preserve hue, but remove continuously shaded surface texture from the value design.
+float value=sqrt(saturate(a));
+float stepped=floor(value*6.+.5)/6.;
+float3 paintedAlbedo=Albedo.rgb*(max(stepped*stepped,.025)/max(a,.025));
+float3 lightHue=Scene.rgb/max(Albedo.rgb*max(illum,.05),float3(.02,.02,.02));
+lightHue=clamp(lightHue,.55,1.5);
+float3 c=lerp(Albedo.rgb,paintedAlbedo,.8)*bands*lightHue*tint;
 float mask=smoothstep(.03,.08,a)*(1-smoothstep(4200,12000,Depth.r));
 mask*=1-smoothstep(6.,10.,illum);
 float2 uv=GetDefaultSceneTextureUV(Parameters,14);

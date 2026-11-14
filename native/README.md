@@ -164,3 +164,15 @@ materials still emit existing Metal shader warnings; the new look materials comp
 For visual tuning, gk.Look.* console variables expose rim, shadow thresholds, bloom,
 sun direction, sky fill, cloud placement, wet coverage, and mist settings. Keep
 picks.txt and the original Dreadmarsh level unchanged during look development.
+
+
+### Stronger world cel treatment — follow-up
+
+Opaque environment albedo now uses a six-step luminance palette, preserving hue,
+combined with quantized illumination. The local landscape derivative reduces normal
+XY amplitude to 18%, flattening tiny surface bumps while preserving geometry and
+cast shadows. Daylight wet-mask strength is 0.15 (storm maximum 0.55). Vapor density
+is 4, extrusion 0.045 and background density 0.012: a much quieter atmosphere than
+the earlier dense render pass. Native daylight/dash/storm captures and the Mac build
+were checked. This is a more graphic treatment; the remaining live vapor is still a
+volume simulation, not authored anime smoke animation.
