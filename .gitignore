@@ -9,3 +9,10 @@ native/Build/check_*
 native/Build/gkcheck
 native/Build/o.txt
 __pycache__/
+
+# Local shader derivatives of separately licensed Fab packs. Rebuild with
+# native/tools/prepare_render_assets.sh after installing those owned packs.
+native/Content/GkFx/M_GkCelMistVolume.uasset
+native/Content/GkFx/MI_GkCelMistBase.uasset
+native/Content/GkFx/M_GkWetLandscape.uasset
+native/Content/GkFx/MI_GkWetLandscapeBase.uasset

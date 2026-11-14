@@ -18,8 +18,8 @@ void AGkMatch::UpdateMenuSet()
  auto& PP=Cam->GetCameraComponent()->PostProcessSettings;
  if(PrintFinish)PP.AddBlendable(PrintFinish,Studio?1.f:0.f);
  if(ForestCel)PP.AddBlendable(ForestCel,Studio?0.f:1.f);
- PP.bOverride_SceneFringeIntensity=Studio;PP.SceneFringeIntensity=0;
- if(!Studio){PP.bOverride_BloomIntensity=true;PP.BloomIntensity=.18f;PP.bOverride_VignetteIntensity=true;PP.VignetteIntensity=.18f;PP.bOverride_ColorGamma=false;}
+ PP.bOverride_SceneFringeIntensity=true;PP.SceneFringeIntensity=0;
+ if(!Studio){if(!bForestLook){PP.bOverride_BloomIntensity=true;PP.BloomIntensity=.18f;}PP.bOverride_VignetteIntensity=true;PP.VignetteIntensity=.18f;PP.bOverride_ColorGamma=false;}
  for(auto Plane:MenuSetPlanes)if(Plane)Plane->SetVisibility(false);
  for(auto Model:MenuCostumes)if(Model)Model->SetVisibility(false);
  if(!Studio&&!Stage&&!Call)return;

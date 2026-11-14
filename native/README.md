@@ -121,3 +121,46 @@ voice poses, then dollies out. **Start/Enter** skips it; training bypasses it.
 `tools/capture_visual_polish.txt` are native reproduction scripts. Launch with
 `-gkscript -gkscriptfile=/absolute/path/to/script.txt`; add
 `-UseFixedTimeStep -FPS=60` for frame export. Recorded PNGs are in `Saved/shots`.
+
+
+## Forest rendering pass — 2026-11-14
+
+The forest cel pass runs before temporal reconstruction; unlit fighters, sky and
+energy are excluded from its opaque shading quantization. TSR, anisotropic texture
+filtering, and restrained sharpening keep drawn edges readable. Depth of field,
+motion blur and chromatic aberration are disabled, including cinematic shots.
+Directional fighter rim and tiered highlights follow the stage lighting. The
+original landscape receives slope-masked wet patches; foliage keeps its existing
+wind and opacity masks. No waterfall, light-card geometry or terrain edits were
+introduced by this pass.
+
+FluidNinja LIVE2 supplies the actual density/velocity simulation and fighter
+interaction. A local material derivative gives the vapor three light-value tiers.
+Its separate translucency pass is named AfterDOF by Unreal, but DOF itself is off.
+The 256x512 simulation and 128 ray samples favor appearance over frame rate.
+The stage palettes continue to blend from gameplay state.
+
+After installing the owned Dreadmarsh and FluidNinja packs, run:
+
+```sh
+zsh native/tools/prepare_render_assets.sh
+```
+
+Run from the repository root. Set GK_ENGINE_ROOT if Unreal is installed elsewhere.
+This reconstructs local vendor-derived shaders excluded from Git, then regenerates
+the original fighter/forest/sky materials. It does not edit vendor assets or personal
+animation picks. Existing local installations already contain these derivatives.
+Logs are under native/Saved/RenderSetup. configure_film_fog.py is an optional editor
+utility for the isolated fog sublevel; run material preparation first.
+
+Validated with the Mac Development editor target, film gameplay checks, six-palette
+settling/transition capture, dash footage, full entrance and entrance skip tests.
+At 1672x940 native resolution, observed frame times were roughly 31–35 ms on the
+current Mac with another editor open. These are sampled editor-game measurements,
+not a packaged 60 FPS certification. An 80% render-scale test improved frame time
+but degraded vapor stability, so it is not the default. Unused imported ocean
+materials still emit existing Metal shader warnings; the new look materials compile.
+
+For visual tuning, gk.Look.* console variables expose rim, shadow thresholds, bloom,
+sun direction, sky fill, cloud placement, wet coverage, and mist settings. Keep
+picks.txt and the original Dreadmarsh level unchanged during look development.

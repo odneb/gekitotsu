@@ -88,7 +88,7 @@ public:
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> FilmBeam[2];
 	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> FilmBeamMid[2];
 	float FilmBeamLife[2] = {0,0};
- float FilmWetness=-1.f;
+ float FilmWetness=-1.f, FilmGroundRoughness=-1.f, FilmGroundWetAmount=-1.f, FilmGroundWetCut=-1.f;
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> FilmOrb[2];
 	UPROPERTY() TObjectPtr<class UPointLightComponent> FilmEnergyLight[2];
 	void EnergyOrb(int32 Who, float Radius);
@@ -223,6 +223,7 @@ public:
 	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> FilmSky;
 	UPROPERTY() TObjectPtr<UMaterialInterface> ForestFighterCel;
 	TWeakObjectPtr<class UDirectionalLightComponent> ForestSun;
+	TWeakObjectPtr<class USkyLightComponent> ForestFill;
 	TWeakObjectPtr<class UExponentialHeightFogComponent> ForestFog;
 	FRotator ForestSunRotation;
 	float ForestSunIntensity = 0.f;

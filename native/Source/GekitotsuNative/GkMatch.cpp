@@ -59,6 +59,9 @@
 #include "Engine/Level.h"
 #include "Engine/LevelScriptActor.h"
 
+static TAutoConsoleVariable<float> GkFighterKeyX(TEXT("gk.Look.FighterKeyX"),.30f,TEXT("Fighter key direction in stage space."));
+static TAutoConsoleVariable<float> GkFighterKeyY(TEXT("gk.Look.FighterKeyY"),-.65f,TEXT("Fighter key direction in stage space."));
+static TAutoConsoleVariable<float> GkFighterKeyZ(TEXT("gk.Look.FighterKeyZ"),.65f,TEXT("Fighter key direction in stage space."));
 AGkMatch* AGkMatch::Current = nullptr;
 static FString GkSkyForce; static double GkTimeForce = -1.0;   // a script trying a stage under another sky
 static double GkFovBase = 30.0;   // the fight lens, in degrees across: a stage may ask for a wider one
@@ -347,10 +350,11 @@ void AGkMatch::StageLook()
 		PaletteOverride = FMath::Clamp(PaletteOverride, -1, 5);
 		FilmEnergyMaterial=LoadObject<UMaterialInterface>(nullptr,TEXT("/Game/GkFx/M_GkDirectedEnergy.M_GkDirectedEnergy"));
 		ForestFighterCel = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/GkFx/M_GkFilmFighter.M_GkFilmFighter"));
-		ForestCel = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/GkFx/M_GkFilmForest.M_GkFilmForest"));
+		if(UMaterialInterface* Material=LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/GkFx/M_GkFilmForest.M_GkFilmForest")))
+            ForestCel = UMaterialInstanceDynamic::Create(Material,this);
 	}
 	if (!bForestLook && !EdgeMid) { if (UMaterialInterface* EM = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/GkFx/M_GkRim.M_GkRim"))) { EdgeMid = UMaterialInstanceDynamic::Create(EM, this); } }
-	{ TArray<FString> N; St->Get(TEXT("edge")).ParseIntoArray(N, TEXT(",")); if (N.Num() > 0) { GkEdge(EdgeMid, N); } } GkFovBase = FCString::Atod(*St->Get(TEXT("fov"), TEXT("30")));   // no soft focus unless a stage asks for it
+	{ TArray<FString> N; St->Get(TEXT("edge")).ParseIntoArray(N, TEXT(",")); if (N.Num() > 0) { GkEdge(EdgeMid, N); } } GkFovBase = FCString::Atod(*St->Get(TEXT("fov"), TEXT("30")));   // stage-specific field of view; depth planes remain sharp
 }
 
 /** FluidNinja LIVE's low fog, laid over the floor of the fight. It is a small level of its own (tools/make_ninja_fog.py takes
@@ -362,7 +366,7 @@ void AGkMatch::NinjaFog()
 	if (!W || (St && St->Get(TEXT("ninja")) == TEXT("0")) || FParse::Param(FCommandLine::Get(), TEXT("gknoninja"))) { return; }
 	const bool bCanyonSand = Kind == 1;
 	const TCHAR* Path = bCanyonSand ? TEXT("/Game/GkStage/L_GkNinjaSand") : bForestLook ? TEXT("/Game/GkStage/L_GkFilmFog3") : TEXT("/Game/GkStage/L_GkNinjaMist");
-	const FVector Offset = bForestLook ? FloorPoint(FVector(0,0,0)) + FVector(0,0,8) : bCanyonSand ? FVector(0.0, 0.0, 8.0) : FVector(30.0, 0.0, 250.0);
+	const FVector Offset = bForestLook ? FloorPoint(FVector(0,0,0)) + FVector(750,0,12) : bCanyonSand ? FVector(0.0, 0.0, 8.0) : FVector(30.0, 0.0, 250.0);
 	bool bOk = false;
 	NinjaLevel = ULevelStreamingDynamic::LoadLevelInstance(W, FString(Path), Wd(Offset), Anchor.Rotator(), bOk);
 	UE_LOG(LogTemp, Display, TEXT("GkNinja: %s %s"), Path, bOk ? TEXT("streaming in") : TEXT("did not load"));
@@ -1838,9 +1842,9 @@ void AGkMatch::LookFighter(int32 i)
 				: CostumeColor(Setup.Costume[i],true);
 			const FLinearColor Shadow = bArmor
 				? Paint*FLinearColor(.28f,.29f,.48f)
-				: Paint*FLinearColor(.34f,.38f,.56f);
+				: Paint*FLinearColor(.20f,.25f,.42f);
 			const FVector BackKey = ForestSun.IsValid() ? -ForestSun->GetForwardVector() : Anchor.TransformVectorNoScale(FVector(.55,-.65,.55));
-            const FVector Key = Anchor.TransformVectorNoScale(FVector(.18,-.75,.65)).GetSafeNormal();
+            const FVector Key = Anchor.TransformVectorNoScale(FVector(GkFighterKeyX.GetValueOnGameThread(),GkFighterKeyY.GetValueOnGameThread(),GkFighterKeyZ.GetValueOnGameThread())).GetSafeNormal();
             BodyMid[i][k]->SetVectorParameterValue(TEXT("BackKey"),FLinearColor(BackKey.X,BackKey.Y,BackKey.Z));
 			const FLinearColor Tint = FMath::Lerp(FLinearColor::White, SceneT, 0.38f);
 			BodyMid[i][k]->SetVectorParameterValue(TEXT("Key"), FLinearColor(Key.X, Key.Y, Key.Z));
@@ -1848,7 +1852,7 @@ void AGkMatch::LookFighter(int32 i)
 			BodyMid[i][k]->SetVectorParameterValue(TEXT("Paint"), FMath::Lerp(Paint, Wash, Amt));
 			BodyMid[i][k]->SetVectorParameterValue(TEXT("Shadow"), FMath::Lerp(Shadow, Wash * 0.55f, Amt));
 			const float Daylight = PaletteWeights[0];
-			const FLinearColor DayRim = FMath::Lerp(Rim, FLinearColor(1.0f,0.86f,0.67f) * Rim.R, Daylight * 0.68f);
+			const FLinearColor DayRim = FMath::Lerp(Rim, FLinearColor(1.0f,0.43f,0.12f) * Rim.R, Daylight * 0.85f);
 			BodyMid[i][k]->SetVectorParameterValue(TEXT("Rim"), DayRim * FMath::Lerp(0.95f,1.38f,Daylight));
    if((Screen!=3 && Screen!=4 && Screen!=2)||bMenu){
     const FVector L=Anchor.TransformVectorNoScale(FVector(-.65,-.35,.68)).GetSafeNormal();
@@ -2720,10 +2724,13 @@ void AGkMatch::Present(float Real)
 		FRotator Rot = (Look - Eye).Rotation(); Rot.Roll = -(CamD.Roll + CamD.KRoll);
 		if (Cam) { Cam->GetCameraComponent()->SetFieldOfView(float(Fov)); Cam->SetActorLocationAndRotation(Wd(Eye), Anchor.GetRotation() * Rot.Quaternion()); }
 		if (Cam)
-		{   // the lens: the fighters are held sharp, the far ground goes soft behind them (not in the training room, where the grid is read)
-			FPostProcessSettings& PP = Cam->GetCameraComponent()->PostProcessSettings; if (EdgeMid && !bEdgeAdd) { PP.AddBlendable(EdgeMid, 1.f); bEdgeAdd = true; } const bool bSoft = Place != 0 && LensF > 0.f && LensF < 20.f && !bScout;
-			PP.bOverride_DepthOfFieldFstop = true; PP.DepthOfFieldFstop = bSoft ? LensF : 32.f; PP.bOverride_DepthOfFieldMinFstop = true; PP.DepthOfFieldMinFstop = 1.2f;
-			PP.bOverride_DepthOfFieldSensorWidth = true; PP.DepthOfFieldSensorWidth = 36.f; PP.bOverride_DepthOfFieldFocalDistance = true; PP.DepthOfFieldFocalDistance = bSoft ? float((Look - Eye).Size()) : 0.f;
+		{   // Anime staging keeps all depth planes sharp, including cinematic closeups.
+			FPostProcessSettings& PP = Cam->GetCameraComponent()->PostProcessSettings;
+			if (EdgeMid && !bEdgeAdd) { PP.AddBlendable(EdgeMid, 1.f); bEdgeAdd = true; }
+			PP.bOverride_DepthOfFieldFstop = true; PP.DepthOfFieldFstop = 32.f;
+			PP.bOverride_DepthOfFieldFocalDistance = true; PP.DepthOfFieldFocalDistance = 0.f;
+			PP.bOverride_MotionBlurAmount = true; PP.MotionBlurAmount = 0.f;
+			PP.bOverride_SceneFringeIntensity = true; PP.SceneFringeIntensity = 0.f;
 			if (bScout) { Cam->GetCameraComponent()->SetFieldOfView(ScoutFov); Cam->SetActorLocationAndRotation(ScoutPos, ScoutRot); }
 		}
   if(Cam && bPlaced && (Screen==0 || Screen==1 || Screen==2 || Screen==5 || Screen==6 || Screen==7 || (Screen==3 && S.phase==gk::PH_OVER && !bMenu))) {

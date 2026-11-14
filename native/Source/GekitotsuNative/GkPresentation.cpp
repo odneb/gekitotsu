@@ -109,7 +109,7 @@ void AGkMatch::ApplyPersonality(int32 Who,FName Slot,float Frame,TArray<FTransfo
 
 FLinearColor AGkMatch::CostumeColor(int32 Outfit,bool Accent)
 {
- static const FLinearColor Primary[8]={{.47f,.065f,.06f},{.085f,.20f,.43f},{.85f,.35f,.025f},{.035f,.35f,.19f},{.30f,.07f,.51f},{.035f,.045f,.065f},{.78f,.80f,.74f},{.80f,.06f,.25f}};
+ static const FLinearColor Primary[8]={{.47f,.065f,.06f},{.07f,.10f,.26f},{.85f,.35f,.025f},{.035f,.35f,.19f},{.30f,.07f,.51f},{.035f,.045f,.065f},{.78f,.80f,.74f},{.80f,.06f,.25f}};
  static const FLinearColor Secondary[8]={{.65f,.65f,.59f},{.65f,.65f,.59f},{.035f,.055f,.09f},{.72f,.64f,.38f},{.50f,.62f,.70f},{.78f,.43f,.09f},{.16f,.07f,.27f},{.045f,.48f,.50f}};
  return Accent?Secondary[FMath::Clamp(Outfit,0,7)]:Primary[FMath::Clamp(Outfit,0,7)];
 }

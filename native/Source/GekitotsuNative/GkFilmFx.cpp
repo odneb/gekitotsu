@@ -55,7 +55,7 @@ void AGkMatch::DumpFilmFog()
    for(TFieldIterator<FProperty> P(C->GetClass());P;++P)
    {
     FString N=P->GetName();
-    if(!(N.Contains(TEXT("Tracked"))||N.Contains(TEXT("SimulationPosition"))||N.Contains(TEXT("Overlap"))||N.Contains(TEXT("Brush"))||N.Contains(TEXT("Volume"))||N.Contains(TEXT("RT_"))||N.Contains(TEXT("Activated"))||N==TEXT("DensityNoiseAmount")))continue;
+    if(!(N.Contains(TEXT("Tracked"))||N.Contains(TEXT("SimulationPosition"))||N.Contains(TEXT("Overlap"))||N.Contains(TEXT("Brush"))||N.Contains(TEXT("Volume"))||N.Contains(TEXT("RT_"))||N.Contains(TEXT("Activated"))||N.Contains(TEXT("DensityNoise"))||N==TEXT("ExtentsXYZ")||N.Contains(TEXT("Resolution"))))continue;
     if(FArrayProperty* Array=CastField<FArrayProperty>(*P)){FScriptArrayHelper Values(Array,Array->ContainerPtrToValuePtr<void>(C));UE_LOG(LogTemp,Display,TEXT("FOG ARRAY %s count%d"),*N,Values.Num());}
     FString Value;P->ExportTextItem_Direct(Value,P->ContainerPtrToValuePtr<void>(C),nullptr,C,PPF_None);
     UE_LOG(LogTemp,Display,TEXT("FOG PROP %s=%s"),*N,*Value);
