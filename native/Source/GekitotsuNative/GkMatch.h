@@ -228,6 +228,7 @@ public:
 	FRotator ForestSunRotation;
 	float ForestSunIntensity = 0.f;
 	float ForestFogDensity = 0.f;
+	float ForestSecondFogDensity = 0.f;
 	FLinearColor ForestSunColor = FLinearColor::White;
 	FLinearColor ForestFogColor = FLinearColor::White;
 	FLinearColor ForestRim = FLinearColor::White;

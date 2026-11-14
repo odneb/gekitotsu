@@ -58,7 +58,7 @@ namespace
     TAutoConsoleVariable<float> GkSunScale(TEXT("gk.Look.SunScale"),1.f,TEXT("Multiplier for authored forest sunlight."));
     TAutoConsoleVariable<float> GkSunPitch(TEXT("gk.Look.SunPitch"),-8.f,TEXT("Forest sunlight pitch offset in degrees."));
     TAutoConsoleVariable<float> GkSunYaw(TEXT("gk.Look.SunYaw"),4.f,TEXT("Forest sunlight yaw offset in degrees."));
-    TAutoConsoleVariable<float> GkFogScale(TEXT("gk.Look.FogScale"),1.f,TEXT("Multiplier for forest atmospheric density."));
+    TAutoConsoleVariable<float> GkFogScale(TEXT("gk.Look.FogScale"),.2f,TEXT("Multiplier for forest atmospheric density."));
     TAutoConsoleVariable<float> GkCelStrength(TEXT("gk.Look.CelStrength"),0.35f,TEXT("Environment cel shading blend."));
     TAutoConsoleVariable<float> GkCelShadow(TEXT("gk.Look.CelShadow"),.32f,TEXT("Environment shadow illumination threshold."));
     TAutoConsoleVariable<float> GkCelHigh(TEXT("gk.Look.CelHigh"),.72f,TEXT("Environment highlight illumination threshold."));
@@ -206,6 +206,7 @@ void AGkMatch::UpdateForestLook(float DeltaSeconds)
 			{
 				ForestFog = FogComponent;
 				ForestFogDensity = FogComponent->FogDensity;
+                ForestSecondFogDensity = FogComponent->SecondFogData.FogDensity;
 				ForestFogColor = FogComponent->FogInscatteringLuminance;
 				break;
 			}
@@ -248,8 +249,10 @@ void AGkMatch::UpdateForestLook(float DeltaSeconds)
 	if (UExponentialHeightFogComponent* FogComponent = ForestFog.Get())
 	{
         // Preserve the environment author's height, both layers, falloff and scattering.
-        // Daylight reproduces the saved map fog; other palettes only shift color/density.
-        FogComponent->SetFogDensity(ForestFogDensity * (FogScale / Palettes[0].FogScale) * GkFogScale.GetValueOnGameThread());
+        // Reduce both authored layers together; keep their spatial shape and palette transitions.
+        const float DensityScale=(FogScale / Palettes[0].FogScale)*FMath::Max(0.f,GkFogScale.GetValueOnGameThread());
+        FogComponent->SetFogDensity(ForestFogDensity*DensityScale);
+        FogComponent->SecondFogData.FogDensity=ForestSecondFogDensity*DensityScale;
         FogComponent->SetFogInscatteringColor(FMath::Lerp(ForestFogColor,FogTint,(1.f-PaletteWeights[0])*.65f));
 	}
     if(auto* Fill=ForestFill.Get()) {

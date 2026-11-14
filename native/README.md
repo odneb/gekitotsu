@@ -188,8 +188,8 @@ The experimental forest FluidNinja volume no longer loads by default. For later
 look development it can be enabled with gk.Look.ForestVapor=1 before stage load;
 its assets and interaction implementation remain available. The default atmosphere
 preserves the map author's height-fog position, both fog layers, height falloff,
-scattering and opacity. Daylight uses the saved density/color; other palettes only
-adjust density and tint. The original map also contains Sky Atmosphere. Shared
+scattering and opacity. Daylight retains the saved color with both authored fog densities reduced to 20%;
+other palettes adjust density and tint from that lighter baseline. The original map also contains Sky Atmosphere. Shared
 Dreamscape resources include BP_GlobalFogTool and BP_GroundFogTool, but those are
 not placed as actors in this daytime map; the night map references the ground tool. DOF remains disabled. These settings supersede the earlier vapor and hard
 world-cel defaults documented above.
