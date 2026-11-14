@@ -68,7 +68,11 @@ m.set_editor_property('blendable_location',unreal.BlendableLocation.BL_SCENE_COL
 i={}
 for name,tid in [('Scene',unreal.SceneTextureId.PPI_POST_PROCESS_INPUT0),('Albedo',unreal.SceneTextureId.PPI_BASE_COLOR),('Depth',unreal.SceneTextureId.PPI_SCENE_DEPTH),('Normal',unreal.SceneTextureId.PPI_WORLD_NORMAL),('Model',unreal.SceneTextureId.PPI_SHADING_MODEL_ID)]:
  n=node(m,unreal.MaterialExpressionSceneTexture); n.set_editor_property('scene_texture_id',tid); i[name]=n
-for name,value in [('CelStrength',.35),('ShadowThreshold',.32),('HighlightThreshold',.72),('DebugIllumination',0.),('CelEdgeSoftness',.08),('CreaseStrength',.12)]:
+i['Position']=node(m,unreal.MaterialExpressionWorldPosition)
+i['Camera']=node(m,unreal.MaterialExpressionCameraPositionWS)
+i['SunDirection']=vector(m,'SunDirection',(.55,-.65,.55))
+i['EdgeColor']=vector(m,'EdgeColor',(1.,.55,.22))
+for name,value in [('CelStrength',.92),('ShadowThreshold',.32),('HighlightThreshold',.72),('DebugIllumination',0.),('CelEdgeSoftness',.08),('CreaseStrength',.24),('WorldRimStrength',.65),('WorldRimWidth',.12)]:
  n=node(m,unreal.MaterialExpressionScalarParameter);n.set_editor_property('parameter_name',name);n.set_editor_property('default_value',value);i[name]=n
 n=custom(m,i,'''
 // Unlit fighters, energy and sky already own their value design.
@@ -95,7 +99,19 @@ float3 nx=SceneTextureLookup(uv+float2(px.x,0),8,false).rgb;
 float3 ny=SceneTextureLookup(uv+float2(0,px.y),8,false).rgb;
 float crease=smoothstep(.28,.48,max(length(n0-nx),length(n0-ny)));
 float nearMask=1-smoothstep(2800,6500,Depth.r);
-return max(lerp(Scene.rgb,c,mask*CelStrength)*(1-crease*CreaseStrength*nearMask*mask),0);
+float3 result=max(lerp(Scene.rgb,c,mask*CelStrength)*(1-crease*CreaseStrength*nearMask*mask),0);
+// A directional, light-gated contour: no full-frame outline or glow on flat ground.
+float3 N=normalize(n0), V=normalize(Camera-Position), L=normalize(SunDirection.rgb);
+float facing=abs(dot(N,V));
+float edgeAA=clamp(fwidth(facing),.008,.04);
+float contour=1-smoothstep(WorldRimWidth-edgeAA,WorldRimWidth+edgeAA,facing);
+float sunFacing=smoothstep(-.12,.35,dot(N,L));
+float litGate=smoothstep(.38,.85,illum);
+float slope=1-smoothstep(.65,.92,abs(N.z));
+float distanceFade=1-smoothstep(4500.,10000.,Depth.r);
+float edge=contour*sunFacing*litGate*slope*distanceFade;
+return result+EdgeColor.rgb*WorldRimStrength*edge;
+
 '''); E.connect_material_property(n,'',unreal.MaterialProperty.MP_EMISSIVE_COLOR); save(m)
 # Reuse the stage's cloud mask on its existing sky dome with six animated palettes.
 m=mat('M_GkFilmSky'); m.set_editor_property('is_sky',True); m.set_editor_property('two_sided',True)

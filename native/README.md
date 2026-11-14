@@ -166,30 +166,16 @@ sun direction, sky fill, cloud placement, wet coverage, and mist settings. Keep
 picks.txt and the original Dreadmarsh level unchanged during look development.
 
 
-### Stronger world cel treatment — follow-up
+### Current baseline: dash-video render plus restrained authored atmosphere
 
-Opaque environment albedo now uses a six-step luminance palette, preserving hue,
-combined with quantized illumination. The local landscape derivative reduces normal
-XY amplitude to 18%, flattening tiny surface bumps while preserving geometry and
-cast shadows. Daylight wet-mask strength is 0.15 (storm maximum 0.55). Vapor density
-is 4, extrusion 0.045 and background density 0.012: a much quieter atmosphere than
-the earlier dense render pass. Native daylight/dash/storm captures and the Mac build
-were checked. This is a more graphic treatment; the remaining live vapor is still a
-volume simulation, not authored anime smoke animation.
+Restored the rendering baseline from 8b59c1a used for real-game-dash.mp4, including
+FluidNinja vapor, reflective wet patches, original landscape normals, and environment
+cel blend 0.92. The later posterization/matte-ground experiments are removed.
+The one deliberate change from that video is atmosphere: preserve the map author's
+fog position, falloff, scattering and both layer profiles, scaling both densities to
+28% (gk.Look.FogScale=0.28). Other palettes still shift fog density and tint.
+Personal animation picks are not part of this rollback.
 
+Environment sun-facing contours now receive a narrow directional highlight (gk.Look.WorldRim=0.65, WorldRimWidth=0.12). Bloom diffusion scale is 0.6 with grain 0.02; depth of field remains disabled. Compared actual HUD-on captures at 20%, 35%, and 50% authored fog: the stronger variants washed the background yellow, so the final density is 28%.
 
-### Softer background revision — current defaults
-
-The stronger albedo posterization above was rejected and removed. Background
-illumination bands now blend at 0.35, with crease emphasis 0.12. Character shaders
-remain unchanged. Ground normals retain 55% of their XY relief, dry roughness is
-0.88–0.90, and daylight added wet-mask strength is zero (storm maximum 0.25).
-The experimental forest FluidNinja volume no longer loads by default. For later
-look development it can be enabled with gk.Look.ForestVapor=1 before stage load;
-its assets and interaction implementation remain available. The default atmosphere
-preserves the map author's height-fog position, both fog layers, height falloff,
-scattering and opacity. Daylight retains the saved color with both authored fog densities reduced to 20%;
-other palettes adjust density and tint from that lighter baseline. The original map also contains Sky Atmosphere. Shared
-Dreamscape resources include BP_GlobalFogTool and BP_GroundFogTool, but those are
-not placed as actors in this daytime map; the night map references the ground tool. DOF remains disabled. These settings supersede the earlier vapor and hard
-world-cel defaults documented above.
+Forest gameplay uses an 18-degree horizontal lens with a more distant camera and tighter framing. Both-fighter horizontal safety takes priority over the roughly 70% height target at close range. Menus and animation-lab cameras retain their lenses.

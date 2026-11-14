@@ -24,7 +24,7 @@ base=unreal.load_asset(root+'MI_GkCelMistBase') or A.duplicate_asset('/Game/Flui
 E.set_material_instance_parent(base,m);assert A.save_loaded_asset(base)
 mi=unreal.load_asset(root+'MI_GkFilmMist');assert mi
 E.set_material_instance_parent(mi,base)
-for name,value in {'MaxViewSteps':128.,'Density':4.,'DensityPow':.5,'Extrude':.045,'ExtrudeSoften':.01,'XBackgroundDensity':.012,'XBackgroundDensityNoise':.18,'NoiseDisplace':4.0,'NoiseTiling':4.0,'FlowStrength':.35,'FadeDistance':5000.,'AtmoLightDesaturate':.65,'DensityOffset':-.018,'Shadow':.75,'LightIntensity':.18}.items():
+for name,value in {'MaxViewSteps':128.,'Density':12.,'DensityPow':.5,'Extrude':.10,'ExtrudeSoften':.01,'XBackgroundDensity':.045,'XBackgroundDensityNoise':.18,'NoiseDisplace':4.0,'NoiseTiling':4.0,'FlowStrength':.35,'FadeDistance':5000.,'AtmoLightDesaturate':.65,'DensityOffset':-.018,'Shadow':.75,'LightIntensity':.18}.items():
  E.set_material_instance_scalar_parameter_value(mi,name,value)
 for name,value in {'Color1':(.10,.16,.30),'Color2':(.35,.48,.70),'AmbientColor':(.07,.10,.18)}.items():
  E.set_material_instance_vector_parameter_value(mi,name,unreal.LinearColor(*value,1.))
