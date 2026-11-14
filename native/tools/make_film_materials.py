@@ -27,21 +27,31 @@ def save(m):
  E.recompile_material(m); assert A.save_loaded_asset(m)
 # Three designed value groups, a narrow directional edge, and a small hard highlight.
 m=mat('M_GkFilmFighter'); m.set_editor_property('used_with_skeletal_mesh',True)
-i={'Normal':node(m,unreal.MaterialExpressionPixelNormalWS),'View':node(m,unreal.MaterialExpressionCameraVectorWS)}
-for name,v in [('Paint',(.5,.05,.04)),('Shadow',(.09,.015,.025)),('Key',(.4,-.5,.75)),('KeyTint',(1,.93,.8)),('Rim',(1,.94,.75))]: i[name]=vector(m,name,v)
+# Reuse the mannequin's authored normal/AO detail instead of flattening it away.
+normal=node(m,unreal.MaterialExpressionTextureSampleParameter2D);normal.set_editor_property('parameter_name','BodyNormal');normal.set_editor_property('texture',unreal.load_asset('/Game/Characters/Mannequins/Textures/Manny/T_Manny_01_BN'));normal.set_editor_property('sampler_type',unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL)
+E.connect_material_property(normal,'RGB',unreal.MaterialProperty.MP_NORMAL)
+occlusion=node(m,unreal.MaterialExpressionTextureSampleParameter2D);occlusion.set_editor_property('parameter_name','BodyOcclusion');occlusion.set_editor_property('texture',unreal.load_asset('/Game/Characters/Mannequins/Textures/Manny/T_Manny_01_MRA'));occlusion.set_editor_property('sampler_type',unreal.MaterialSamplerType.SAMPLERTYPE_LINEAR_COLOR)
+
+i={'Normal':node(m,unreal.MaterialExpressionPixelNormalWS),'View':node(m,unreal.MaterialExpressionCameraVectorWS),'Occlusion':occlusion}
+for name,v in [('Paint',(.5,.05,.04)),('Shadow',(.09,.015,.025)),('Key',(.4,-.5,.75)),('KeyTint',(1,.93,.8)),('Rim',(1,.94,.75)),('BackKey',(.65,-.65,.4))]: i[name]=vector(m,name,v)
 n=custom(m,i,'''
 float3 N=normalize(Normal), V=normalize(View), L=normalize(Key.rgb);
 float nl=dot(N,L), nv=saturate(dot(N,V));
-float lit=smoothstep(-0.03,0.005,nl), high=smoothstep(.62,.66,nl);
-float3 c=lerp(Shadow.rgb,Paint.rgb*KeyTint.rgb,lit);
-c=lerp(c,Paint.rgb*KeyTint.rgb*1.2,high*.65);
-// The light-facing silhouette is a narrow ink-like cut, not a soft Fresnel glow.
-float edge=1-smoothstep(.22,.25,nv);
-float lightSide=smoothstep(.05,.12,dot(N,normalize(L-V*.55)));
-float rim=edge*lightSide;
-c=lerp(c,Rim.rgb*1.4,rim);
+// Pixel-sized transitions keep the drawn value groups crisp without crawling edges.
+float aa=max(fwidth(nl)*.8,.012);
+float lit=smoothstep(-.12-aa,-.12+aa,nl), high=smoothstep(.60-aa,.60+aa,nl);
+float3 middle=lerp(Shadow.rgb,Paint.rgb*KeyTint.rgb,.56);
+float3 c=lerp(Shadow.rgb,middle,smoothstep(-.46-aa,-.46+aa,nl));
+c=lerp(c,Paint.rgb*KeyTint.rgb,lit);
+c=lerp(c,Paint.rgb*KeyTint.rgb*1.18,high*.65);
+// Independent backlight direction: broad enough to read at the gameplay camera.
+float side=dot(N,normalize(BackKey.rgb));
+float edgeAA=max(fwidth(nv),.014);
+float width=lerp(.14,.29,smoothstep(-.2,.7,side));
+float rim=(1-smoothstep(width-edgeAA,width+edgeAA,nv))*smoothstep(.04,.25,side);
+c=lerp(c,Rim.rgb*3.4,rim);
 float spec=smoothstep(.991,.996,dot(N,normalize(L+V)))*lit;
-return lerp(c,KeyTint.rgb*1.15,spec*.18);
+return lerp(c,KeyTint.rgb*1.65,spec*.14)*(.78+.22*saturate(Occlusion.b));
 '''); E.connect_material_property(n,'',unreal.MaterialProperty.MP_EMISSIVE_COLOR); save(m)
 # Environment: preserve actual cast shadows, quantize reflected illumination, cool shadow planes.
 m=mat('M_GkFilmForest',unreal.MaterialDomain.MD_POST_PROCESS)
@@ -54,8 +64,8 @@ float3 w=float3(.2126,.7152,.0722);
 float a=dot(max(Albedo.rgb,0),w), s=dot(max(Scene.rgb,0),w);
 float illum=s/max(a,.045);
 float light=smoothstep(.26,.29,illum), top=smoothstep(.65,.69,illum);
-float bands=.17+.32*light+.33*top;
-float3 tint=lerp(float3(.72,.86,1.04),float3(1.05,1.02,.87),light);
+float bands=.23+.34*light+.39*top;
+float3 tint=lerp(float3(.68,.82,1.08),float3(1.10,1.02,.84),light);
 float3 c=Scene.rgb*(bands/max(illum,.05))*tint;
 float mask=smoothstep(.03,.08,a)*(1-smoothstep(4200,12000,Depth.r));
 mask*=1-smoothstep(1.2,2.3,illum);
@@ -66,7 +76,7 @@ float3 nx=SceneTextureLookup(uv+float2(px.x,0),8,false).rgb;
 float3 ny=SceneTextureLookup(uv+float2(0,px.y),8,false).rgb;
 float crease=smoothstep(.28,.48,max(length(n0-nx),length(n0-ny)));
 float nearMask=1-smoothstep(2800,6500,Depth.r);
-return max(lerp(Scene.rgb,c,mask*.88)*(1-crease*.30*nearMask*mask),0);
+return max(lerp(Scene.rgb,c,mask*.58)*(1-crease*.12*nearMask*mask),0);
 '''); E.connect_material_property(n,'',unreal.MaterialProperty.MP_EMISSIVE_COLOR); save(m)
 # Sharp tapered flecks replace Gaussian discs for energy, rain, and impact strokes.
 m=mat('M_GkFilmSpark'); m.set_editor_property('blend_mode',unreal.BlendMode.BLEND_TRANSLUCENT); m.set_editor_property('two_sided',True); m.set_editor_property('used_with_instanced_static_meshes',True)

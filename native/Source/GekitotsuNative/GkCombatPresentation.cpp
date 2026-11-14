@@ -121,6 +121,12 @@ void AGkMatch::SurfaceResponse(const FVector& Point,float Strength,float Directi
  const FString Key=Wet?TEXT("wet"):Kind==1?TEXT("sand"):(AirKind==1 || AirKind==2)?TEXT("foliage"):TEXT("forest");
  FSurfaceResponse Profile;Profile.Tint=FLinearColor(.24f,.30f,.15f);if(auto* Found=SurfaceProfiles.Find(Key))Profile=*Found;
  PressureAt=Feet;PressureAge=0;PressureStrength=Strength*Profile.Wake;
+ // Authored cel billows animate from the actual contact, alongside the LIVE-2 wake.
+ if(!Wet && Strength>=.5f){
+  const float Size=145.f*FMath::Sqrt(Strength);
+  auto& Puff=Fx.Add(3,Feet+FVector(-8,Direction*18,Size*.43f),FVector(0,Direction*65,6),.66f,Size,Size*1.12f,FMath::Lerp(FLinearColor::White,ForestGrade,.65f));
+  Puff.Drag=2.5f;
+ }
  // Broken low brush curls and ballistic grit; keep the ground plane readable.
  if(Strength>.3f)for(int Side:{-1,1})for(int k=0;k<3;++k){
   const FVector A=Feet+FVector(-10,Side*(8+k*12),2+k*3),B=Feet+FVector(-10,Side*(35+k*22)*Strength,10+(2-k)*14*Strength);

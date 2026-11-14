@@ -56,7 +56,7 @@ void AGkMatch::UpdatePresentation(float Delta)
  if(!Body[i] || !Body[i]->GetSkinnedAsset())return;
  if(!PortraitCamera[i]) {
   auto* Target=NewObject<UTextureRenderTarget2D>(this);PortraitTarget[i]=Target;
-  Target->ClearColor=FLinearColor(.018f,.025f,.045f);Target->InitCustomFormat(256,256,PF_B8G8R8A8,false);Target->UpdateResourceImmediate(true);
+  Target->ClearColor=FLinearColor(.018f,.025f,.045f);Target->TargetGamma=2.2f;Target->InitCustomFormat(256,256,PF_B8G8R8A8,false);Target->UpdateResourceImmediate(true);
   auto* Capture=NewObject<USceneCaptureComponent2D>(this);PortraitCamera[i]=Capture;
   Capture->SetupAttachment(RootComponent);Capture->bCaptureEveryFrame=false;Capture->bCaptureOnMovement=false;
   Capture->PrimitiveRenderMode=ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
@@ -73,7 +73,7 @@ void AGkMatch::UpdatePresentation(float Delta)
  PortraitCamera[i]->SetWorldLocationAndRotation(Eye,(Head-FVector(0,0,5)-Eye).Rotation());
  if(Cam){
   PortraitCamera[i]->PostProcessSettings=Cam->GetCameraComponent()->PostProcessSettings;
-  PortraitCamera[i]->PostProcessSettings.WeightedBlendables.Array.RemoveAll([this](const FWeightedBlendable& B){return B.Object==MangaMid;});
+  PortraitCamera[i]->PostProcessSettings.WeightedBlendables.Array.Reset();
   PortraitCamera[i]->PostProcessSettings.bOverride_DepthOfFieldFstop=true;PortraitCamera[i]->PostProcessSettings.DepthOfFieldFstop=32.f;
   PortraitCamera[i]->PostProcessSettings.bOverride_VignetteIntensity=true;PortraitCamera[i]->PostProcessSettings.VignetteIntensity=0;
   PortraitCamera[i]->PostProcessSettings.bOverride_BloomIntensity=true;PortraitCamera[i]->PostProcessSettings.BloomIntensity=0;

@@ -26,7 +26,7 @@ namespace
 	};
 
 	const FForestPalette Palettes[] = {
-		{{1.00f, 0.88f, 0.68f}, {0.40f, 0.54f, 0.64f}, {1.00f, 0.91f, 0.66f}, {1.03f, 1.02f, 0.96f}, 1.30f, 0.65f, -7.f, -14.f},
+		{{1.00f, 0.88f, 0.68f}, {0.40f, 0.54f, 0.64f}, {1.00f, 0.55f, 0.22f}, {1.03f, 1.02f, 0.96f}, 1.65f, 0.95f, 8.f, -14.f},
 		{{0.40f, 0.59f, 1.00f}, {0.17f, 0.25f, 0.49f}, {0.49f, 0.72f, 1.00f}, {0.58f, 0.74f, 1.06f}, 0.40f, 0.88f, 7.f, 18.f},
 		{{0.56f, 0.70f, 1.00f}, {0.39f, 0.47f, 0.59f}, {0.54f, 0.77f, 1.00f}, {0.79f, 0.89f, 1.05f}, 0.57f, 1.42f, 1.f, -10.f},
 		{{1.00f, 0.63f, 0.34f}, {0.93f, 0.60f, 0.32f}, {1.00f, 0.65f, 0.31f}, {1.13f, 0.93f, 0.72f}, 0.75f, 1.53f, 8.f, -14.f},
@@ -100,7 +100,7 @@ void AGkMatch::UpdateForestLook(float DeltaSeconds)
 	if(FMath::Abs(FilmWetness-Storm)>.05f){
   FilmWetness=Storm;
   for(TActorIterator<ALandscapeProxy> It(GetWorld());It;++It)if(It->bUseDynamicMaterialInstance)
-   for(int k=1;k<=8;++k)It->SetLandscapeMaterialScalarParameterValue(FName(*FString::Printf(TEXT("Layer_%02d_Roughness_Intensity"),k)),1.f-.78f*Storm);
+   for(int k=1;k<=8;++k)It->SetLandscapeMaterialScalarParameterValue(FName(*FString::Printf(TEXT("Layer_%02d_Roughness_Intensity"),k)),((k==2 || k==3 || k==6)?.22f:.82f)*(1.f-.72f*Storm));
  }
  if (!ForestSun.IsValid())
  { // Fill lights illuminate the set; the key light supplies its graphic cast shadows.
@@ -122,6 +122,9 @@ void AGkMatch::UpdateForestLook(float DeltaSeconds)
 			Light->SetMobility(EComponentMobility::Movable);
 			Light->SetDynamicShadowDistanceMovableLight(6500.f);
 			Light->ContactShadowLength = 0.08f;
+            Light->SetVolumetricScatteringIntensity(2.5f);
+            Light->bEnableLightShaftOcclusion=true;Light->OcclusionMaskDarkness=.65f;
+            Light->bEnableLightShaftBloom=true;Light->SetBloomScale(.32f);Light->SetBloomThreshold(1.f);
 		}
 	}
 	if (!ForestFog.IsValid())
@@ -172,19 +175,23 @@ void AGkMatch::UpdateForestLook(float DeltaSeconds)
 	}
 	if (UExponentialHeightFogComponent* FogComponent = ForestFog.Get())
 	{
-		FogComponent->SecondFogData.FogDensity=0.f;
+		FogComponent->SecondFogData.FogDensity=.012f*FogScale;
+        FogComponent->SecondFogData.FogHeightFalloff=1.2f;
+        FogComponent->SecondFogData.FogHeightOffset=-385.f;
+        FogComponent->SetVolumetricFog(true);
+        FogComponent->SetVolumetricFogScatteringDistribution(.65f);
   FogComponent->SetFogDensity(.008f * FogScale);
   FogComponent->SetFogHeightFalloff(.07f);
   FogComponent->SetWorldLocation(Anchor.GetLocation()+FVector(0,0,400));
-  FogComponent->SetStartDistance(1200.f);
-  FogComponent->SetFogMaxOpacity(.65f);
+  FogComponent->SetStartDistance(800.f);
+  FogComponent->SetFogMaxOpacity(.55f);
 		FogComponent->SetFogInscatteringColor(FMath::Lerp(ForestFogColor, FogTint, 0.75f));
 		FogComponent->SetVolumetricFogAlbedo(FogTint.ToFColorSRGB());
 	}
 	if (FilmSky)
 	{
-		const FLinearColor Zenith[6]={{.045f,.16f,.40f},{.004f,.012f,.06f},{.025f,.025f,.095f},{.36f,.19f,.08f},{.015f,.18f,.035f},{.06f,.055f,.25f}};
-		const FLinearColor Horizon[6]={{.36f,.62f,.78f},{.03f,.09f,.23f},{.18f,.14f,.31f},{.95f,.62f,.30f},{.40f,.80f,.08f},{.98f,.24f,.35f}};
+		const FLinearColor Zenith[6]={{.015f,.05f,.30f},{.004f,.012f,.06f},{.025f,.025f,.095f},{.36f,.19f,.08f},{.015f,.18f,.035f},{.06f,.055f,.25f}};
+		const FLinearColor Horizon[6]={{.10f,.25f,.55f},{.03f,.09f,.23f},{.18f,.14f,.31f},{.95f,.62f,.30f},{.40f,.80f,.08f},{.98f,.24f,.35f}};
 		FLinearColor Z(0,0,0),H(0,0,0);
 		for(int32 k=0;k<6;++k){Z+=Zenith[k]*PaletteWeights[k];H+=Horizon[k]*PaletteWeights[k];}
 		const FVector Moon=Anchor.TransformVectorNoScale(FVector(.97,.22,.15)).GetSafeNormal();
@@ -192,8 +199,8 @@ void AGkMatch::UpdateForestLook(float DeltaSeconds)
   FilmSky->SetScalarParameterValue(TEXT("Night"),PaletteWeights[1]);
   FilmSky->SetVectorParameterValue(TEXT("Zenith"),Z);
 		FilmSky->SetVectorParameterValue(TEXT("Horizon"),H);
-		const FLinearColor CloudHigh[6]={{1.1f,1.06f,.92f},{.035f,.09f,.22f},{.16f,.12f,.30f},{1.f,.7f,.38f},{.3f,.7f,.06f},{1.f,.33f,.45f}};
-  const FLinearColor CloudLow[6]={{.32f,.5f,.67f},{.008f,.025f,.07f},{.04f,.035f,.12f},{.28f,.18f,.10f},{.018f,.12f,.03f},{.09f,.055f,.20f}};
+		const FLinearColor CloudHigh[6]={{1.8f,1.7f,1.5f},{.035f,.09f,.22f},{.16f,.12f,.30f},{1.f,.7f,.38f},{.3f,.7f,.06f},{1.f,.33f,.45f}};
+  const FLinearColor CloudLow[6]={{.22f,.32f,.53f},{.008f,.025f,.07f},{.04f,.035f,.12f},{.28f,.18f,.10f},{.018f,.12f,.03f},{.09f,.055f,.20f}};
   FLinearColor CH(0,0,0),CL(0,0,0);for(int k=0;k<6;++k){CH+=CloudHigh[k]*PaletteWeights[k];CL+=CloudLow[k]*PaletteWeights[k];}
   FilmSky->SetVectorParameterValue(TEXT("CloudLight"),CH*(1.f+Flash*FlashGain));
   FilmSky->SetVectorParameterValue(TEXT("CloudShadow"),CL);

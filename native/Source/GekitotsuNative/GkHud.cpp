@@ -64,7 +64,8 @@ static void GkText(UCanvas* Cv, const FString& Str, float X, float Y, float Size
 	const FFontOutlineSettings Line = Outline > 0 ? FFontOutlineSettings(Outline, FLinearColor(0.f, 0.f, 0.f, Col.A)) : FFontOutlineSettings();
 	FCanvasTextItem Item(FVector2D(X, Y), FText::FromString(Str), Carrier.Get(), Col);
 	static TSharedPtr<const FCompositeFont> Face=MakeShared<FCompositeFont>(FName(TEXT("Arcade")),FPaths::ProjectContentDir()/TEXT("GkUI/Fonts/BarlowCondensed/BarlowCondensed-SemiBold.ttf"),EFontHinting::Default,EFontLoadingPolicy::LazyLoad);
- Item.SlateFontInfo=FSlateFontInfo(Face,FMath::Max(4.f,Size));Item.SlateFontInfo->OutlineSettings=Line;
+ static TSharedPtr<const FCompositeFont> Display=MakeShared<FCompositeFont>(FName(TEXT("Display")),FPaths::ProjectContentDir()/TEXT("GkUI/Fonts/Machina/GekitotsuMachina.ttf"),EFontHinting::Default,EFontLoadingPolicy::LazyLoad);
+ Item.SlateFontInfo=FSlateFontInfo(Size>=22.f*Cv->SizeY/1080.f?Display:Face,FMath::Max(4.f,Size));Item.SlateFontInfo->OutlineSettings=Line;
 	Item.bCentreX = bCentre; Cv->DrawItem(Item);
 }
 static FLinearColor GkFade(const FLinearColor& C, float A) { return FLinearColor(C.R, C.G, C.B, C.A * FMath::Clamp(A, 0.f, 1.f)); }
@@ -145,14 +146,14 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 	if (Screen == 3)
 	{
 	const float Gap = (bForestLook ? 62.f : 80.f) * U;
-	const float BarW = FMath::Min(760.f * U, Mid - Gap - 170.f * U), BarH = 26.f * U, Top = (bForestLook ? 34.f : 56.f) * U;
+	const float BarW = FMath::Min(760.f * U, Mid - Gap - 170.f * U), BarH = 32.f * U, Top = (bForestLook ? 48.f : 56.f) * U;
 	for (int32 i = 0; i < 2; i++)
 	{
 		const gk::Fighter& P = S.p[i]; const float K = FMath::Clamp(P.hp / 1000.f, 0.f, 1.f), Lag = FMath::Clamp(P.red / 1000.f, K, 1.f);
 		const float X0 = i ? Mid + Gap : Mid - Gap - BarW;
 		if (bForestLook)
 		{
-			GkHudPanel(Cv, X0 - 24.f * U, Top - 7.f * U, BarW + 48.f * U, BarH + 15.f * U, 16.f * U, Ink);
+			GkHudPanel(Cv, X0 - 24.f * U, Top - 7.f * U, BarW + 48.f * U, BarH + 17.f * U, 16.f * U, Ink);
 			GkHudPanel(Cv,X0-20.f*U,Top-5.f*U,BarW+40.f*U,BarH+11.f*U,12.f*U,FLinearColor(.75,.62,.42));
 			GkHudPanel(Cv,X0-17.f*U,Top-3.f*U,BarW+34.f*U,BarH+7.f*U,10.f*U,Ink);
 			GkRect(Cv, X0, Top, BarW, BarH, Ash);
@@ -179,12 +180,12 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 			const float Shine = BarW * K;
 			GkRect(Cv, i ? X0 : X0 + BarW - Shine, Top, Shine, 5.f * U, FLinearColor(1.f, 0.85f, 0.40f));
 		}
-		GkText(Cv, bForestLook ? (i ? TEXT("ROBOT 1 / P2") : TEXT("P1 / ROBOT 1")) : Names[i], i ? X0 + BarW - 150.f * U : X0, Top - 25.f * U, 16.f * U, Bone);
+		GkText(Cv, bForestLook ? (i ? TEXT("ROBOT 1 / P2") : TEXT("P1 / ROBOT 1")) : Names[i], i ? X0 + BarW - 190.f * U : X0, Top - 44.f * U, 23.f * U, Bone);
 		// the Drive gauge: six bars
 		for (int32 b = 0; b < 6; b++)
 		{
-			const float Part = FMath::Clamp((P.dr - b * 1000) / 1000.f, 0.f, 1.f), Dw = 38.f * U, Dh = 8.f * U, Dx = i ? Mid + Gap + b * (Dw + 6.f * U) : Mid - Gap - (b + 1) * (Dw + 6.f * U) + 6.f * U, Dy = Top + BarH + 10.f * U;
-			GkRect(Cv, Dx, Dy, Dw, Dh, Ash); if (i) { GkRect(Cv, Dx, Dy, Dw * Part, Dh, P.bo ? Slate : Jade); } else { GkRect(Cv, Dx + Dw * (1.f - Part), Dy, Dw * Part, Dh, P.bo ? Slate : Jade); }
+			const float Part = FMath::Clamp((P.dr - b * 1000) / 1000.f, 0.f, 1.f), Dw = 38.f * U, Dh = 10.f * U, Dx = i ? Mid + Gap + b * (Dw + 6.f * U) : Mid - Gap - (b + 1) * (Dw + 6.f * U) + 6.f * U, Dy = Top + BarH + 10.f * U;
+			GkHudPanel(Cv,Dx-3*U,Dy-3*U,Dw+6*U,Dh+6*U,4*U,Ink); GkRect(Cv, Dx, Dy, Dw, Dh, Ash); if (i) { GkRect(Cv, Dx, Dy, Dw * Part, Dh, P.bo ? Slate : Jade); } else { GkRect(Cv, Dx + Dw * (1.f - Part), Dy, Dw * Part, Dh, P.bo ? Slate : Jade); }
 		}
 		if (P.bo) { const float Bx = i ? Mid + Gap : Mid - Gap - 6.f * 62.f * U + 6.f * U, Bl = 0.5f + 0.5f * FMath::Sin(Ticks * 0.3f); GkRect(Cv, Bx - 3.f * U, Top + BarH + 7.f * U, 6.f * 62.f * U, 18.f * U, FLinearColor(0.75f, 0.1f, 0.08f, 0.35f + 0.4f * Bl)); GkText(Cv, TEXT("BURNOUT"), Bx + 130.f * U, Top + BarH + 5.f * U, 17.f * U, Bone, false, 2); }
 		for (int32 r = 0; r < FMath::Clamp(S.cfg.rounds, 1, 3); r++) {
@@ -199,11 +200,11 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 			if (bForestLook)
 			{
 				GkHudPanel(Cv,Sx-5.f*U,Sy-6.f*U,Sw+10.f*U,30.f*U,9.f*U,Ink);
-				GkHudPanel(Cv,Sx,Sy-2.f*U,Sw,22.f*U,6.f*U,GkFade(Tint[i],.27f));
+				GkHudPanel(Cv,Sx,Sy-2.f*U,Sw,22.f*U,6.f*U,GkFade(Tint[i],.65f));
 			}
-			GkRect(Cv, Sx, Sy, Sw, 16.f * U, Ash); if (i) { GkRect(Cv, Sx + Sw * (1.f - Part), Sy, Sw * Part, 16.f * U, Part >= 1.f && !bForestLook ? Gold : Tint[i]); } else { GkRect(Cv, Sx, Sy, Sw * Part, 16.f * U, Part >= 1.f && !bForestLook ? Gold : Tint[i]); }
+			GkRect(Cv, Sx, Sy, Sw, 16.f * U, bForestLook?FLinearColor(.018,.02,.03):Ash); if (i) { GkRect(Cv, Sx + Sw * (1.f - Part), Sy, Sw * Part, 16.f * U, Part >= 1.f && !bForestLook ? Gold : Tint[i]); } else { GkRect(Cv, Sx, Sy, Sw * Part, 16.f * U, Part >= 1.f && !bForestLook ? Gold : Tint[i]); }
 		}
-		GkText(Cv, (bForestLook ? FString::FromInt(P.sa / 1000) : FString::Printf(TEXT("SUPER %d"), P.sa / 1000)), i ? W - 180.f * U : 60.f * U, H - 128.f * U, (bForestLook ? 48.f : 18.f) * U, bForestLook ? Tint[i] : P.sa >= 1000 ? Gold : Bone);
+		GkText(Cv, (bForestLook ? FString::FromInt(P.sa / 1000) : FString::Printf(TEXT("SUPER %d"), P.sa / 1000)), i ? W - 180.f * U : 60.f * U, H - 128.f * U, (bForestLook ? 58.f : 18.f) * U, bForestLook ? Tint[i] : P.sa >= 1000 ? Gold : Bone);
 		const float Cx = i ? W - 240.f * U : 240.f * U;
 		if (ComboTimer[i] > 0 && Combo[i] >= 2) {
    const float Pop=1.f+.23f*FMath::Exp(-float(80-ComboTimer[i])*.22f),Fade=FMath::Min(1.f,ComboTimer[i]/12.f);
@@ -216,7 +217,16 @@ void AGkMatch::DrawHud(UCanvas* Cv)
   }
 		if (NoteTimer[i] > 0) { GkText(Cv, Note[i], Cx, 420.f * U, 28.f * U, GkFade(Gold, NoteTimer[i] / 12.f), true); }
 	}
-	if (bForestLook) { GkHudPanel(Cv, Mid - 66.f * U, Top - 22.f * U, 132.f * U, 76.f * U, 20.f * U, Ink); }
+	if (bForestLook) {
+  // Authored jagged clock silhouette uses geometry and remains crisp at any resolution.
+  for(int k=0;k<11;++k){const float A=k*2*PI/11;FCanvasUVTri T;
+   T.V0_Pos=FVector2D(Mid+FMath::Cos(A-.23f)*45*U,Top+18*U+FMath::Sin(A-.23f)*33*U);
+   T.V1_Pos=FVector2D(Mid+FMath::Cos(A+.23f)*45*U,Top+18*U+FMath::Sin(A+.23f)*33*U);
+   T.V2_Pos=FVector2D(Mid+FMath::Cos(A)*(k%3==0?80:65)*U,Top+18*U+FMath::Sin(A)*53*U);
+   T.V0_Color=T.V1_Color=T.V2_Color=Ink;FCanvasTriangleItem I(T,GWhiteTexture);I.BlendMode=SE_BLEND_Translucent;Cv->DrawItem(I);
+  }
+  GkHudPanel(Cv, Mid - 54.f * U, Top - 20.f * U, 108.f * U, 76.f * U, 14.f * U, Ink);
+ }
 	else { GkRect(Cv, Mid - 56.f * U, Top - 22.f * U, 112.f * U, 76.f * U, Ink); }
 	GkText(Cv, FString::Printf(TEXT("%02d"), FMath::Clamp((S.time + 59) / 60, 0, 99)), Mid, Top - 20.f * U, 50.f * U, Bone, true);
 	if (Mode == 1 || !bForestLook) { GkText(Cv, ModeName[FMath::Clamp(Mode, 0, 2)], Mid, Top + 60.f * U, 13.f * U, Bone, true); }

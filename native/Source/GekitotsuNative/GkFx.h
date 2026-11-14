@@ -6,12 +6,12 @@ class UInstancedStaticMeshComponent; class AActor; class USceneComponent;
 /**
  * The fight's particles: hit and guard sparks, dust, ki, and the motes and haze that hang in the air. Each particle is
  * a flat square that faces the camera (the camera always looks straight down the stage), drawn as one instance of an
- * instanced mesh; there are three layers: light, soft atmosphere, and hard masked cel brush strokes.
+ * instanced mesh; there are four layers: light, soft atmosphere, hard masked cel brush strokes, and authored dust flipbooks.
  */
 struct FGkFx
 {
 	struct FP { FVector Pos, Vel; float Age, Life, Size0, Size1, Stretch, Grav, Drag, Alpha; FVector Streak; FLinearColor Col; int32 Layer; bool bSwell, bCanyonHaze; };
-	TArray<FP> Ps; UInstancedStaticMeshComponent* Mesh[3] = { nullptr, nullptr, nullptr }; int32 Used[3] = { 0, 0, 0 }; FRandomStream Rng; bool bFilm = false; float MoteDue = 0.f, HazeDue = 0.f, CanyonHazeDue = 0.f, Yaw = 0.f;   // Yaw: which way the camera is looking, so the squares can face it
+	TArray<FP> Ps; UInstancedStaticMeshComponent* Mesh[4] = { nullptr, nullptr, nullptr, nullptr }; int32 Used[4] = { 0, 0, 0, 0 }; FRandomStream Rng; bool bFilm = false; float MoteDue = 0.f, HazeDue = 0.f, CanyonHazeDue = 0.f, Yaw = 0.f;   // Yaw: which way the camera is looking, so the squares can face it
 	FLinearColor DustCol = FLinearColor(0.62f, 0.47f, 0.33f);
 	static constexpr int32 Pool = 420;
 

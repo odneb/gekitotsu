@@ -8,8 +8,8 @@ void FGkFx::Init(AActor* Owner, USceneComponent* Root)
 {
 	Rng.Initialize(7731); Ps.Reset(); Ps.Reserve(Pool * 2);
 	UStaticMesh* Plane = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane"));
-	static const TCHAR* Mats[3] = { TEXT("/Game/GkFx/M_GkFilmSpark.M_GkFilmSpark"), TEXT("/Game/GkFx/M_GkDust.M_GkDust"), TEXT("/Game/GkFx/M_GkInkStroke.M_GkInkStroke") };
-	for (int32 L = 0; L < 3; L++)
+	static const TCHAR* Mats[4] = { TEXT("/Game/GkFx/M_GkFilmSpark.M_GkFilmSpark"), TEXT("/Game/GkFx/M_GkDust.M_GkDust"), TEXT("/Game/GkFx/M_GkInkStroke.M_GkInkStroke"), TEXT("/Game/GkFx/M_GkDustFlipbook.M_GkDustFlipbook") };
+	for (int32 L = 0; L < 4; L++)
 	{
 		UMaterialInterface* M = LoadObject<UMaterialInterface>(nullptr, L==0 && !bFilm ? TEXT("/Game/GkFx/M_GkGlow.M_GkGlow") : Mats[L]);
 		if (!Plane || !M) { UE_LOG(LogTemp, Warning, TEXT("Gekitotsu: particle material %s did not load"), Mats[L]); Mesh[L] = nullptr; continue; }
@@ -38,7 +38,7 @@ void FGkFx::Stroke(const FVector& A,const FVector& B,float Width,float Life,cons
 void FGkFx::Tick(float Dt)
 {
 	Dt = FMath::Clamp(Dt, 0.f, 0.05f);
-	int32 N[3] = { 0, 0, 0 };
+	int32 N[4] = { 0, 0, 0, 0 };
 	const FQuat Turn(FVector(0, 0, 1), Yaw), Face = Turn * FQuat(FVector(0, 1, 0), HALF_PI);   // the square stood up to face the camera
 	for (int32 k = Ps.Num() - 1; k >= 0; k--)
 	{
@@ -48,10 +48,11 @@ void FGkFx::Tick(float Dt)
 	}
 	for (const FP& P : Ps)
 	{
-		UInstancedStaticMeshComponent* C = Mesh[FMath::Clamp(P.Layer,0,2)]; int32& n = N[FMath::Clamp(P.Layer,0,2)]; if (!C || n >= Pool) { continue; }
+		UInstancedStaticMeshComponent* C = Mesh[FMath::Clamp(P.Layer,0,3)]; int32& n = N[FMath::Clamp(P.Layer,0,3)]; if (!C || n >= Pool) { continue; }
 		const float t = P.Life > 0.f ? P.Age / P.Life : 0.f, Size = FMath::Lerp(P.Size0, P.Size1, t);
 		const float Fade = P.Life <= 0.f ? 1.f : P.bSwell ? FMath::Sin(t * PI) : (1.f - t) * (1.f - t);
 		FQuat Q = Face; FVector Sc(Size / 100.f, Size / 100.f, 1.f);
+
 		if (!P.Streak.IsNearlyZero())
 		{
 			Q = FRotationMatrix::MakeFromXY(FVector::ForwardVector, P.Streak).ToQuat() *
@@ -63,11 +64,11 @@ void FGkFx::Tick(float Dt)
 			const double Sp = FMath::Sqrt(P.Vel.Y * P.Vel.Y + P.Vel.Z * P.Vel.Z);
 			Q = Turn * FQuat(FVector(1, 0, 0), FMath::Atan2(P.Vel.Z, P.Vel.Y)) * FQuat(FVector(0, 1, 0), HALF_PI); Sc.Y *= 1.f + (P.Stretch - 1.f) * FMath::Clamp(float(Sp) / 600.f, 0.f, 1.5f); Sc.X *= 0.5f;
 		}
-		C->UpdateInstanceTransform(n, FTransform(Q, P.Pos, Sc), false, false, true);
-		const float Data[4] = { P.Col.R, P.Col.G, P.Col.B, P.Alpha * (P.Layer==2?1.f:Fade) }; C->SetCustomData(n, MakeArrayView(Data, 4), false);
+		C->UpdateInstanceTransform(n, FTransform(Q, P.Pos+(P.Layer==3?FVector(0,0,(Size-P.Size0)*.43f):FVector::ZeroVector), Sc), false, false, true);
+		const float Data[4] = { P.Col.R, P.Col.G, P.Col.B, P.Layer==3?t:P.Alpha * (P.Layer==2?1.f:Fade) }; C->SetCustomData(n, MakeArrayView(Data, 4), false);
 		n++;
 	}
-	for (int32 L = 0; L < 3; L++)
+	for (int32 L = 0; L < 4; L++)
 	{
 		if (!Mesh[L]) { continue; }
 		for (int32 i = N[L]; i < Used[L]; i++) { Mesh[L]->UpdateInstanceTransform(i, FTransform(FQuat::Identity, FVector(0, 0, -10000), FVector::ZeroVector), false, false, true); }

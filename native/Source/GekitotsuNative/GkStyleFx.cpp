@@ -72,7 +72,10 @@ void AGkMatch::StyleMotion(int32 Who)
  if(Fast && AnimClock%5==Who){
   const float Dir=P.vx<0?-1.f:P.vx>0?1.f:float(P.face);const float Length=Flight?180.f:Dash?125.f:65.f;
   const FLinearColor Color=P.st==gk::DRUSH?FLinearColor(.08,1,.35):Cyan;
-  for(int k=0;k<3;++k){const float Z=(k-1)*43.f;const FVector A=Chest+FVector(-40,-Dir*(Length+25),Z),B=Chest+FVector(-40,-Dir*15,Z*.8f);Fx.Stroke(A,B,k==1?4.f:2.f,.12f,k==1?Color:Paper);}
+  for(int k=0;k<3;++k){const float Z=(k-1)*43.f;
+   const FVector A=Chest+FVector(-30,-Dir*(Length+45),Z-12),B=Chest+FVector(-36,-Dir*Length*.65f,Z+26),C=Chest+FVector(-25,-Dir*12,Z*.7f);
+   Ribbon(Fx,A,B,C,k==1?4.5f:3.f,.15f,Flight?Color:Paper*1.4f);
+  }
   if(Flight && AnimClock%10==Who){const FVector Nose=Chest+FVector(-30,P.face*55,0);Ribbon(Fx,Nose+FVector(0,-P.face*20,-65),Nose+FVector(0,P.face*35,0),Nose+FVector(0,-P.face*20,65),5,.13f,Paper);}
  }
  // Actual hand/foot paths: short, hard-edged smears only around active attacks.

@@ -1,4 +1,5 @@
 #include "GkMatch.h"
+#include "Engine/Texture.h"
 #include "GkPad.h"
 #include "Misc/App.h"
 #include "Components/PoseableMeshComponent.h"
@@ -301,7 +302,7 @@ void AGkMatch::BeginPlay()
 			  PP.bOverride_AutoExposureMethod = true; PP.AutoExposureMethod = AEM_Manual;
 			  PP.bOverride_AutoExposureBias = true; PP.AutoExposureBias = 0.f;
 			  PP.bOverride_AutoExposureApplyPhysicalCameraExposure = true; PP.AutoExposureApplyPhysicalCameraExposure = false;
-			  PP.bOverride_BloomIntensity = true; PP.BloomIntensity = 0.18f; PP.bOverride_BloomThreshold = true; PP.BloomThreshold = 1.0f;
+			  PP.bOverride_BloomIntensity = true; PP.BloomIntensity = 0.28f; PP.bOverride_BloomThreshold = true; PP.BloomThreshold = 1.0f;
 			  PP.bOverride_VignetteIntensity = true; PP.VignetteIntensity = 0.18f;
 			  PP.bOverride_ColorSaturation = true; PP.ColorSaturation = FVector4(1.08, 1.08, 1.08, 1.0); PP.bOverride_ColorContrast = true; PP.ColorContrast = FVector4(1.06, 1.06, 1.06, 1.0);
 			  if (ForestCel) { PP.AddBlendable(ForestCel, 1.f); }
@@ -470,7 +471,13 @@ void AGkMatch::DressFighter(int32 i)
 					UMaterialInstanceDynamic* Dy = UMaterialInstanceDynamic::Create(ForestFighterCel ? ForestFighterCel.Get() : Cel, this); C->SetMaterial(k, Dy ? static_cast<UMaterialInterface*>(Dy) : Cel);
 					if (Dy && k < 4)
 					{
-						Mids.Add(Dy); BodyMid[i][k] = Dy; BaseCol[i][k] = FLinearColor(0.8f, 0.8f, 0.8f); ShadeCol[i][k] = FLinearColor(0.4f, 0.4f, 0.4f);
+						if(ForestFighterCel){
+                         const FString NormalPath=FString::Printf(TEXT("/Game/Characters/Mannequins/Textures/Manny/T_Manny_%02d_%s"),k==0?1:2,k==0?TEXT("BN"):TEXT("N"));
+                         const FString AOPath=FString::Printf(TEXT("/Game/Characters/Mannequins/Textures/Manny/T_Manny_%02d_MRA"),k==0?1:2);
+                         if(auto* Tex=LoadObject<UTexture>(nullptr,*NormalPath))Dy->SetTextureParameterValue(TEXT("BodyNormal"),Tex);
+                         if(auto* Tex=LoadObject<UTexture>(nullptr,*AOPath))Dy->SetTextureParameterValue(TEXT("BodyOcclusion"),Tex);
+                        }
+                        Mids.Add(Dy); BodyMid[i][k] = Dy; BaseCol[i][k] = FLinearColor(0.8f, 0.8f, 0.8f); ShadeCol[i][k] = FLinearColor(0.4f, 0.4f, 0.4f);
 						Cel->GetVectorParameterValue(FHashedMaterialParameterInfo(TEXT("Base  color")), BaseCol[i][k]); Cel->GetVectorParameterValue(FHashedMaterialParameterInfo(TEXT("Shadow_Base")), ShadeCol[i][k]);
 					}
 				}
@@ -1653,7 +1660,7 @@ void AGkMatch::Afterimage(int32 i)
 	UPoseableMeshComponent* C = Body[i]; if (!C) { return; }
 	const gk::Fighter& P = S.p[i]; const gk::Move* M = (P.st == gk::ATK && P.mv >= 0) ? &gk::move(P.mv) : nullptr;
 	const bool bOn = Screen == 3 && !bMenu && BodyMid[i][0] != nullptr && C->GetSkinnedAsset() != nullptr;
-	const bool bFast = bOn && S.freeze <= 0 && P.hs<=0 && (P.st == gk::DRUSH || P.st == gk::RUN || P.st == gk::DASHF || P.st == gk::DASHB || (M && ((M->di && P.mf>=16 && P.mf<=M->lastAct) || (M->sup && P.mf > 6) || (M->has_home && P.mf >= M->home[0] && !P.hmE))) || (P.st == gk::AHIT && FMath::Abs(P.vx) > 260));
+	const bool bFast = bOn && S.freeze <= 0 && P.hs<=0 && (P.st == gk::DRUSH || (!bForestLook && (P.st == gk::RUN || P.st == gk::DASHF || P.st == gk::DASHB)) || (M && ((M->di && P.mf>=16 && P.mf<=M->lastAct) || (M->sup && P.mf > 6) || (M->has_home && P.mf >= M->home[0] && !P.hmE))) || (P.st == gk::AHIT && FMath::Abs(P.vx) > 260));
 	const bool bStep = AnimClock != GhostClock[i]; GhostClock[i] = AnimClock;
 	if (bStep) { for (int32 g = 0; g < 3; g++) { GhostAge[i * 3 + g]++; } }
 	if (bStep && bFast && (AnimClock % 3) == 0)
@@ -1732,9 +1739,11 @@ void AGkMatch::LookFighter(int32 i)
 				? CostumeColor(Setup.Costume[i])
 				: CostumeColor(Setup.Costume[i],true);
 			const FLinearColor Shadow = bArmor
-				? Paint*FLinearColor(.25f,.28f,.42f)
-				: Paint*FLinearColor(.26f,.29f,.41f);
-			const FVector Key = ForestSun.IsValid() ? -ForestSun->GetForwardVector() : FVector(-0.4, -0.5, 0.75);
+				? Paint*FLinearColor(.28f,.29f,.48f)
+				: Paint*FLinearColor(.34f,.38f,.56f);
+			const FVector BackKey = ForestSun.IsValid() ? -ForestSun->GetForwardVector() : Anchor.TransformVectorNoScale(FVector(.55,-.65,.55));
+            const FVector Key = Anchor.TransformVectorNoScale(FVector(.18,-.75,.65)).GetSafeNormal();
+            BodyMid[i][k]->SetVectorParameterValue(TEXT("BackKey"),FLinearColor(BackKey.X,BackKey.Y,BackKey.Z));
 			const FLinearColor Tint = FMath::Lerp(FLinearColor::White, SceneT, 0.38f);
 			BodyMid[i][k]->SetVectorParameterValue(TEXT("Key"), FLinearColor(Key.X, Key.Y, Key.Z));
 			BodyMid[i][k]->SetVectorParameterValue(TEXT("KeyTint"), Tint);
@@ -1899,7 +1908,7 @@ void AGkMatch::StateFx(int32 i)
 		if (!bForestLook) Fx.Add(0, Chest, FVector::ZeroVector, 0.12f, M->sup ? 120.f : 80.f, M->sup ? 200.f : 130.f, Ki * (M->sup ? 0.1f : 0.05f));
 		FGkFx::FP& Sp = Fx.Add(0, At(P.x, P.y) + FVector(-20.0, Fx.Rng.FRandRange(-50.f, 50.f), Fx.Rng.FRandRange(0.f, 60.f)), FVector(0.0, Fx.Rng.FRandRange(-30.f, 30.f), Fx.Rng.FRandRange(300.f, 700.f)), 0.4f, 9.f, 2.f, Ki); Sp.Stretch = 6.f;
 	}
-	if ((P.st == gk::DRUSH || P.st == gk::RUN || P.st == gk::DASHF) && (Ticks % 2) == 0)
+	if ((P.st == gk::DRUSH || (!bForestLook && (P.st == gk::RUN || P.st == gk::DASHF))) && (Ticks % 2) == 0)
 	{
 		const FLinearColor Cg = P.st == gk::DRUSH ? FLinearColor(0.4f, 5.f, 1.4f) : FLinearColor(1.6f, 1.6f, 1.8f);
 		for (int32 k = 0; k < 2; k++) { FGkFx::FP& St = Fx.Add(0, Chest + FVector(0.0, -P.face * 30.0, Fx.Rng.FRandRange(-70.f, 60.f)), FVector(0.0, -P.face * 500.0, 0.0), 0.16f, P.st == gk::DRUSH ? 12.f : 6.f, 2.f, Cg); St.Stretch = 12.f; }
@@ -2595,7 +2604,7 @@ void AGkMatch::Present(float Real)
 			ForestCameraGround = FMath::FInterpTo(ForestCameraGround, GroundZ, Real, 5.0);
 			LookZ += ForestCameraGround - 37.0;
 		}
-		if (bForestLook && Screen == 3) { D *= 1.08; }
+		if (bForestLook && Screen == 3) { D *= .99; }
 		FVector Look(0.0, CamPos.Y, LookZ);
   if(bForestLook && T.bSolo && S.freeze>0 && S.frzWho>=0 && S.frzWho<2 && Body[S.frzWho]){
    Look=Anchor.InverseTransformPosition(Body[S.frzWho]->GetBoneLocationByName(TEXT("head"),EBoneSpaces::WorldSpace))+FVector(0,0,-8);
