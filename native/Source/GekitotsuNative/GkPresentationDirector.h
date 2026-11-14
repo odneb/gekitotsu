@@ -38,8 +38,8 @@ struct FGkPresentationDirector {
   if(!enabled)return;int priority=-1;for(const auto& c:cues)if(c.name==name)priority=std::max(priority,c.priority);
   if(priority<0)return;
   // No repeated strobe from a multihit beam. KO/finish can always punctuate the sequence.
-  if((name=="heavy" || name=="counter" || name=="impact") && clock-lastImpact<10)return;
-  if(name=="heavy" || name=="counter" || name=="impact")lastImpact=clock;
+  if((name=="heavy" || name=="counter" || name=="impact" || name=="armor") && clock-lastImpact<10)return;
+  if(name=="heavy" || name=="counter" || name=="impact" || name=="armor")lastImpact=clock;
   for(auto& s:playing)if(s.name==name && s.who==who && s.age<5)return;
   if(playing.size()>=4){auto it=std::min_element(playing.begin(),playing.end(),[](auto&a,auto&b){return a.priority<b.priority;});if(it->priority>priority)return;playing.erase(it);}
   playing.push_back({name,0,who,face,priority,safe});

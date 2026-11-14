@@ -91,6 +91,8 @@ public:
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> FilmOrb[2];
 	UPROPERTY() TObjectPtr<class UPointLightComponent> FilmEnergyLight[2];
 	void EnergyOrb(int32 Who, float Radius);
+ void StyleEvent(const gk::Event& E);void StyleMotion(int32 Who);void PaintBurst(const FVector& At,int32 Who,float Size,bool Armor=false);
+ FVector StyleBones[2][4];int32 StyleFrame[2]={-1,-1};int32 StyleClashFrame=-1;bool bStyleBones[2]={false,false};
 	// scripted pictures (-gkscript): a list of commands in Saved/script.txt that pose the game and save screenshots
 	TArray<FString> Script; int32 ScriptAt = 0, ScriptWait = 0; bool bScript = false; FName ScriptSlot; float ScriptStorm = -1.f; FString ScriptNote; bool bLabUi = false, bNoHud = false; FString ScriptCaptureName; int32 ScriptCaptureLeft = 0, ScriptCaptureFrame = 0; int32 ScriptRunLeft = 0, ScriptIn[2] = { 0, 0 }; void RunScript(); FKey ScriptMenuKey;
 	// The animation lab (Screen 4): one fighter alone, every move and state in turn, and every clip he has to try on it.

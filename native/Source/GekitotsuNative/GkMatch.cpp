@@ -856,7 +856,7 @@ void AGkMatch::EndPlay(const EEndPlayReason::Type Reason)
 
 void AGkMatch::Restart()
 {
- Director.Reset();bEntrance=false;bEntrancePlayed=false;EntranceFrame=0;
+ Director.Reset();StyleClashFrame=-1;Fx.Ps.Reset();bStyleBones[0]=bStyleBones[1]=false;for(int& Age:GhostAge)Age=100;bEntrance=false;bEntrancePlayed=false;EntranceFrame=0;
 	gk::newMatch(S, Mode == 1 && Screen == 3, 2); gk::aiMake(Cpu[0], Level); gk::aiMake(Cpu[1], Level);
 	OverTimer = 0; CallHold = 0; Hist.Reset(); LastIn = -1; Adv = -999; bExchange = false; Sparks.Reset();
 	for (int32 i = 0; i < 2; i++) { Combo[i] = 0; ComboTimer[i] = 0; NoteTimer[i] = 0; ActFrame[i] = 0; bWasIdle[i] = true; }
@@ -1199,7 +1199,7 @@ void AGkMatch::EventSound(const gk::Event& E)
 
 void AGkMatch::OnEvent(const gk::Event& E)
 {
-	EventSound(E); VoiceEvent(E); DirectEvent(E);
+	EventSound(E); VoiceEvent(E); DirectEvent(E); StyleEvent(E);
  if(E.type==gk::E_PARRY || E.type==gk::E_PPARRY){
   const int32 Defender=E.who&1;ParryBeat[Defender]=AnimClock;
   const bool Low=E.y-S.p[Defender].y<35*gk::F;
@@ -1216,7 +1216,7 @@ void AGkMatch::OnEvent(const gk::Event& E)
 				const int32 Lv = (E.f & gk::H_KO) ? 3 : FMath::Clamp(E.a, 0, 2); const float Dr = float(S.p[Who].face); const FVector Pt = At(E.x, E.y, -30.0);
 				static const TCHAR* Sys[4] = { TEXT("NS_Hit_01_Once"), TEXT("NS_Hit_04_Once"), TEXT("NS_Hit_06_Directional_Once"), TEXT("NS_Radial_Spiky_Hit_01") };
 				static const float Size[4] = { 0.55f, 0.85f, 1.2f, 1.6f };
-				if (!PlayVfx(Sys[Lv], Pt, Size[Lv], Lv == 2 ? Dr : 0.f, nullptr)) { Fx.Hit(At(E.x, E.y), Lv, Dr); }
+				if (!(E.f & gk::H_IMPACT) && !PlayVfx(Sys[Lv], Pt, Size[Lv], Lv == 2 ? Dr : 0.f, nullptr)) { Fx.Hit(At(E.x, E.y), Lv, Dr); }
 			}
 			Shake = FMath::Max(Shake, 2.f + E.a * 2.f + ((E.f & gk::H_KO) ? 10.f : 0.f));
 			{ const float Dr = float(S.p[Who].face); const bool bKo = (E.f & gk::H_KO) != 0, bFin = (E.f & gk::H_FINISH) != 0;
@@ -1249,26 +1249,19 @@ void AGkMatch::OnEvent(const gk::Event& E)
 		case gk::E_PPARRY: Fx.Parry(At(E.x, E.y), true); Shake = FMath::Max(Shake, 6.f); Remark(Who, TEXT("PERFECT PARRY")); PerfectT[Who] = 50; Flash = FMath::Max(Flash, 0.7f);
 			if(!bForestLook){Fx.Add(0, At(E.x, E.y, -30.0), FVector::ZeroVector, 0.35f, 120.f, 620.f, FLinearColor(8.f, 6.f, 1.5f)); Fx.Aura(Feet, FLinearColor(8.f, 6.f, 1.5f), 1.2f);} break;
 		case gk::E_ARMOR: Fx.Guard(At(E.x, E.y), float(S.p[Who].face)); Remark(Who, TEXT("ARMOR")); break;
-		case gk::E_DICLASH: CamKick(7.f, -0.14f, 12.f); Say(TEXT("CLASH!"), 50); Shake = FMath::Max(Shake, 12.f); break;
+		case gk::E_DICLASH: CamKick(7.f, -0.14f, 12.f); Remark(0,TEXT("IMPACT CLASH")); Shake = FMath::Max(Shake, 12.f); break;
 		case gk::E_SPLAT: CamKick(Feet.Y > 0 ? 6.f : -6.f, -0.1f, 8.f, Feet.Y > 0 ? 8.f : -8.f); Fx.Hit(Feet + FVector(0, 0, 100), 2, float(-S.p[Who].face)); Fx.Dust(Feet, 1.4f, 0.f); Remark(Who, E.a ? TEXT("STUN!") : TEXT("WALL SPLAT")); Shake = FMath::Max(Shake, 12.f); break;
 		case gk::E_GBOUNCE: case gk::E_WBOUNCE: if (E.type == gk::E_WBOUNCE) { CamKick(Feet.Y > 0 ? 5.f : -5.f, -0.1f, 8.f, Feet.Y > 0 ? 7.f : -7.f); } else { CamKick((Ticks & 1) ? 4.f : -4.f, -0.08f, 7.f); } Fx.Dust(Feet, 1.6f, 0.f); Fx.Hit(FVector(Feet.X, Feet.Y, E.type == gk::E_GBOUNCE ? 10.0 : Feet.Z + 90.0), 1, 0.f); Shake = FMath::Max(Shake, 10.f); break;
 		case gk::E_KD: Fx.Dust(Feet, 1.3f, 0.f); Shake = FMath::Max(Shake, 3.f); break;
 		case gk::E_LAND: Squash[Who] = 1.f; SurfaceResponse(Feet,.5f,0); break; case gk::E_JUMP: case gk::E_WALLJUMP: SurfaceResponse(Feet,.38f,-S.p[Who].face); break; case gk::E_TECH: case gk::E_RISE: Fx.Dust(Feet, 0.45f, 0.f); break;
 		case gk::E_DASH: case gk::E_RUN: SurfaceResponse(Feet,.7f,-S.p[Who].face); break; case gk::E_DI:
-		{   // a drive impact is announced: the screen kicks in on him, a burst of paint-bright streaks, his name for it over his head
-			const float Dr = float(S.p[Who].face); const FVector Ch = Feet + FVector(-20.0, 0.0, 95.0);
-			CamKick(Dr * 5.f, -0.2f, 16.f, Dr * 5.f); Shake = FMath::Max(Shake, 7.f); Flash = FMath::Max(Flash, 0.45f); Remark(Who, TEXT("DRIVE IMPACT")); ImpactT[Who] = 40;
-			static const FLinearColor Paint[4] = { FLinearColor(9.f, 0.6f, 5.f), FLinearColor(0.5f, 6.f, 8.f), FLinearColor(9.f, 6.f, 0.5f), FLinearColor(4.f, 0.8f, 9.f) };
-			for (int32 k = 0; k < (bForestLook?12:28); k++)
-			{
-				const float A = Fx.Rng.FRandRange(-1.2f, 1.2f), Sp = Fx.Rng.FRandRange(700.f, 1900.f);
-				FGkFx::FP& St = Fx.Add(0, Ch, FVector(0.0, -Dr * FMath::Cos(A) * Sp, FMath::Sin(A) * Sp), Fx.Rng.FRandRange(0.25f, 0.5f), Fx.Rng.FRandRange(bForestLook?5.f:14.f,bForestLook?12.f:30.f), 2.f, bForestLook?Paint[k&1]*.3f:Paint[k & 3]); St.Stretch = 10.f; St.Drag = 3.f;
-			}
-			if(!bForestLook)Fx.Add(0, Ch, FVector::ZeroVector, 0.3f, 80.f, 520.f, FLinearColor(5.f, 0.5f, 3.5f)); else PlayVfx(TEXT("NS_Directional_Dust_01_Once"),FloorPoint(Feet),.5f,Dr,nullptr); if(!bForestLook)Fx.Aura(Feet, FLinearColor(8.f, 0.8f, 5.f), 1.8f);
-			Snd(TEXT("ImpactBurst_01"), 0.9f); Snd(TEXT("WindUp_01"), 0.6f, 1.4f);
-			break;
-		}
-		case gk::E_EX: case gk::E_HOME: if (E.type == gk::E_HOME) { CamKick(0.f, 0.f, 9.f); } Fx.Aura(Feet, Ki, 0.7f); break;
+  {
+   const float Dr=float(S.p[Who].face);
+   CamKick(Dr*2.f,-.06f,6.f,Dr*1.5f);Remark(Who,TEXT("DRIVE IMPACT"));ImpactT[Who]=40;
+   Snd(TEXT("ImpactBurst_01"),.9f);Snd(TEXT("WindUp_01"),.6f,1.15f);
+   break;
+  }
+		case gk::E_EX: case gk::E_HOME: if (E.type == gk::E_HOME) { CamKick(0.f, 0.f, 9.f); } if(E.type!=gk::E_HOME || !bForestLook)Fx.Aura(Feet, Ki, 0.7f); break;
 		case gk::E_RUSH: Fx.Aura(Feet, Ki, 0.9f); Remark(Who, TEXT("GHOST STEP")); break;
 		case gk::E_BURNOUT: Remark(Who, TEXT("BURNOUT")); Say(TEXT("BURNOUT"), 45); Shake = FMath::Max(Shake, 8.f); Fx.Aura(Feet, FLinearColor(0.5f, 0.55f, 0.5f), 1.3f); Fx.Dust(Feet, 1.6f, 0.f); break;
 		case gk::E_SPECIAL: if(!bForestLook)PlayVfx(TEXT("NS_Aura2"), Feet + FVector(-10.0, 0.0, 0.0), 1.f, 0.f, nullptr); Fx.Aura(Feet, Ki, 0.9f); CamKick(0.f, -0.04f, 6.f); Shake = FMath::Max(Shake, 2.5f); break;
@@ -1660,7 +1653,7 @@ void AGkMatch::Afterimage(int32 i)
 	UPoseableMeshComponent* C = Body[i]; if (!C) { return; }
 	const gk::Fighter& P = S.p[i]; const gk::Move* M = (P.st == gk::ATK && P.mv >= 0) ? &gk::move(P.mv) : nullptr;
 	const bool bOn = Screen == 3 && !bMenu && BodyMid[i][0] != nullptr && C->GetSkinnedAsset() != nullptr;
-	const bool bFast = bOn && S.freeze <= 0 && (P.st == gk::DRUSH || P.st == gk::RUN || P.st == gk::DASHF || P.st == gk::DASHB || (M && (M->di || (M->sup && P.mf > 6) || (M->has_home && P.mf >= M->home[0] && !P.hmE))) || (P.st == gk::AHIT && FMath::Abs(P.vx) > 260));
+	const bool bFast = bOn && S.freeze <= 0 && P.hs<=0 && (P.st == gk::DRUSH || P.st == gk::RUN || P.st == gk::DASHF || P.st == gk::DASHB || (M && ((M->di && P.mf>=16 && P.mf<=M->lastAct) || (M->sup && P.mf > 6) || (M->has_home && P.mf >= M->home[0] && !P.hmE))) || (P.st == gk::AHIT && FMath::Abs(P.vx) > 260));
 	const bool bStep = AnimClock != GhostClock[i]; GhostClock[i] = AnimClock;
 	if (bStep) { for (int32 g = 0; g < 3; g++) { GhostAge[i * 3 + g]++; } }
 	if (bStep && bFast && (AnimClock % 3) == 0)
@@ -1681,11 +1674,11 @@ void AGkMatch::Afterimage(int32 i)
 		if (Gc->BoneSpaceTransforms.Num() == C->BoneSpaceTransforms.Num())
 		{
 			Gc->BoneSpaceTransforms = C->BoneSpaceTransforms; Gc->MarkRefreshTransformDirty(); Gc->SetWorldTransform(C->GetComponentTransform()); GhostAge[g] = 0;
-			const FLinearColor Tint = (M && M->di) ? FLinearColor(6.f, 0.5f, 3.6f) : P.st == gk::DRUSH ? FLinearColor(0.4f, 4.5f, 1.4f) : P.st == gk::AHIT ? FLinearColor(3.2f, 3.2f, 3.6f) : i ? FLinearColor(0.5f, 1.6f, 5.f) : FLinearColor(5.f, 2.2f, 0.4f);
-			if (GhostMid[g]) { GhostMid[g]->SetVectorParameterValue(TEXT("Base  color"), Tint); GhostMid[g]->SetVectorParameterValue(TEXT("Shadow_Base"), Tint * 0.7f); GhostMid[g]->SetVectorParameterValue(TEXT("Rimlight Color"), FLinearColor(6.f, 6.f, 6.f)); }
+			const FLinearColor Tint = (M && M->di) ? FLinearColor(.4f,.015f,.12f) : P.st == gk::DRUSH ? FLinearColor(0.4f, 4.5f, 1.4f) : P.st == gk::AHIT ? FLinearColor(3.2f, 3.2f, 3.6f) : i ? FLinearColor(0.5f, 1.6f, 5.f) : FLinearColor(5.f, 2.2f, 0.4f);
+			if (GhostMid[g]) { const FLinearColor InkTint=(M&&M->di)?FLinearColor(.24,.012,.08):P.st==gk::DRUSH?FLinearColor(.03,.65,.25):FLinearColor(.025,.18,.28);GhostMid[g]->SetVectorParameterValue(TEXT("Paint"),InkTint);GhostMid[g]->SetVectorParameterValue(TEXT("Shadow"),InkTint*.18f);GhostMid[g]->SetVectorParameterValue(TEXT("Rim"),FLinearColor(.05,.75,1));GhostMid[g]->SetVectorParameterValue(TEXT("Base  color"), Tint); GhostMid[g]->SetVectorParameterValue(TEXT("Shadow_Base"), Tint * 0.7f); GhostMid[g]->SetVectorParameterValue(TEXT("Rimlight Color"), FLinearColor(6.f, 6.f, 6.f)); }
 		}
 	}
-	for (int32 g = i * 3; g < i * 3 + 3; g++) { if (Ghost[g]) { Ghost[g]->SetVisibility(bOn && (GhostAge[g] < 2 || (GhostAge[g] < 9 && ((GhostAge[g] + g) & 1) == 0))); } }
+	for (int32 g = i * 3; g < i * 3 + 3; g++) { if (Ghost[g]) { Ghost[g]->SetVisibility(bOn && GhostAge[g]>=2 && GhostAge[g]<8 && ((GhostAge[g]+g)&1)==0); } }
 }
 
 /** The fighter's colours and outline for the state he is in. */
@@ -1719,8 +1712,9 @@ void AGkMatch::LookFighter(int32 i)
 	if (bForestLook)
 	{
 		Edge=FLinearColor(.012f,.015f,.028f); Thick=.62f;
-		if (P.st==gk::PARRY) { Edge=FLinearColor(.08f,.45f,.65f); Thick=.85f; }
-		Amt=FMath::Min(Amt,(P.hs>0 && (P.st==gk::HIT || P.st==gk::AHIT)) ? .5f : .035f);
+		if(M && M->di){Edge=FLinearColor(.35f,.015f,.12f);Thick=.95f;Wash=FLinearColor(.8f,.02f,.22f);Amt=.18f;}
+  if (P.st==gk::PARRY) { Edge=FLinearColor(.08f,.45f,.65f); Thick=.85f; }
+		Amt=FMath::Min(Amt,M && M->di?.18f:(P.hs>0 && (P.st==gk::HIT || P.st==gk::AHIT)) ? .5f : .035f);
 	}
 	if((Screen!=3 && Screen!=4 && Screen!=2)||bMenu){Edge=FLinearColor(.006,.004,.003);Thick=.48f;}
 	InkMid[i]->SetVectorParameterValue(TEXT("Outlines Color"), Edge); InkMid[i]->SetScalarParameterValue(TEXT("Outlines_Thickness"), Thick);
@@ -1826,11 +1820,7 @@ void AGkMatch::StateFx(int32 i)
 				if ((Ticks % (bDash ? 8 : 20)) == i)
 				{
 					const float Direction = P.vx > 0 ? 1.f : -1.f;
-					if (!PlayVfx(bDash ? TEXT("NS_Directional_Dust_03_Once_Fast") : TEXT("NS_Directional_Dust_01_Once"),
-						Feet, bDash ? 0.14f : 0.065f, -Direction, nullptr))
-					{
-						Fx.Dust(Feet, bDash ? 0.65f : 0.30f, Direction);
-					}
+     SurfaceResponse(Feet,bDash?.38f:.14f,-Direction);
 					if (bDash)
 					{
 						FGkFx::FP& Chip = Fx.Add(1, Feet + FVector(-8.0, 0.0, 8.0),
@@ -1880,12 +1870,7 @@ void AGkMatch::StateFx(int32 i)
 		FGkFx::FP& Sm = Fx.Add(1, Chest + FVector(Fx.Rng.FRandRange(-10.f, 10.f), Fx.Rng.FRandRange(-25.f, 25.f), Fx.Rng.FRandRange(-40.f, 60.f)), FVector(0.0, Fx.Rng.FRandRange(-20.f, 20.f), Fx.Rng.FRandRange(60.f, 130.f)), 0.9f, 16.f, 52.f, FLinearColor(0.05f, 0.06f, 0.055f), 0.38f);
 		Sm.Drag = 1.2f;
 	}
-	if (M && M->di)
-	{   // all the way through a drive impact he drags bright streaks behind him
-		static const FLinearColor Paint[3] = { FLinearColor(9.f, 0.6f, 5.f), FLinearColor(0.5f, 6.f, 8.f), FLinearColor(9.f, 6.f, 0.5f) };
-		for (int32 k = 0; k < 3; k++) { FGkFx::FP& St = Fx.Add(0, Chest + FVector(0.0, -P.face * 20.0, Fx.Rng.FRandRange(-80.f, 70.f)), FVector(0.0, -P.face * Fx.Rng.FRandRange(500.f, 1100.f), Fx.Rng.FRandRange(-60.f, 60.f)), 0.3f, Fx.Rng.FRandRange(bForestLook?4.f:12.f,bForestLook?9.f:24.f), 1.f, Paint[(Ticks + k) % 3]*(bForestLook?.30f:1.f)); St.Stretch = 12.f; }
-		if(!bForestLook)Fx.Add(0, Chest, FVector::ZeroVector, 0.1f, 170.f, 210.f, FLinearColor(1.6f, 0.15f, 1.f));
-	}
+
 	if (M && (P.mv == gk::moveByKey("SA3") || P.mv == gk::moveByKey("CA") || P.mv == gk::moveByKey("ABEAM")))
 	{   // Maximum Overkill: light gathers between the hands, then the wave runs the length of the stage
 		const int32 Fire = M->hits[0].s, End = M->lastAct + 3; const FVector Hands = At(P.x + P.face * 34 * gk::F, P.y + 56 * gk::F, -10.0);
@@ -1909,7 +1894,7 @@ void AGkMatch::StateFx(int32 i)
             } else if ((Ticks % 5) == 0) { Fx.Dust(At(P.x + P.face * Fx.Rng.FRandRange(60.f, 500.f) * gk::F, 0), 1.2f, float(P.face)); }
 		}
 	}
-	if (M && (M->sup || M->sp) && (Ticks % 2) == 0)
+	if (M && !M->has_home && (M->sup || M->sp) && (Ticks % 2) == 0)
 	{
 		if (!bForestLook) Fx.Add(0, Chest, FVector::ZeroVector, 0.12f, M->sup ? 120.f : 80.f, M->sup ? 200.f : 130.f, Ki * (M->sup ? 0.1f : 0.05f));
 		FGkFx::FP& Sp = Fx.Add(0, At(P.x, P.y) + FVector(-20.0, Fx.Rng.FRandRange(-50.f, 50.f), Fx.Rng.FRandRange(0.f, 60.f)), FVector(0.0, Fx.Rng.FRandRange(-30.f, 30.f), Fx.Rng.FRandRange(300.f, 700.f)), 0.4f, 9.f, 2.f, Ki); Sp.Stretch = 6.f;
@@ -2248,7 +2233,7 @@ void AGkMatch::Present(float Real)
 		FilmBeam[i]->SetVisibility(FilmBeamLife[i] > 0 && Screen == 3 && !bMenu);
 	}
 	if (bForestLook && bPlaced) { UpdateForestLook(Real); }
-	for (int32 i = 0; i < 2; i++) { ShowFighter(i); }
+	for (int32 i = 0; i < 2; i++) { ShowFighter(i); StyleMotion(i); }
 	// which place is shown: training is fought in the measured room, everything else in the wasteland
 	const int32 Place = Kind;
 	if (Place != ShownPlace)
