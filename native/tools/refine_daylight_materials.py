@@ -68,7 +68,7 @@ m.set_editor_property('blendable_location',unreal.BlendableLocation.BL_SCENE_COL
 i={}
 for name,tid in [('Scene',unreal.SceneTextureId.PPI_POST_PROCESS_INPUT0),('Albedo',unreal.SceneTextureId.PPI_BASE_COLOR),('Depth',unreal.SceneTextureId.PPI_SCENE_DEPTH),('Normal',unreal.SceneTextureId.PPI_WORLD_NORMAL),('Model',unreal.SceneTextureId.PPI_SHADING_MODEL_ID)]:
  n=node(m,unreal.MaterialExpressionSceneTexture); n.set_editor_property('scene_texture_id',tid); i[name]=n
-for name,value in [('CelStrength',.92),('ShadowThreshold',.32),('HighlightThreshold',.72),('DebugIllumination',0.),('CelEdgeSoftness',.08),('CreaseStrength',.24)]:
+for name,value in [('CelStrength',.35),('ShadowThreshold',.32),('HighlightThreshold',.72),('DebugIllumination',0.),('CelEdgeSoftness',.08),('CreaseStrength',.12)]:
  n=node(m,unreal.MaterialExpressionScalarParameter);n.set_editor_property('parameter_name',name);n.set_editor_property('default_value',value);i[name]=n
 n=custom(m,i,'''
 // Unlit fighters, energy and sky already own their value design.
@@ -85,13 +85,7 @@ float light=smoothstep(ShadowThreshold-aa,ShadowThreshold+aa,illum), top=smooths
 float high2=smoothstep(1.7-aa,1.7+aa,illum), high3=smoothstep(3.5-aa,3.5+aa,illum);
 float bands=.18+.40*light+.55*top+1.17*high2+2.0*high3;
 float3 tint=lerp(float3(.70,.73,1.12),float3(1.06,1.00,.94),light);
-// Preserve hue, but remove continuously shaded surface texture from the value design.
-float value=sqrt(saturate(a));
-float stepped=floor(value*6.+.5)/6.;
-float3 paintedAlbedo=Albedo.rgb*(max(stepped*stepped,.025)/max(a,.025));
-float3 lightHue=Scene.rgb/max(Albedo.rgb*max(illum,.05),float3(.02,.02,.02));
-lightHue=clamp(lightHue,.55,1.5);
-float3 c=lerp(Albedo.rgb,paintedAlbedo,.8)*bands*lightHue*tint;
+float3 c=Scene.rgb*(bands/max(illum,.05))*tint;
 float mask=smoothstep(.03,.08,a)*(1-smoothstep(4200,12000,Depth.r));
 mask*=1-smoothstep(6.,10.,illum);
 float2 uv=GetDefaultSceneTextureUV(Parameters,14);

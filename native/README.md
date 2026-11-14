@@ -176,3 +176,20 @@ is 4, extrusion 0.045 and background density 0.012: a much quieter atmosphere th
 the earlier dense render pass. Native daylight/dash/storm captures and the Mac build
 were checked. This is a more graphic treatment; the remaining live vapor is still a
 volume simulation, not authored anime smoke animation.
+
+
+### Softer background revision — current defaults
+
+The stronger albedo posterization above was rejected and removed. Background
+illumination bands now blend at 0.35, with crease emphasis 0.12. Character shaders
+remain unchanged. Ground normals retain 55% of their XY relief, dry roughness is
+0.88–0.90, and daylight added wet-mask strength is zero (storm maximum 0.25).
+The experimental forest FluidNinja volume no longer loads by default. For later
+look development it can be enabled with gk.Look.ForestVapor=1 before stage load;
+its assets and interaction implementation remain available. The default atmosphere
+preserves the map author's height-fog position, both fog layers, height falloff,
+scattering and opacity. Daylight uses the saved density/color; other palettes only
+adjust density and tint. The original map also contains Sky Atmosphere. Shared
+Dreamscape resources include BP_GlobalFogTool and BP_GroundFogTool, but those are
+not placed as actors in this daytime map; the night map references the ground tool. DOF remains disabled. These settings supersede the earlier vapor and hard
+world-cel defaults documented above.

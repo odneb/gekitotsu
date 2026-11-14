@@ -46,13 +46,16 @@ if not any(n.get_editor_property('desc')=='GK_PAINTED_NORMAL' for n in E.get_mat
  prev=E.get_material_property_input_node(m,unreal.MaterialProperty.MP_NORMAL)
  output=E.get_material_property_input_node_output_name(m,unreal.MaterialProperty.MP_NORMAL)
  n=E.create_material_expression(m,unreal.MaterialExpressionCustom);n.set_editor_property('desc','GK_PAINTED_NORMAL');n.set_editor_property('output_type',unreal.CustomMaterialOutputType.CMOT_FLOAT3)
- i=unreal.CustomInput();i.set_editor_property('input_name','N');n.set_editor_property('inputs',[i]);n.set_editor_property('code','return normalize(float3(N.xy*.18,N.z));')
+ i=unreal.CustomInput();i.set_editor_property('input_name','N');n.set_editor_property('inputs',[i]);n.set_editor_property('code','return normalize(float3(N.xy*.55,N.z));')
  assert E.connect_material_expressions(prev,output,n,'N');assert E.connect_material_property(n,'',unreal.MaterialProperty.MP_NORMAL)
+# Retain broad ground relief without exaggerated micro-bumps.
+for expression in E.get_material_expressions(m):
+ if expression.get_editor_property('desc')=='GK_PAINTED_NORMAL':expression.set_editor_property('code','return normalize(float3(N.xy*.55,N.z));')
 # Keep reruns and fresh reconstructions on the same defaults.
 for expression in E.get_material_expressions(m):
  if isinstance(expression,unreal.MaterialExpressionScalarParameter):
   name=str(expression.get_editor_property('parameter_name'))
-  if name in {'FilmWetAmount','FilmWetThreshold'}:expression.set_editor_property('default_value',1. if name=='FilmWetAmount' else .29)
+  if name in {'FilmWetAmount','FilmWetThreshold'}:expression.set_editor_property('default_value',0. if name=='FilmWetAmount' else .29)
 E.recompile_material(m);assert A.save_loaded_asset(m)
 # Retain the original swamp instance's parameter overrides between the new master and film instance.
 base=unreal.load_asset(root+'MI_GkWetLandscapeBase') or A.duplicate_asset('/Game/DreamscapeSeries/DreamscapeDreadmarsh/Materials/MI_Landscape_Swamp',root+'MI_GkWetLandscapeBase')

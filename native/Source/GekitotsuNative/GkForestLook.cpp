@@ -41,7 +41,7 @@ namespace
     TAutoConsoleVariable<float> GkSunScatter(TEXT("gk.Look.SunScatter"),4.0f,TEXT("Atmospheric SunScatter control."));
     TAutoConsoleVariable<float> GkFogAnisotropy(TEXT("gk.Look.FogAnisotropy"),0.65f,TEXT("Atmospheric FogAnisotropy control."));
     TAutoConsoleVariable<float> GkCelEdgeSoftness(TEXT("gk.Look.CelEdgeSoftness"),0.08f,TEXT("Environment CelEdgeSoftness control."));
-    TAutoConsoleVariable<float> GkCreaseStrength(TEXT("gk.Look.CreaseStrength"),0.24f,TEXT("Environment CreaseStrength control."));
+    TAutoConsoleVariable<float> GkCreaseStrength(TEXT("gk.Look.CreaseStrength"),0.12f,TEXT("Environment CreaseStrength control."));
     // Runtime look-development controls also make matched capture comparisons reproducible.
     TAutoConsoleVariable<float> GkShadowDistance(TEXT("gk.Look.ShadowDistance"),6500.f,TEXT("Directional shadow coverage in centimetres."));
     TAutoConsoleVariable<int32> GkMistResolution(TEXT("gk.Look.MistResolution"),256,TEXT("FluidNinja grid width; height is twice width."));
@@ -50,7 +50,7 @@ namespace
     TAutoConsoleVariable<float> GkMistHeight(TEXT("gk.Look.MistHeight"),.045f,TEXT("FluidNinja vapor extrusion."));
     TAutoConsoleVariable<float> GkMistPower(TEXT("gk.Look.MistPower"),.5f,TEXT("FluidNinja density shaping exponent."));
     TAutoConsoleVariable<float> GkMistLight(TEXT("gk.Look.MistLight"),.18f,TEXT("FluidNinja directional light response."));
-    TAutoConsoleVariable<float> GkGroundWetAmount(TEXT("gk.Look.GroundWetAmount"),.15f,TEXT("Patchy ground wetness, preserving dry terrain."));
+    TAutoConsoleVariable<float> GkGroundWetAmount(TEXT("gk.Look.GroundWetAmount"),0.f,TEXT("Patchy ground wetness, preserving dry terrain."));
     TAutoConsoleVariable<float> GkGroundWetCut(TEXT("gk.Look.GroundWetCut"),.29f,TEXT("Wet-patch coverage threshold."));
     TAutoConsoleVariable<float> GkGroundRoughness(TEXT("gk.Look.GroundRoughness"),1.f,TEXT("Dirt and stone roughness multiplier; vegetation remains matte."));
     TAutoConsoleVariable<float> GkBloomThreshold(TEXT("gk.Look.BloomThreshold"),1.f,TEXT("Scene-linear brightness required for selective bloom."));
@@ -59,7 +59,7 @@ namespace
     TAutoConsoleVariable<float> GkSunPitch(TEXT("gk.Look.SunPitch"),-8.f,TEXT("Forest sunlight pitch offset in degrees."));
     TAutoConsoleVariable<float> GkSunYaw(TEXT("gk.Look.SunYaw"),4.f,TEXT("Forest sunlight yaw offset in degrees."));
     TAutoConsoleVariable<float> GkFogScale(TEXT("gk.Look.FogScale"),1.f,TEXT("Multiplier for forest atmospheric density."));
-    TAutoConsoleVariable<float> GkCelStrength(TEXT("gk.Look.CelStrength"),1.f,TEXT("Environment cel shading blend."));
+    TAutoConsoleVariable<float> GkCelStrength(TEXT("gk.Look.CelStrength"),0.35f,TEXT("Environment cel shading blend."));
     TAutoConsoleVariable<float> GkCelShadow(TEXT("gk.Look.CelShadow"),.32f,TEXT("Environment shadow illumination threshold."));
     TAutoConsoleVariable<float> GkCelHigh(TEXT("gk.Look.CelHigh"),.72f,TEXT("Environment highlight illumination threshold."));
     TAutoConsoleVariable<float> GkDebugLight(TEXT("gk.Look.DebugLight"),0.f,TEXT("Diagnostic illumination bands, zero for normal rendering."));
@@ -150,9 +150,9 @@ void AGkMatch::UpdateForestLook(float DeltaSeconds)
   FilmGroundWetCut=GkGroundWetCut.GetValueOnGameThread();
   FilmWetness=Storm;
   for(TActorIterator<ALandscapeProxy> It(GetWorld());It;++It)if(It->bUseDynamicMaterialInstance) {
-   It->SetLandscapeMaterialScalarParameterValue(TEXT("FilmWetAmount"),FMath::Lerp(FilmGroundWetAmount,.55f,Storm));
+   It->SetLandscapeMaterialScalarParameterValue(TEXT("FilmWetAmount"),FMath::Lerp(FilmGroundWetAmount,.25f,Storm));
    It->SetLandscapeMaterialScalarParameterValue(TEXT("FilmWetThreshold"),FilmGroundWetCut-.08f*Storm);
-   for(int k=1;k<=8;++k)It->SetLandscapeMaterialScalarParameterValue(FName(*FString::Printf(TEXT("Layer_%02d_Roughness_Intensity"),k)),((k==3 || k==6 || k==8)?.42f:.82f)*(1.f-.72f*Storm)*((k==3 || k>=5)?FMath::Clamp(FilmGroundRoughness,.1f,2.f):1.f));
+   for(int k=1;k<=8;++k)It->SetLandscapeMaterialScalarParameterValue(FName(*FString::Printf(TEXT("Layer_%02d_Roughness_Intensity"),k)),((k==3 || k==6 || k==8)?.88f:.90f)*(1.f-.35f*Storm)*((k==3 || k>=5)?FMath::Clamp(FilmGroundRoughness,.1f,2.f):1.f));
   }
  }
  if (!ForestSun.IsValid())
@@ -247,19 +247,10 @@ void AGkMatch::UpdateForestLook(float DeltaSeconds)
 	}
 	if (UExponentialHeightFogComponent* FogComponent = ForestFog.Get())
 	{
-		FogComponent->SecondFogData.FogDensity=.012f*FogScale;
-        FogComponent->SecondFogData.FogHeightFalloff=1.2f;
-        FogComponent->SecondFogData.FogHeightOffset=-385.f;
-        FogComponent->SetVolumetricFog(true);
-        FogComponent->SetVolumetricFogScatteringDistribution(GkFogAnisotropy.GetValueOnGameThread());
-  FogComponent->SetFogDensity(.008f * FogScale * GkFogScale.GetValueOnGameThread());
-  FogComponent->SetFogHeightFalloff(.07f);
-  FogComponent->SetWorldLocation(Anchor.GetLocation()+FVector(0,0,400));
-  FogComponent->SetStartDistance(800.f);
-  FogComponent->SetFogCutoffDistance(18000.f);
-  FogComponent->SetFogMaxOpacity(.55f);
-		FogComponent->SetFogInscatteringColor(FMath::Lerp(ForestFogColor, FogTint, 0.75f));
-		FogComponent->SetVolumetricFogAlbedo(FogTint.ToFColorSRGB());
+        // Preserve the environment author's height, both layers, falloff and scattering.
+        // Daylight reproduces the saved map fog; other palettes only shift color/density.
+        FogComponent->SetFogDensity(ForestFogDensity * (FogScale / Palettes[0].FogScale) * GkFogScale.GetValueOnGameThread());
+        FogComponent->SetFogInscatteringColor(FMath::Lerp(ForestFogColor,FogTint,(1.f-PaletteWeights[0])*.65f));
 	}
     if(auto* Fill=ForestFill.Get()) {
         const FLinearColor FillColors[6]={{.55f,.66f,1.f},{.28f,.42f,1.f},{.40f,.47f,.78f},{.70f,.53f,.42f},{.28f,.65f,.34f},{.48f,.38f,.85f}};

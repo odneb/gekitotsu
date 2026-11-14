@@ -59,6 +59,7 @@
 #include "Engine/Level.h"
 #include "Engine/LevelScriptActor.h"
 
+static TAutoConsoleVariable<int32> GkForestVapor(TEXT("gk.Look.ForestVapor"),0,TEXT("Opt in to the experimental FluidNinja forest volume on next stage load."));
 static TAutoConsoleVariable<float> GkFighterKeyX(TEXT("gk.Look.FighterKeyX"),.30f,TEXT("Fighter key direction in stage space."));
 static TAutoConsoleVariable<float> GkFighterKeyY(TEXT("gk.Look.FighterKeyY"),-.65f,TEXT("Fighter key direction in stage space."));
 static TAutoConsoleVariable<float> GkFighterKeyZ(TEXT("gk.Look.FighterKeyZ"),.65f,TEXT("Fighter key direction in stage space."));
@@ -364,6 +365,8 @@ void AGkMatch::NinjaFog()
 {
 	bNinjaTried = true; UWorld* W = GetWorld(); const FGkStage* St = Stages.IsValidIndex(Setup.Stage) ? &Stages[Setup.Stage] : nullptr;
 	if (!W || (St && St->Get(TEXT("ninja")) == TEXT("0")) || FParse::Param(FCommandLine::Get(), TEXT("gknoninja"))) { return; }
+	// Keep the experimental simulated volume available without covering the painted stage.
+	if(bForestLook && GkForestVapor.GetValueOnGameThread()==0)return;
 	const bool bCanyonSand = Kind == 1;
 	const TCHAR* Path = bCanyonSand ? TEXT("/Game/GkStage/L_GkNinjaSand") : bForestLook ? TEXT("/Game/GkStage/L_GkFilmFog3") : TEXT("/Game/GkStage/L_GkNinjaMist");
 	const FVector Offset = bForestLook ? FloorPoint(FVector(0,0,0)) + FVector(750,0,12) : bCanyonSand ? FVector(0.0, 0.0, 8.0) : FVector(30.0, 0.0, 250.0);
