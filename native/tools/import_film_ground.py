@@ -12,10 +12,10 @@ assert A.save_loaded_asset(tex)
 parent=unreal.load_asset('/Game/DreamscapeSeries/DreamscapeDreadmarsh/Materials/MI_Landscape_Swamp')
 m=unreal.load_asset('/Game/GkFx/MI_GkFilmLandscape') or unreal.AssetToolsHelpers.get_asset_tools().create_asset('MI_GkFilmLandscape','/Game/GkFx',unreal.MaterialInstanceConstant,unreal.MaterialInstanceConstantFactoryNew())
 E.set_material_instance_parent(m,parent)
-for k in (3,5,6,7):
+for k in (3,5,6,7,8):
  E.set_material_instance_texture_parameter_value(m,'T_Layer_%02d_BC'%k,tex)
- E.set_material_instance_scalar_parameter_value(m,'Layer_%02d_Tiling'%k,48.0)
- E.set_material_instance_scalar_parameter_value(m,'Layer_%02d_Normal_Intensity'%k,0.)
+ E.set_material_instance_scalar_parameter_value(m,'Layer_%02d_Tiling'%k,10.0)
+ E.set_material_instance_scalar_parameter_value(m,'Layer_%02d_Normal_Intensity'%k,.35)
  E.set_material_instance_scalar_parameter_value(m,'Layer_%02d_ParallaxHeightRatio'%k,0.)
 for n in E.get_scalar_parameter_names(m):
  if 'Tiling' in str(n):unreal.log('FILM LAND TILING '+str(n)+' '+str(E.get_material_instance_scalar_parameter_value(m,n)))

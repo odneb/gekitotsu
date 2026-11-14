@@ -153,6 +153,15 @@ const SIM = (function () {
     N('CA', { n: 'Absolutely Unnecessary', sup: 1, sa: 3, ca: 1, su: 20, t: 108, frz: 108, inv: [0, 16], minScale: 50, dd: 900,
       hits: [beamHit(19, 50), beamHit(25, 50), beamHit(31, 50), beamHit(37, 50), beamHit(43, 50), beamHit(49, 50), beamHit(55, 150, true)] });
     N('ABEAM', { n: 'Hot Shot', sp: 1, air: 1, su: 19, t: 58, hover: 36, landRec: 18, dd: 300, sg: 30, hits: [18,24,30].map((s,i)=>({s,e:s+2,hb:[24,22,480,50],d:i===2?40:20,stun:22,bstun:12,kb:i===2?450:0,air:i===2?[400,280]:[0,60],lvl:1,hsp:3})) });
+    N('jUpAir', { n: 'Up-Air', air: 1, xh: 1, g: 'h', su: 7, t: 31, landRec: 7, dd: 150,
+      hits: [{ s: 6, e: 11, hb: [-8, 53, 49, 42], d: 45, stun: 18, bstun: 10, launch: [100, 790], air: [115, 720], hsp: 7 }] });
+    N('jKnee', { n: 'Knee', air: 1, xh: 1, g: 'h', su: 14, t: 45, landRec: 15, dd: 260,
+      hits: [
+        { s: 13, e: 13, hb: [34, 36, 21, 22], d: 145, stun: 25, bstun: 14, launch: [850, 330], air: [850, 330], hsp: 15, lvl: 2, fin: 1, grp: 0 },
+        { s: 13, e: 27, hb: [9, 30, 45, 34], d: 45, stun: 16, bstun: 10, air: [280, 340], hsp: 7, grp: 0 }
+      ] });
+    N('jStomp', { n: 'Stomp', air: 1, xh: 1, g: 'h', su: 16, t: 44, landRec: 11, dd: 300,
+      hits: [{ s: 15, e: 17, hb: [-13, -24, 47, 61], d: 90, stun: 21, bstun: 13, kb: 190, air: [60, -1050], gb: 1, hsp: 11, lvl: 1 }] });
     return {
       name: 'ROBOT 1', jp: '闇', title: 'ENGINEERED FOR TROUBLE', hp: 1000, walkF: 230, walkB: 157, jx: 245, jxB: 196, runV: 430, mv: mv,
       sp: [{ dir: 6, k: 'SRK_M', od: 'SRK_OD' }, { dir: 4, k: 'DL_H', od: 'DL_OD' }, { dir: 2, k: 'JIN_M', od: 'JIN_OD' }, { dir: 5, k: 'HAD_H', od: 'HAD_OD' }, { air: 1, adir: 2, k: 'ASPK', od: 'ASPK' }, { air: 1, adir: 6, k: 'AUP', od: 'AUP' }, { air: 1, k: 'ABEAM', od: 'ABEAM' }],

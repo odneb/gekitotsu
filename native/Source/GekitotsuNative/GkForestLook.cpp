@@ -26,7 +26,7 @@ namespace
 	};
 
 	const FForestPalette Palettes[] = {
-		{{1.00f, 0.88f, 0.68f}, {0.40f, 0.54f, 0.64f}, {1.00f, 0.55f, 0.22f}, {1.03f, 1.02f, 0.96f}, 1.65f, 0.95f, 8.f, -14.f},
+		{{1.00f, 0.78f, 0.49f}, {0.36f, 0.40f, 0.64f}, {1.00f, 0.55f, 0.22f}, {1.03f, 1.02f, 0.96f}, 2.05f, 1.10f, 8.f, -14.f},
 		{{0.40f, 0.59f, 1.00f}, {0.17f, 0.25f, 0.49f}, {0.49f, 0.72f, 1.00f}, {0.58f, 0.74f, 1.06f}, 0.40f, 0.88f, 7.f, 18.f},
 		{{0.56f, 0.70f, 1.00f}, {0.39f, 0.47f, 0.59f}, {0.54f, 0.77f, 1.00f}, {0.79f, 0.89f, 1.05f}, 0.57f, 1.42f, 1.f, -10.f},
 		{{1.00f, 0.63f, 0.34f}, {0.93f, 0.60f, 0.32f}, {1.00f, 0.65f, 0.31f}, {1.13f, 0.93f, 0.72f}, 0.75f, 1.53f, 8.f, -14.f},
@@ -100,7 +100,7 @@ void AGkMatch::UpdateForestLook(float DeltaSeconds)
 	if(FMath::Abs(FilmWetness-Storm)>.05f){
   FilmWetness=Storm;
   for(TActorIterator<ALandscapeProxy> It(GetWorld());It;++It)if(It->bUseDynamicMaterialInstance)
-   for(int k=1;k<=8;++k)It->SetLandscapeMaterialScalarParameterValue(FName(*FString::Printf(TEXT("Layer_%02d_Roughness_Intensity"),k)),((k==2 || k==3 || k==6)?.22f:.82f)*(1.f-.72f*Storm));
+   for(int k=1;k<=8;++k)It->SetLandscapeMaterialScalarParameterValue(FName(*FString::Printf(TEXT("Layer_%02d_Roughness_Intensity"),k)),((k==3 || k==6 || k==8)?.42f:.82f)*(1.f-.72f*Storm));
  }
  if (!ForestSun.IsValid())
  { // Fill lights illuminate the set; the key light supplies its graphic cast shadows.
@@ -122,9 +122,9 @@ void AGkMatch::UpdateForestLook(float DeltaSeconds)
 			Light->SetMobility(EComponentMobility::Movable);
 			Light->SetDynamicShadowDistanceMovableLight(6500.f);
 			Light->ContactShadowLength = 0.08f;
-            Light->SetVolumetricScatteringIntensity(2.5f);
+            Light->SetVolumetricScatteringIntensity(4.0f);
             Light->bEnableLightShaftOcclusion=true;Light->OcclusionMaskDarkness=.65f;
-            Light->bEnableLightShaftBloom=true;Light->SetBloomScale(.32f);Light->SetBloomThreshold(1.f);
+            Light->bEnableLightShaftBloom=true;Light->SetBloomScale(.50f);Light->SetBloomThreshold(1.f);
 		}
 	}
 	if (!ForestFog.IsValid())
@@ -170,7 +170,7 @@ void AGkMatch::UpdateForestLook(float DeltaSeconds)
 	if (UDirectionalLightComponent* Light = ForestSun.Get())
 	{
 		Light->SetWorldRotation(ForestSunRotation + FRotator(Pitch, Yaw, 0.0));
-		Light->SetLightColor(FMath::Lerp(ForestSunColor, Key, 0.65f));
+		Light->SetLightColor(FMath::Lerp(ForestSunColor, Key, 0.92f));
 		Light->SetIntensity(ForestSunIntensity * KeyScale * (1.f + 1.8f * Flash * FlashGain));
 	}
 	if (UExponentialHeightFogComponent* FogComponent = ForestFog.Get())
@@ -209,6 +209,7 @@ void AGkMatch::UpdateForestLook(float DeltaSeconds)
  if(IsValid(FilmNinja)){
   if(FFloatProperty* P=FindFProperty<FFloatProperty>(FilmNinja->GetClass(),TEXT("DirectVelocityY")))P->SetPropertyValue_InContainer(FilmNinja,-.08f-.3f*Storm);
  }
+
 
 	if (BackLamp)
 	{

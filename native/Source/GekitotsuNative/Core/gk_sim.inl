@@ -176,7 +176,7 @@ static bool tryAttack(State& s, Fighter& p, Fighter& o, int inp, int i)
 	if (canSp && !(m && m->sp && !kara))
 	{
 		const int nAtk = ((inp & 16) ? 1 : 0) + ((inp & 32) ? 1 : 0) + ((inp & 64) ? 1 : 0); const bool canOD = !p.bo && p.dr > 0;
-		if (lt || md || hv)
+		if ((lt || md || hv) && !(air && s.cfg.experimentalMovement))
 		{
 			for (const MoDef& sp : MO_LIST)
 			{
@@ -200,6 +200,12 @@ static bool tryAttack(State& s, Fighter& p, Fighter& o, int inp, int i)
 	if (!(lt || md || hv)) { return false; }
 	if (air)
 	{
+		if (s.cfg.experimentalMovement)
+		{
+			// Only a confirmed up-air can chain into another aerial normal.
+			if (m && (p.mv != M_jUpAir || !p.hitOK || !(md || hv))) { return false; }
+			return start(s, p, hv ? M_jStomp : md ? M_jKnee : M_jUpAir, i);
+		}
 		if (m && !(m->isAir && p.contact && p.aa < 3)) { return false; }
 		if (m) { p.aa = p.aa + 1; }
 		const int k = as ? (hv ? M_jHP : md ? M_jMK : M_jLK) : (hv ? M_jHK : md ? M_jMP : M_jLP);
@@ -283,6 +289,7 @@ static void enterRush(State& s, Fighter& p, Fighter& o, int i, bool fromCancel)
 }
 static void enterRun(State& s, Fighter& p, int i, bool keepAuto)
 {
+	p.runFromDash = false;
 	p.st = RUN; p.rq = 99; p.sf = 0; p.mv = -1; p.arm = 0; clearAges(p); if (!keepAuto) { p.ac = AC_NONE; p.aci = 0; p.acq = 0; } push(s, E_RUN, i);
 }
 
@@ -294,13 +301,19 @@ static void neutral(State& s, Fighter& p, Fighter& o, int inp, int i)
 	if (tryAttack(s, p, o, inp, i)) { return; }
 	const int h = hdir(inp, p.face), v = vdir(inp);
 	if (parryHeld(inp) && enterParry(s, p, i)) { return; }
-	if (p.d66 <= BUF) { p.d66 = 99; p.st = DASHF; p.sf = 0; push(s, E_DASH, i); return; }
+	if (p.d66 <= BUF)
+	{
+		p.d66 = 99; p.st = DASHF; p.sf = 0;
+		if (s.cfg.experimentalMovement) { p.vx = p.face * 450; }
+		push(s, E_DASH, i);
+		return;
+	}
 	if (p.d44 <= BUF) { p.d44 = 99; p.st = DASHB; p.sf = 0; push(s, E_DASH, i); return; }
 	int sub;
 	if (v > 0) { p.st = PREJUMP; p.sf = 0; p.jd = h; p.vx = 0; return; }
 	if (v < 0) { sub = CROUCH; p.vx = 0; }
-	else if (h > 0) { sub = WALKF; p.vx = p.face * CH_WALKF; }
-	else if (h < 0) { sub = WALKB; p.vx = -p.face * CH_WALKB; }
+	else if (h > 0) { sub = WALKF; p.vx = p.face * (s.cfg.experimentalMovement ? CH_WALKF * 108 / 100 : CH_WALKF); }
+	else if (h < 0) { sub = WALKB; p.vx = -p.face * (s.cfg.experimentalMovement ? CH_WALKB * 105 / 100 : CH_WALKB); }
 	else { sub = STAND; p.vx = 0; }
 	if (sub != p.sub) { p.sub = int8_t(sub); p.subf = 0; } else { p.subf++; }
 }
@@ -342,6 +355,18 @@ static void atkFrame(State& s, Fighter& p, Fighter& o, const Move& m, int i)
 
 static void burnOther(State& s, Fighter& o, int oi) { burn(s, o, oi); }
 
+static void steerJump(Fighter& p, int direction, int acceleration)
+{
+	if (!direction) { return; }
+	const int speed = p.vx * direction;
+	const int airSpeed = CH_JX * 16 / 10;
+	// An input into existing momentum cannot slow the fighter down.
+	if (speed < airSpeed)
+	{
+		p.vx = direction * imin(airSpeed, speed + (speed < 0 ? acceleration * 2 : acceleration));
+	}
+}
+
 static void update(State& s, Fighter& p, Fighter& o, int inp, int i)
 {
 	p.sf++; if (p.tinv > 0) { p.tinv--; } if (p.pp > 0) { p.pp--; }
@@ -349,24 +374,77 @@ static void update(State& s, Fighter& p, Fighter& o, int inp, int i)
 	{
 		case IDLE: neutral(s, p, o, inp, i); break;
 		case PREJUMP:
-			if (p.sf >= 4) { p.st = JUMP; p.sf = 0; p.dj = 0; p.wj = 0; p.aa = 0; p.jg = 1; p.vy = 1125; p.vx = p.jd * p.face * (p.jd < 0 ? CH_JXB : CH_JX); p.y = 1; push(s, E_JUMP, i); }
+			if (p.sf >= (s.cfg.experimentalMovement ? 3 : 4))
+			{
+				p.st = JUMP; p.sf = 0; p.dj = 0; p.wj = 0; p.aa = 0; p.jg = 1;
+				p.vy = s.cfg.experimentalMovement && !(inp & IN_U) ? 920 : 1375;
+				const int launchSpeed = p.jd * p.face * (p.jd < 0 ? CH_JXB : CH_JX);
+				if (!s.cfg.experimentalMovement) { p.vy = 1125; p.vx = launchSpeed; }
+				else if (launchSpeed != 0 && p.vx * launchSpeed <= 0) { p.vx = launchSpeed; }
+				p.y = 1;
+				push(s, E_JUMP, i);
+			}
 			break;
 		case JUMP:
 		{
 			// steer in the air; Up again for one weak second jump; Up against the wall to kick off it
 			const int pv = p.buf[NBUF - 2]; const bool upNew = (inp & 1) && !(pv & 1); const int hx = ((inp & 8) ? 1 : 0) - ((inp & 4) ? 1 : 0), lim = STAGE - PW;
-			if ((inp & 2) && p.vy < 0 && p.vy > -1700) { p.vy -= 55; }   // hold down on the way down to fall faster
-			if (hx) { p.vx += hx * 22; const int mx = CH_JX * 11 / 10; if (p.vx > mx) { p.vx = mx; } if (p.vx < -mx) { p.vx = -mx; } }
+			if ((inp & IN_D) && p.vy <= 0 && s.cfg.experimentalMovement) { p.vy = imin(p.vy, -1650); }
+			else if ((inp & IN_D) && p.vy < 0 && p.vy > -1700) { p.vy -= 55; }
+			if (s.cfg.experimentalMovement) { steerJump(p, hx, 42); }
+			else if (hx) { p.vx += hx * 22; const int mx = CH_JX * 11 / 10; if (p.vx > mx) { p.vx = mx; } if (p.vx < -mx) { p.vx = -mx; } }
 			if (upNew && p.sf > 5 && !(inp & 240))
 			{
 				const int wall = p.x >= lim - 2 * F ? 1 : p.x <= -lim + 2 * F ? -1 : 0;
 				if (wall && !p.wj && p.y > 10 * F) { p.wj = 1; p.vx = -wall * 330; p.vy = 1000; p.jg = 1; p.sf = 0; p.jd = -wall * p.face; push(s, E_WALLJUMP, i, p.x + wall * PW, p.y); }
-				else if (!p.dj) { p.dj = 1; p.vy = 800; p.vx = hx * (CH_JX * 8 / 10); p.jg = 1; p.sf = 0; if (hx) { p.jd = hx * p.face; } push(s, E_JUMP, i, 0, 0, 1); }
+				else if (!p.dj)
+				{
+					p.dj = 1; p.vy = 800; p.jg = 1; p.sf = 0;
+					if (s.cfg.experimentalMovement) { steerJump(p, hx, 115); }
+					else { p.vx = hx * (CH_JX * 8 / 10); }
+					if (hx) { p.jd = hx * p.face; }
+					push(s, E_JUMP, i, 0, 0, 1);
+				}
 			}
 			tryAttack(s, p, o, inp, i); break;
 		}
 		case LAND: p.vx = 0; if (p.sf >= p.rec) { toIdle(p); neutral(s, p, o, inp, i); } break;
-		case DASHF: p.vx = p.face * (p.sf <= 12 ? 490 : 85); if (p.sf >= 19) { toIdle(p); neutral(s, p, o, inp, i); } break;
+		case DASHF:
+		{
+			const int frame = p.sf;
+			if (s.cfg.experimentalMovement)
+			{
+				if (inp & IN_U)
+				{
+					p.jd = hdir(inp, p.face); p.st = PREJUMP; p.sf = 0;
+					break;
+				}
+				if (tryAttack(s, p, o, inp, i)) { atkFrame(s, p, o, MV(p.mv), i); break; }
+				const int direction = hdir(inp, p.face);
+				if (direction < 0 || (inp & IN_D))
+				{
+					toIdle(p); neutral(s, p, o, inp, i); break;
+				}
+				if (direction > 0 && frame >= 4)
+				{
+					enterRun(s, p, i, false);
+					p.runFromDash = true;
+					break;
+				}
+				p.vx = p.face * imax(0, p.vx * p.face + (direction > 0 ? 24 : -95));
+				if (p.vx == 0) { toIdle(p); neutral(s, p, o, inp, i); }
+				break;
+			}
+			if (frame >= 19)
+			{
+				p.vx = p.face * 85;
+				toIdle(p);
+				neutral(s, p, o, inp, i);
+				break;
+			}
+			p.vx = p.face * (frame <= 12 ? 490 : 85);
+			break;
+		}
 		case DASHB: p.vx = -p.face * (p.sf <= 14 ? 290 : 51); if (p.sf >= 23) { toIdle(p); neutral(s, p, o, inp, i); } break;
 		case DRUSH:
 		{
@@ -379,7 +457,26 @@ static void update(State& s, Fighter& p, Fighter& o, int inp, int i)
 		}
 		case RUN:
 		{
-			const int f = p.sf; p.vx = p.face * (CH_RUNV * (f <= 8 ? 30 + f * 9 : f > 35 ? imax(20, 100 - (f - 35) * 8) : 100) / 100);
+			const int f = p.sf;
+			if (s.cfg.experimentalMovement && (inp & IN_U))
+			{
+				p.jd = hdir(inp, p.face); p.st = PREJUMP; p.sf = 0;
+				break;
+			}
+			const bool controlledRun = s.cfg.experimentalMovement && p.runFromDash;
+			const bool keepRunning = controlledRun && hdir(inp, p.face) > 0 && !(inp & IN_D);
+			if (controlledRun)
+			{
+				if (hdir(inp, p.face) < 0 || (inp & IN_D))
+				{
+					toIdle(p); neutral(s, p, o, inp, i); break;
+				}
+				if (tryAttack(s, p, o, inp, i)) { atkFrame(s, p, o, MV(p.mv), i); break; }
+				p.vx = p.face * (keepRunning ? imin(CH_RUNV * 122 / 100, p.vx * p.face + 35) : imax(0, p.vx * p.face - 105));
+				if (p.vx == 0) { toIdle(p); neutral(s, p, o, inp, i); }
+				break;
+			}
+			else { p.vx = p.face * (CH_RUNV * (f <= 8 ? 30 + f * 9 : f > 35 ? imax(20, 100 - (f - 35) * 8) : 100) / 100); }
 			autoPress(p, inp); if (p.acq && autoStep(s, p, o, i)) { atkFrame(s, p, o, MV(p.mv), i); break; }
 			int k = -1; bool stop = false;
 			if (f >= 9 && p.age[2] <= BUF) { k = RUN_H; }
@@ -424,10 +521,20 @@ static void update(State& s, Fighter& p, Fighter& o, int inp, int i)
 			if (m.isAir && p.y > 0)
 			{
 				const int pv = p.buf[NBUF - 2], hx = ((inp & 8) ? 1 : 0) - ((inp & 4) ? 1 : 0);
-				if (!m.sp && hx) { p.vx += hx * 16; const int mx = CH_JX * 11 / 10; if (p.vx > mx) { p.vx = mx; } if (p.vx < -mx) { p.vx = -mx; } }
+				if (!m.sp && s.cfg.experimentalMovement) { steerJump(p, hx, 36); }
+				else if (!m.sp && hx) { p.vx += hx * 16; const int mx = CH_JX * 11 / 10; if (p.vx > mx) { p.vx = mx; } if (p.vx < -mx) { p.vx = -mx; } }
+				if (s.cfg.experimentalMovement && !m.sp && (inp & IN_D) && p.vy <= 0) { p.vy = imin(p.vy, -1650); }
 				if ((inp & 1) && !(pv & 1) && p.contact && !p.dj && !m.has_home) { p.dj = 1; p.vy = 800; p.vx = hx * (CH_JX * 8 / 10); p.jg = 1; p.st = JUMP; p.mv = -1; p.sf = 0; push(s, E_JUMP, i, 0, 0, 1); break; }
 			}
-			if (m.t < 900 && p.mf >= m.t + (m.wr && !p.contact ? m.wr : 0)) { toIdle(p); neutral(s, p, o, inp, i); break; }
+			if (m.t < 900 && p.mf >= m.t + (m.wr && !p.contact ? m.wr : 0))
+			{
+				if (p.y > 0 && p.mv >= M_jUpAir && p.mv <= M_jStomp)
+				{
+					p.st = JUMP; p.mv = -1; p.sf = 6;
+				}
+				else { toIdle(p); neutral(s, p, o, inp, i); }
+				break;
+			}
 			autoPress(p, inp); if (p.acq && autoStep(s, p, o, i)) { if (p.st == ATK) { atkFrame(s, p, o, MV(p.mv), i); } break; }
 			if (m.has_fu && p.mf <= m.fuw[1])
 			{
@@ -519,7 +626,7 @@ static void land(State& s, Fighter& p, int i)
 		p.st = KDOWN; p.sf = 0; p.pv = p.vx / 2; p.vx = 0; p.roll = (!p.hard && p.hp > 0 && hdir(p.prev, p.face) < 0) ? 1 : 0; push(s, E_KD, i, p.x, 0);
 	}
 	else if (p.st == ATK) { const Move& m = MV(p.mv); p.st = LAND; p.sf = 0; p.rec = m.landRec ? m.landRec : 3; p.mv = -1; p.vx = 0; p.arm = 0; push(s, E_LAND, i); }
-	else if (p.st == JUMP) { p.st = LAND; p.sf = 0; p.rec = 2; p.vx = 0; push(s, E_LAND, i); }
+	else if (p.st == JUMP) { p.st = LAND; p.sf = 0; p.rec = s.cfg.experimentalMovement ? 1 : 2; p.vx = 0; push(s, E_LAND, i); }
 }
 
 static void physics(State& s, Fighter& p, Fighter& o, int i)
@@ -529,7 +636,11 @@ static void physics(State& s, Fighter& p, Fighter& o, int i)
 	if (p.y > 0)
 	{
 		const int ag = p.st == ATK ? MV(p.mv).ag : 0;
-		p.vy -= (ag ? ag : p.jg && p.st != AHIT ? JG : GRAV) + (p.st == AHIT ? p.jug * 3 : 0);
+		p.vy -= (ag ? ag : p.jg && p.st != AHIT ? (s.cfg.experimentalMovement ? 60 : JG) : GRAV) + (p.st == AHIT ? p.jug * 3 : 0);
+		if (s.cfg.experimentalMovement && p.jg && (p.st == JUMP || (p.st == ATK && !MV(p.mv).sp)))
+		{
+			p.vy = imax(p.vy, (p.prev & IN_D) ? -1760 : -1100);
+		}
 		p.x += p.vx; p.y += p.vy;
 		if (p.y <= 0) { land(s, p, i); }
 	}

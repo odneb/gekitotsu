@@ -53,6 +53,7 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 	void DrawHud(UCanvas* Cv);
 	static AGkMatch* Current;
+	void ConfirmQuit();
 	static FGkSetup Setup; static TArray<FGkStage> Stages; static void LoadStages();
 	// where the fight stands in this map, and whether that has been settled yet (a pack's map streams in around the camera first)
 	FTransform Anchor = FTransform::Identity; int32 Kind = 1; bool bPlaced = true; float PlaceWait = 0.f; FString PlaceNote;
@@ -98,15 +99,38 @@ public:
 	// The animation lab (Screen 4): one fighter alone, every move and state in turn, and every clip he has to try on it.
 	// What is chosen is kept in Content/Gk/anims.txt (set | slot | clip | from | to | loop) and used by the game from then on.
 	struct FLabSlot { FName Slot; FString Label; int32 Cat = 0; };
-	struct FLabClip { FString Path, Label, Pack; int32 Cat = 0; };
+	struct FLabClip { FString Path, Label, Pack, Tags; int32 Cat = 0; };
 	TArray<FLabSlot> LabSlots; TArray<FLabClip> LabList; int32 LabSlot = 0, LabFrame = 0, LabSet = 2, LabCat = 0, LabDropCat = 0, LabScroll = 0, LabHot = 0, LabNoteTimer = 0, LabTryAt = -2; bool bLabDrop = false, bLabMouse = false; int32 LabKey = -2; float LabClock = 0.f; FString LabNote; FGkClip LabTry; FGkClip LabPartner; bool bLabPair=false; float LabPairSpacing=200.f;
 	TMap<FName,FGkClip> SetupDrafts;
  FString SetupSearch; int32 SetupPack=0,SetupFilter=-1,SetupSlotScroll=0,SetupDropdown=0;
  bool bSetupAdvanced=false;
  bool bSetupVariants=false;
  bool bSetupSearch=false,bSetupPaused=false,bSetupTesting=false;float SetupSpeed=1.f;
+ bool bSetupFreePlay=false, bSetupMap=false;
+ int32 SetupOutcome=0, SetupGroup=-1;
+ FString SetupResult;
+ int32 SetupTestFrames=0;
+ bool bSetupTestFinished = false;
+ FName SetupTestContext;
+ FString SetupMoveSearch;
+ FString SetupLibraryPack;
+ FName SetupLibraryMotion;
+ bool bSetupAssignedOnly=false;
+ bool SetupHasMotion(const FLabClip& Clip, FName Motion) const;
+ FString SetupClipSearchText(const FLabClip& Clip) const;
+ bool SetupClipIsAssigned(const FLabClip& Clip) const;
+ FName SetupSuggestedMotion() const;
+ TMap<FString,FString> SetupCustomTags;
+ float SetupMoveOffset=0.f,SetupClipOffset=0.f,SetupMapOffset=0.f;
+ void SetSetupTags(const FString& Path,const FString& Tags);
+ TSharedPtr<class SWidget> SetupWidget;
+ UPROPERTY() TObjectPtr<class UPoseableMeshComponent> SetupThumbBody;
+ UPROPERTY() TObjectPtr<class USceneCaptureComponent2D> SetupThumbCamera;
+ UPROPERTY() TArray<TObjectPtr<class UTextureRenderTarget2D>> SetupThumbTargets;
+ class UTextureRenderTarget2D* CaptureSetupThumb(const FString& Path, float Position, UTextureRenderTarget2D* Reuse);
+ void OpenSetupWidget(); void CloseSetupWidget();
  FGkClip SetupOriginal;int32 SetupOldMode=0,SetupOldDummy=0;
- void DrawSetupTest(UCanvas* Cv);void DrawCharacterSetup(UCanvas* Cv);void SetupInput();void SetupAction(int32 Id);void SetupSelect(int32 Slot);void SetupApply();void SetupTest();void SetupReturn();
+ void DrawSetupTest(UCanvas* Cv);void DrawCharacterSetup(UCanvas* Cv);void SetupInput();void SetupAction(int32 Id);void SetupSelect(int32 Slot);void SetupApply();void SetupTest(bool bFreePlay=false);void SetupReturn();
  bool SetupMatches(const FLabClip& C) const;
  void LabOpen(); void LabClose(); void LabClick(int32 Id); void LabPick(int32 ClipIndex); void LabSave(); void LoadPicks(); FString PicksFile(bool bProject) const;
 	// hit, guard and dust effects and their sounds (Vefects' Combat Flipbook VFX)
@@ -215,7 +239,7 @@ public:
 	FGkPoses Poses; FGkBody Rig[2]; TArray<FName> MoveClip; int32 HitKind[2] = { 1, 1 };
 
 	// the match
-	gk::State S; gk::Ai Cpu[2];
+	gk::State S{}; gk::Ai Cpu[2];
 	int32 Mode = 0, Level = 2, Dummy = 0;            // mode: 0 versus CPU, 1 training, 2 watch. dummy: stand, crouch, jump, block all, CPU
 	double Acc = 0.0, LastReal = 0.0; float FrameMs = 16.7f, StepMs = 0.f; int32 OverTimer = 0, Ticks = 0;
 	// what the picture adds on top of the rules
@@ -234,6 +258,9 @@ public:
 	FGkPads* Pads = nullptr; uint32 PadNow = 0, PadPrev = 0; int32 PadDirs = 0, PadDirPrev = 0, PadCount = 0; FString PadNames;
 	int32 PadBind[8] = { 0, 1, 2, 6, 7, 5, 4, 3 }; FKey Bind[8]; int32 InputNow = 0;
 	bool bMenu = true; int32 MenuAt = 0, MenuPage = 0, BindAt = 0;
+	bool bQuitPrompt = false;
+	bool bQuitSelected = false;
+	bool OnWindowCloseRequested();
 	float ScreenPct = 0.f, SlowSeconds = 0.f; FString StatusPath; int32 StatusClock = 0;
 
 	static constexpr double Cm = (100.0 / 51.0) / 100.0;   // centimetres in one of the rules' sub-units: the fighter is 89 units, about 1.75 m

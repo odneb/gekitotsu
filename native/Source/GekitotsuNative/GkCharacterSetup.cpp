@@ -7,21 +7,35 @@
 #include "Misc/Paths.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Fonts/CompositeFont.h"
+#include "Engine/GameViewportClient.h"
 
 namespace {
 const TCHAR* Categories[]={TEXT("MOVEMENT / PERSONALITY"),TEXT("GUARD / PARRY"),TEXT("REACTIONS"),TEXT("PUNCHES"),TEXT("KICKS"),TEXT("AIR / HOMING"),TEXT("SPECIALS"),TEXT("SUPERS"),TEXT("THROWS / PARTNERS")};
 const TCHAR* Packs[]={TEXT("ALL PACKS"),TEXT("Anime Martial Arts"),TEXT("Anime Power Up"),TEXT("Superhero Ground"),TEXT("Mega Taunt"),TEXT("Mega Emotes"),TEXT("UNARMED"),TEXT("HERO"),TEXT("ENERGY"),TEXT("FIGHT")};
 const TCHAR* Filters[]={TEXT("ALL MOTIONS"),TEXT("MOVEMENT"),TEXT("BLOCKS"),TEXT("HIT REACTIONS"),TEXT("FALL / GET UP"),TEXT("PUNCHES"),TEXT("KICKS"),TEXT("COMBOS"),TEXT("ENERGY"),TEXT("FLYING"),TEXT("TAUNTS / POSES")};
 bool Same(const AGkMatch::FGkClip& A,const AGkMatch::FGkClip& B){return A.Anim==B.Anim && FMath::IsNearlyEqual(A.From,B.From) && FMath::IsNearlyEqual(A.To,B.To) && FMath::IsNearlyEqual(A.Impact,B.Impact) && A.bLoop==B.bLoop;}
+bool MatchesWords(const FString& Haystack, const FString& Query)
+{
+ TArray<FString> Words;
+ Query.ParseIntoArrayWS(Words);
+ for(const FString& Word : Words) if(!Haystack.Contains(Word)) return false;
+ return true;
+}
 }
 bool AGkMatch::SetupMatches(const FLabClip& C) const {
- if(!bSetupVariants && (C.Path.Contains(TEXT("_MR")) || C.Path.Contains(TEXT("Loop")) || C.Path.Contains(TEXT("/Root_Motion/"))))return false;
- return (SetupPack==0 || C.Pack.Contains(Packs[SetupPack])) && (SetupFilter<0 || C.Cat==SetupFilter) && (SetupSearch.IsEmpty() || (C.Label+TEXT(" ")+C.Pack).Contains(SetupSearch));
+ if(!bSetupVariants && !bSetupAssignedOnly && (C.Path.Contains(TEXT("_MR")) || C.Path.Contains(TEXT("Loop")) || C.Path.Contains(TEXT("/Root_Motion/"))))return false;
+ const bool bFollow=SetupLibraryMotion==TEXT("Match selected move") || SetupLibraryMotion==TEXT("Match left category");
+ const FName Motion = bFollow ? SetupSuggestedMotion() : SetupLibraryMotion;
+ return (SetupPack==0 || C.Pack.Contains(Packs[SetupPack])) && (SetupFilter<0 || C.Cat==SetupFilter)
+  && (SetupLibraryPack.IsEmpty() || C.Pack == SetupLibraryPack)
+  && SetupHasMotion(C, Motion) && (!bSetupAssignedOnly || SetupClipIsAssigned(C))
+  && (SetupSearch.IsEmpty() || MatchesWords(SetupClipSearchText(C), SetupSearch));
 }
 void AGkMatch::SetupSelect(int32 Slot){
  if(!LabSlots.IsValidIndex(Slot))return;
  if(LabSlots.IsValidIndex(LabSlot) && LabTryAt>=-1)SetupDrafts.FindOrAdd(LabSlots[LabSlot].Slot)=LabTry;
  LabSlot=Slot;LabCat=LabSlots[Slot].Cat;
+ SetupTestContext=NAME_None;
  const FName Name=LabSlots[Slot].Slot;
  const FGkClip* Draft=SetupDrafts.Find(Name);const FGkClip* Saved=Clips[LabSet].Find(Name);
  LabTry=Draft?*Draft:Saved?*Saved:FGkClip{};LabTryAt=LabTry.Anim?0:-1;bLabDrop=true;bLabPair=false;
@@ -32,38 +46,69 @@ void AGkMatch::SetupApply(){
  LabTry.bAuthored=true;const FName Slot=LabSlots[LabSlot].Slot;
  Clips[LabSet].Add(Slot,LabTry);SetupDrafts.Remove(Slot);Picked.Add(FString::Printf(TEXT("%d|%s"),LabSet,*Slot.ToString()));LabSave();MenuSound(1);
 }
-void AGkMatch::SetupTest(){
+void AGkMatch::SetupTest(bool bFreePlay){
  if(!LabSlots.IsValidIndex(LabSlot))return;
+ CloseSetupWidget();
+ bSetupFreePlay=bFreePlay;
+ bSetupTestFinished=false;
+ SetupTestFrames=0;
+ SetupResult.Reset();
  const FName Slot=LabSlots[LabSlot].Slot;SetupOriginal=Clips[LabSet].FindRef(Slot);SetupDrafts.FindOrAdd(Slot)=LabTry;Clips[LabSet].Add(Slot,LabTry);
  SetupOldMode=Mode;SetupOldDummy=Dummy;Mode=1;Dummy=0;Screen=3;bMenu=false;bSetupTesting=true;Restart();
  for(int i=0;i<400 && S.phase!=gk::PH_FIGHT;++i)gk::step(S,0,0);
  S.p[0].x=-35*gk::F;S.p[1].x=35*gk::F;S.p[0].face=1;S.p[1].face=-1;S.p[0].sa=3000;S.p[0].dr=6000;
- int Move=MoveClip.Find(Slot);
+ const FName TestSlot=SetupTestContext.IsNone()?Slot:SetupTestContext;
+ int Move=MoveClip.Find(TestSlot);
+ if(Move<0 && (LabCat==2 || Slot==TEXT("blockS") || Slot==TEXT("blockC")))
+ {
+  S.p[1].x=0;
+  const int ReactionMove=gk::moveByKey(Slot==TEXT("hitLow")?"2LK":Slot==TEXT("hitL")?"5LP":Slot==TEXT("hitM")?"5MP":"5HP");
+  if(!bFreePlay)gk::debugStart(S,0,ReactionMove);
+ }
  if(Slot.ToString().StartsWith(TEXT("pairGrab")))Move=gk::moveByKey("SA2");
  else if(Slot.ToString().StartsWith(TEXT("pair")) || Slot.ToString().StartsWith(TEXT("throw")) || Slot==TEXT("grab"))Move=gk::moveByKey("throw");
  S.nev=0;
- if(Move>=0){gk::debugStart(S,0,Move);if(gk::move(Move).isAir){S.p[0].y=90*gk::F;S.p[1].y=90*gk::F;S.p[1].st=gk::JUMP;}for(int e=0;e<S.nev;++e)OnEvent(S.ev[e]);}
- if(Slot.ToString().StartsWith(TEXT("pairForward")) || Slot.ToString().StartsWith(TEXT("pairBack"))){
+ if(!bFreePlay && Move>=0){
+  const gk::Move& Def=gk::move(Move);
+  if(SetupOutcome==2){S.p[0].x=-(gk::STAGE-gk::PW);S.p[1].x=gk::STAGE-gk::PW;}
+  else if(SetupOutcome==1 || SetupOutcome==3)
+  {
+   S.p[1].x=gk::STAGE-gk::PW;
+   S.p[0].x=S.p[1].x-(Def.di?100:35)*gk::F;
+  }
+  else if(Def.di)S.p[1].x=65*gk::F;
+  else S.p[1].x=0;
+  gk::debugStart(S,0,Move);
+  if(Def.isAir)
+  {
+   S.p[0].y=35*gk::F;S.p[0].vy=Def.sup?0:Def.su*29;
+   if(SetupOutcome!=1 && !Def.has_proj && !Def.hover){S.p[1].y=55*gk::F;S.p[1].vy=660;S.p[1].st=gk::JUMP;}
+  }
+  for(int e=0;e<S.nev;++e)OnEvent(S.ev[e]);
+ }
+ if(!bFreePlay && (Slot.ToString().StartsWith(TEXT("pairForward")) || Slot.ToString().StartsWith(TEXT("pairBack")))){
   const int Direction=Slot.ToString().StartsWith(TEXT("pairBack"))?gk::IN_L:gk::IN_R;
   for(int Tick=0;Tick<10;++Tick){gk::step(S,Direction,0);for(int e=0;e<S.nev;++e)OnEvent(S.ev[e]);}
  }
- else if(Slot==TEXT("run")){S.p[0].st=gk::RUN;S.p[0].sf=0;}
- else if(Slot==TEXT("parry") || Slot.ToString().StartsWith(TEXT("parry"))){S.p[0].st=gk::PARRY;gk::debugStart(S,1,gk::moveByKey(Slot==TEXT("parryLow")?"2LK":"5HP"));}
+ else if(!bFreePlay && Slot==TEXT("run")){S.p[0].st=gk::RUN;S.p[0].sf=0;}
+ else if(!bFreePlay && Slot.ToString().StartsWith(TEXT("parry"))){S.p[0].st=gk::PARRY;gk::debugStart(S,1,gk::moveByKey(Slot==TEXT("parryLow")?"2LK":"5HP"));}
  // State assignments can be tried with normal controls in the same sandbox.
  if(auto* PC=GetWorld()->GetFirstPlayerController()){PC->bShowMouseCursor=true;FInputModeGameAndUI In;In.SetHideCursorDuringCapture(false);In.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);PC->SetInputMode(In);}
- if(Slot.ToString().StartsWith(TEXT("intro"))){Mode=0;Restart();}
+ if(!bFreePlay && Slot.ToString().StartsWith(TEXT("intro"))){Mode=0;Restart();}
  CamD.bSnap=true;
 }
 void AGkMatch::SetupReturn(){
  if(LabSlots.IsValidIndex(LabSlot))Clips[LabSet].Add(LabSlots[LabSlot].Slot,SetupOriginal);
  bEntrance=false;bSetupTesting=false;Mode=SetupOldMode;Dummy=SetupOldDummy;Screen=4;bMenu=false;Director.Reset();LabClock=0;
  if(auto* PC=GetWorld()->GetFirstPlayerController()){PC->bShowMouseCursor=true;FInputModeGameAndUI In;In.SetHideCursorDuringCapture(false);In.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);PC->SetInputMode(In);}
+ OpenSetupWidget();
 }
 void AGkMatch::SetupAction(int32 Id){
  if(Id==30){SetupDropdown=SetupDropdown==1?0:1;SetupSlotScroll=FMath::Max(0,LabSlot-3);return;}
  if(Id==31){bSetupAdvanced=!bSetupAdvanced;return;}
  if(Id==32){SetupDropdown=0;SetupReturn();return;}
  if(Id==33){SetupReturn();SetupTest();return;}
+ if(Id==34){SetupReturn();SetupTest(true);return;}
  if(Id>=200 && Id<210){SetupPack=Id-200;SetupDropdown=0;LabScroll=0;return;}
  if(Id==1){LabClose();return;}if(Id==2){SetupApply();return;}if(Id==3){SetupTest();return;}
  if(Id==4){SetupDrafts.Remove(LabSlots[LabSlot].Slot);LabTryAt=-2;SetupSelect(LabSlot);return;}
@@ -91,6 +136,7 @@ void AGkMatch::SetupAction(int32 Id){
  }
 }
 void AGkMatch::SetupInput(){
+ if(SetupWidget && !ScriptMenuKey.IsValid())return;
  auto* PC=GetWorld()->GetFirstPlayerController();if(!PC)return;
  auto Hit=[&](FKey K){return ScriptMenuKey.IsValid()?K==ScriptMenuKey:PC->WasInputKeyJustPressed(K);};
  if(Hit(EKeys::LeftMouseButton)){bSetupSearch=false;SetupAction(LabHot);return;}
@@ -103,7 +149,7 @@ void AGkMatch::SetupInput(){
   for(int i=0;i<10;++i)if(Hit(DigitKeys[i]))SetupSearch+=FString::FromInt(i);
   LabScroll=0;return;
  }
- if(Hit(EKeys::Escape)){if(SetupDropdown){SetupDropdown=0;return;}LabClose();return;}if(Hit(EKeys::F5)){SetupTest();return;}if(Hit(EKeys::F6)){LabClose();return;}
+ if(Hit(EKeys::Escape)){if(SetupDropdown){SetupDropdown=0;return;}LabClose();return;}if(Hit(EKeys::F5)||Hit(EKeys::Enter)){SetupTest();return;}if(Hit(EKeys::F6)){LabClose();return;}
  if(Hit(EKeys::SpaceBar))bSetupPaused=!bSetupPaused;
  if(SetupDropdown==1){if(Hit(EKeys::MouseScrollDown))SetupSlotScroll+=3;if(Hit(EKeys::MouseScrollUp))SetupSlotScroll=FMath::Max(0,SetupSlotScroll-3);return;}
  if(Hit(EKeys::MouseScrollDown))LabScroll+=3;if(Hit(EKeys::MouseScrollUp))LabScroll=FMath::Max(0,LabScroll-3);
@@ -113,6 +159,7 @@ void AGkMatch::SetupInput(){
 }
 // The editor is deliberately quieter than the game: one assignment, one preview, one test.
 void AGkMatch::DrawCharacterSetup(UCanvas* C){
+ if(SetupWidget)return;
  const float Scale=C->SizeX/1280.f,Height=C->SizeY/Scale;float MX=-1,MY=-1;if(auto* PC=GetWorld()->GetFirstPlayerController())PC->GetMousePosition(MX,MY);MX/=Scale;MY/=Scale;LabHot=-1;
  const FLinearColor Ink(.025,.029,.038,1),Paper(.94,.95,.98,1),Blue(.08,.36,.88,1),Mute(.57,.62,.7,1),Panel(.075,.085,.105,1);
  auto Box=[&](float X,float Y,float W,float H,FLinearColor Col){FCanvasTileItem I(FVector2D(X*Scale,Y*Scale),GWhiteTexture,FVector2D(W*Scale,H*Scale),Col);I.BlendMode=SE_BLEND_Translucent;C->DrawItem(I);};
@@ -163,5 +210,9 @@ void AGkMatch::DrawSetupTest(UCanvas* C){
   FCanvasTileItem B(FVector2D(X*Scale,86*Scale),GWhiteTexture,FVector2D(W*Scale,46*Scale),Hover?FLinearColor(.16,.4,.8,1):FLinearColor(.03,.045,.07,.97));B.BlendMode=SE_BLEND_Translucent;C->DrawItem(B);
   FCanvasTextItem T(FVector2D((X+14)*Scale,99*Scale),FText::FromString(Label),HudFont.Get(),FLinearColor::White);static auto Face=MakeShared<FCompositeFont>(FName(TEXT("SetupTest")),FPaths::EngineContentDir()/TEXT("Slate/Fonts/Roboto-Regular.ttf"),EFontHinting::Default,EFontLoadingPolicy::LazyLoad);T.SlateFontInfo=FSlateFontInfo(Face,16*Scale);C->DrawItem(T);
  };
- Button(32,20,350,TEXT("Back to animations   Esc"));Button(33,382,190,TEXT("Test again   F5"));
+ if(bQuitPrompt || bMenu)return;
+ Button(32,20,265,TEXT("Back to lab   Esc"));Button(33,295,200,TEXT("Test again   Enter"));Button(34,505,165,TEXT("Free play"));
+ const FString Caption=bSetupFreePlay?TEXT("Play  ·  You have control"):SetupResult.IsEmpty()?TEXT("Test  ·  Running move"):FString(TEXT("Test  ·  "))+SetupResult;
+ FCanvasTextItem Result(FVector2D(20*Scale,145*Scale),FText::FromString(Caption),HudFont.Get(),FLinearColor::White);
+ Result.Scale=FVector2D(.9f*Scale,.9f*Scale);C->DrawItem(Result);
 }

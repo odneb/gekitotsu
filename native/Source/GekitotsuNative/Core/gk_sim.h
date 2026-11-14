@@ -53,7 +53,8 @@ struct Fighter {
 	int32_t age[8], pd[8];
 	int16_t buf[NBUF];
 	int16_t mv, fuq;                       // move ids, -1 for none
-	int8_t st, sub, ac, pad;
+	int8_t st, sub, ac;
+	bool runFromDash;
 };
 struct Shot { int32_t o, ch, k, x, y, dir, left, cd, pause, life, mod; };
 
@@ -65,7 +66,7 @@ enum : int32_t { H_THROW = 1, H_KO = 2, H_SPECIAL = 4, H_IMPACT = 8, H_CRUMPLE =
 struct Event { int32_t type, who, x, y, a, b, c, d, e, f; };
 
 constexpr int MAX_SHOTS = 8, MAX_EVENTS = 48;
-struct Config { int32_t training, rounds; };
+struct Config { int32_t training, rounds; bool experimentalMovement; };
 struct State {
 	int32_t frame, slow, pt, kx, round, time, freeze, frzWho, winner, rw, nshots, nev;
 	int8_t phase, koType, pad[2];

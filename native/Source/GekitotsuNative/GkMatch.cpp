@@ -146,6 +146,13 @@ void AGkMatch::BeginPlay()
 {
 	Super::BeginPlay();
 	Current = this; UWorld* W = GetWorld();
+	if (!GIsEditor)
+	{
+		if (UGameViewportClient* Viewport = W->GetGameViewport())
+		{
+			Viewport->OnWindowCloseRequested().BindUObject(this, &AGkMatch::OnWindowCloseRequested);
+		}
+	}
 	// a standard pad as Unreal names its buttons, in the browser game's layout: Square Light, Cross Medium, Circle Heavy, L2 Special, R2 Assist, R1 Parry, L1 Impact, Triangle Homing
 	Bind[0] = EKeys::Gamepad_FaceButton_Left; Bind[1] = EKeys::Gamepad_FaceButton_Bottom; Bind[2] = EKeys::Gamepad_FaceButton_Right; Bind[3] = EKeys::Gamepad_LeftTrigger;
 	Bind[4] = EKeys::Gamepad_RightTrigger; Bind[5] = EKeys::Gamepad_RightShoulder; Bind[6] = EKeys::Gamepad_LeftShoulder; Bind[7] = EKeys::Gamepad_FaceButton_Top;
@@ -160,6 +167,7 @@ void AGkMatch::BeginPlay()
 		Setup.Stage = Is; StageAt = Is; Mode = Setup.Mode; Level = Setup.Level; Dummy = Setup.Dummy;
 		Screen = Setup.bGo ? 3 : 5; PaletteOverride=Setup.Palette; Setup.bGo = false; bMenu = false; Anchor = GetActorTransform(); bPlaced = Kind != 2;
 		if (FParse::Param(FCommandLine::Get(), TEXT("gkfight"))) { Screen = 3; }
+		if (FParse::Param(FCommandLine::Get(), TEXT("gktraining"))) { Screen = 3; Mode = 1; }
 		if (FParse::Param(FCommandLine::Get(), TEXT("gkscript")) || GkFlyOn())
 		{
 			if (GkFlyOn()) { FString N; FFileHelper::LoadFileToString(N, *(FPaths::ProjectSavedDir() / TEXT("fly.on"))); Script = { FString::Printf(TEXT("stage|%d"), FCString::Atoi(*N)), TEXT("wait|400"), TEXT("fight|1"), TEXT("hud|0"), TEXT("storm|0") }; }
@@ -610,7 +618,19 @@ void AGkMatch::LabOpen()
 			Short.RemoveFromStart(TEXT("AS_Anime_MC_"));Short.RemoveFromStart(TEXT("AS_"));Short.RemoveFromStart(TEXT("Anim_SC_")); Short.RemoveFromStart(TEXT("A_")); Short.RemoveFromStart(TEXT("SpecialMove_")); Short.RemoveFromEnd(TEXT("_IP")); Short.ReplaceInline(TEXT("_"), TEXT(" "));
 			const TCHAR* Pack = Path.Contains(TEXT("TauntBundle"))?TEXT("TAUNTS"):Path.Contains(TEXT("EmotePack"))?TEXT("EMOTES"):Path.Contains(TEXT("GkNewAnimations"))?TEXT("NEW ANIME"):Path.Contains(TEXT("FightAnimations")) ? TEXT("FIGHT") : Path.Contains(TEXT("SpecialMoves")) ? TEXT("ENERGY") : Path.Contains(TEXT("Style_One")) ? TEXT("HERO 1") : Path.Contains(TEXT("Style_Two")) ? TEXT("HERO 2")
 				: Path.Contains(TEXT("V1")) ? TEXT("UNARMED 1") : Path.Contains(TEXT("V2")) ? TEXT("UNARMED 2") : Path.Contains(TEXT("V3")) ? TEXT("UNARMED 3") : TEXT("UNARMED 4");
-			FLabClip L; L.Path=Path;L.Label=Short;L.Pack=Path.Contains(TEXT("TauntBundle"))?TEXT("Mega Taunt"):Path.Contains(TEXT("EmotePack"))?TEXT("Mega Emotes"):Path.Contains(TEXT("AnimeMartialArts"))?TEXT("Anime Martial Arts"):Path.Contains(TEXT("AnimePowerUp"))?TEXT("Anime Power Up"):Path.Contains(TEXT("SuperheroGround"))?TEXT("Superhero Ground"):FString(Pack);L.Cat=(L.Pack==TEXT("Mega Taunt") || L.Pack==TEXT("Mega Emotes"))?9:GkClipCat(Name);LabList.Add(L);
+			FLabClip L; L.Path=Path;L.Label=Short;L.Pack=Path.Contains(TEXT("TauntBundle"))?TEXT("Mega Taunt"):Path.Contains(TEXT("EmotePack"))?TEXT("Mega Emotes"):Path.Contains(TEXT("AnimeMartialArts"))?TEXT("Anime Martial Arts"):Path.Contains(TEXT("AnimePowerUp"))?TEXT("Anime Power Up"):Path.Contains(TEXT("SuperheroGround"))?TEXT("Superhero Ground"):FString(Pack);L.Cat=(L.Pack==TEXT("Mega Taunt") || L.Pack==TEXT("Mega Emotes"))?9:GkClipCat(Name);
+			const FString Source=Short+TEXT(" ")+Path;
+			auto Tag=[&](const TCHAR* Keyword,const TCHAR* Aliases){if(Source.Contains(Keyword)){L.Tags+=TEXT(" ");L.Tags+=Aliases;}};
+			Tag(TEXT("Knee"),TEXT("knee strike leg")); Tag(TEXT("Jump"),TEXT("air aerial airborne")); Tag(TEXT("Flying"),TEXT("air aerial flight"));
+			Tag(TEXT("Shoryuken"),TEXT("uppercut dragon punch 623 rising anti air")); Tag(TEXT("Uppercut"),TEXT("uppercut rising anti air"));
+			Tag(TEXT("Kick_down"),TEXT("downward stomp spike axe kick foot")); Tag(TEXT("AxeKick"),TEXT("downward stomp spike foot"));
+			Tag(TEXT("Kick_Up"),TEXT("high kick overhead up air foot")); Tag(TEXT("Hit"),TEXT("reaction receiver stagger recoil"));
+			Tag(TEXT("React"),TEXT("reaction receiver stagger recoil")); Tag(TEXT("Block"),TEXT("defense defender guard"));
+			Tag(TEXT("Punch"),TEXT("strike fist arm")); Tag(TEXT("Kick"),TEXT("strike leg foot"));
+			Tag(TEXT("Run"),TEXT("movement locomotion sprint fast")); Tag(TEXT("Walk"),TEXT("movement locomotion step"));
+			Tag(TEXT("Forward"),TEXT("forward advance approach")); Tag(TEXT("Back"),TEXT("back backward retreat"));
+			Tag(TEXT("In_Place"),TEXT("in place")); Tag(TEXT("Root_Motion"),TEXT("root motion"));
+			LabList.Add(MoveTemp(L));
 		}
 	}
 	LabList.Sort([](const FLabClip& A, const FLabClip& B) { return A.Label < B.Label; });
@@ -620,11 +640,13 @@ void AGkMatch::LabOpen()
 		PC->bShowMouseCursor = true; FInputModeGameAndUI In; In.SetHideCursorDuringCapture(false); In.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock); PC->SetInputMode(In);
 	}
  SetupSelect(LabSlot);
+ OpenSetupWidget();
 }
 
 void AGkMatch::LabClose()
 {
- SetupDrafts.FindOrAdd(LabSlots[LabSlot].Slot)=LabTry;
+ CloseSetupWidget();
+ if(LabSlots.IsValidIndex(LabSlot))SetupDrafts.FindOrAdd(LabSlots[LabSlot].Slot)=LabTry;
 	if (APlayerController* PC = GetWorld()->GetFirstPlayerController()) { PC->bShowMouseCursor = false; PC->SetInputMode(FInputModeGameOnly()); }
 	bLabDrop = false; LabTryAt = -2; Screen = 3; bMenu=false; bDebugMenu=false; MenuAt=0;
 }
@@ -855,6 +877,14 @@ void AGkMatch::StartStage(int32 Index)
 
 void AGkMatch::EndPlay(const EEndPlayReason::Type Reason)
 {
+	CloseSetupWidget();
+	if (UGameViewportClient* Viewport = GetWorld()->GetGameViewport())
+	{
+		if (Viewport->OnWindowCloseRequested().IsBoundToObject(this))
+		{
+			Viewport->OnWindowCloseRequested().Unbind();
+		}
+	}
 	if(Announcer){Announcer->Stop();Announcer->DestroyComponent();Announcer=nullptr;}
 	for(auto& Voice:FighterVoices)if(Voice){Voice->Stop();Voice->DestroyComponent();Voice=nullptr;}
 	delete Pads; Pads = nullptr; if (Current == this) { Current = nullptr; }
@@ -864,7 +894,10 @@ void AGkMatch::EndPlay(const EEndPlayReason::Type Reason)
 void AGkMatch::Restart()
 {
  Director.Reset();StyleClashFrame=-1;Fx.Ps.Reset();bStyleBones[0]=bStyleBones[1]=false;for(int& Age:GhostAge)Age=100;bEntrance=false;bEntrancePlayed=false;EntranceFrame=0;
-	gk::newMatch(S, Mode == 1 && Screen == 3, 2); gk::aiMake(Cpu[0], Level); gk::aiMake(Cpu[1], Level);
+	const bool bExperimentalMovement = S.cfg.experimentalMovement;
+	gk::newMatch(S, Mode == 1 && Screen == 3, 2);
+	S.cfg.experimentalMovement = bExperimentalMovement;
+	gk::aiMake(Cpu[0], Level); gk::aiMake(Cpu[1], Level);
 	OverTimer = 0; CallHold = 0; Hist.Reset(); LastIn = -1; Adv = -999; bExchange = false; Sparks.Reset();
 	for (int32 i = 0; i < 2; i++) { Combo[i] = 0; ComboTimer[i] = 0; NoteTimer[i] = 0; ActFrame[i] = 0; bWasIdle[i] = true; }
  // newMatch emits the first round cue before the first simulation step clears it.
@@ -942,6 +975,19 @@ int32 AGkMatch::DummyInput()
 	}
 }
 
+void AGkMatch::ConfirmQuit()
+{
+	if(Screen==4)CloseSetupWidget();
+	bQuitPrompt = true;
+	bQuitSelected = false;
+}
+
+bool AGkMatch::OnWindowCloseRequested()
+{
+	ConfirmQuit();
+	return false;
+}
+
 /** The menu is drawn by the HUD; this reads it. TAB or START opens it, and the match waits while it is open. */
 void AGkMatch::MenuInput()
 {
@@ -951,6 +997,32 @@ void AGkMatch::MenuInput()
 	auto Raw = [this, Fresh](int32 Action) { return PadBind[Action] >= 0 && PadBind[Action] < 32 && ((Fresh >> PadBind[Action]) & 1u) != 0; };
 	const bool bStart = ((Fresh >> 9) & 1u) != 0 || Hit(EKeys::Gamepad_Special_Right), bSelect = ((Fresh >> 8) & 1u) != 0;
 	const bool bToggle = Hit(EKeys::Tab) || Hit(EKeys::Gamepad_Special_Right) || (bStart && MenuPage == 0);
+	if (bQuitPrompt)
+	{
+		const bool bCancel = Hit(EKeys::Escape) || Hit(EKeys::BackSpace) || Hit(EKeys::Tab)
+			|| Hit(EKeys::Gamepad_FaceButton_Right) || Raw(2);
+		const bool bConfirm = Hit(EKeys::Enter) || Hit(EKeys::J)
+			|| Hit(EKeys::Gamepad_FaceButton_Bottom) || Raw(0) || Raw(1);
+		const bool bNavigate = Hit(EKeys::Up) || Hit(EKeys::Down) || Hit(EKeys::W) || Hit(EKeys::S)
+			|| Hit(EKeys::Gamepad_DPad_Up) || Hit(EKeys::Gamepad_DPad_Down)
+			|| (FreshDir & (gk::IN_U | gk::IN_D));
+		if (bCancel || (bConfirm && !bQuitSelected))
+		{
+			bQuitPrompt = false;
+			MenuSound(2);
+			if(Screen==4)OpenSetupWidget();
+		}
+		else if (bConfirm)
+		{
+			FPlatformMisc::RequestExit(false, TEXT("Gekitotsu confirmed quit"));
+		}
+		else if (bNavigate)
+		{
+			bQuitSelected = !bQuitSelected;
+			MenuSound(0);
+		}
+		return;
+	}
 	if (MenuPage == 1)
 	{
 		// the next button pressed becomes the action being asked for
@@ -970,9 +1042,16 @@ void AGkMatch::MenuInput()
 		if (bGot && ++BindAt >= 8) { BindAt = 0; MenuPage = MenuReturnPage; MenuAt=MenuReturnAt; SaveBinds(); }
 		return;
 	}
-	if(bSetupTesting){if(Hit(EKeys::LeftMouseButton) && (LabHot==32 || LabHot==33)){SetupAction(LabHot);return;}if(Hit(EKeys::F6)||Hit(EKeys::Escape)){SetupReturn();return;}if(Hit(EKeys::F5)){SetupReturn();SetupTest();return;}}
+	if(bSetupTesting)
+	{
+		if(Hit(EKeys::LeftMouseButton) && LabHot>=32 && LabHot<=34){SetupAction(LabHot);return;}
+		if(Hit(EKeys::F6)||Hit(EKeys::Escape)){SetupReturn();return;}
+		if(Hit(EKeys::F5)||Hit(EKeys::Enter)){SetupReturn();SetupTest();return;}
+		if(!bSetupFreePlay || !bMenu)return;
+	}
  if (Screen == 3 && !bMenu)
 	{
+		if (Hit(EKeys::F7)) { S.cfg.experimentalMovement = !S.cfg.experimentalMovement; MenuSound(1); return; }
   if(Hit(EKeys::F6)){LabOpen();return;}
   if(bEntrance && (Hit(EKeys::Enter)||Hit(EKeys::SpaceBar)||bStart)){FinishEntrance();return;}
 		if (Hit(EKeys::R) || Hit(EKeys::Gamepad_Special_Left) || bSelect) { Restart(); }
@@ -991,7 +1070,7 @@ void AGkMatch::MenuInput()
  if(Screen==7)return;
  if(Screen==6) {
   Move(4);
-  if(bOk){if(MenuAt==0){Screen=7;}else if(MenuAt==1){Screen=1;SelWho=0;}else if(MenuAt==2){Screen=0;MenuAt=0;}else UKismetSystemLibrary::QuitGame(this,PC,EQuitPreference::Quit,false);}
+  if(bOk){if(MenuAt==0){Screen=7;}else if(MenuAt==1){Screen=1;SelWho=0;}else if(MenuAt==2){Screen=0;MenuAt=0;}else ConfirmQuit();}
   return;
  }
  if(MenuPage==4){
@@ -1018,7 +1097,7 @@ void AGkMatch::MenuInput()
   if(bBack){Screen=5;return;}Move(4);MenuReturnPage=0;
   if(bOk){if(MenuAt<2){Mode=MenuAt;Setup.Mode=Mode;SelWho=0;Screen=1;MenuAt=0;}
    else if(MenuAt==2){MenuPage=4;MenuAt=0;}
-   else UKismetSystemLibrary::QuitGame(this,PC,EQuitPreference::Quit,false);
+   else ConfirmQuit();
   }
  }
 	else if (Screen == 1)
@@ -1050,7 +1129,7 @@ void AGkMatch::MenuInput()
     case 3:MenuReturnAt=3;MenuPage=2;MenuAt=0;break;
     case 4:bMenu=false;Screen=1;SelWho=0;break;
     case 5:bMenu=false;Screen=0;MenuAt=0;break;
-    case 6:UKismetSystemLibrary::QuitGame(this,PC,EQuitPreference::Quit,false);break;
+    case 6:ConfirmQuit();break;
    }
    return;
   }
@@ -1102,6 +1181,7 @@ void AGkMatch::Tick(float DeltaSeconds)
 	while (Acc >= Step && Steps < 8)
 	{
 		Acc -= Step; Steps++; Ticks++;
+		if (bQuitPrompt) { continue; }
 		if (Screen == 4) { const int32 Count = LabSlots.IsValidIndex(LabSlot) ? FMath::Max(1, Poses.Length(LabSlots[LabSlot].Slot)) : 1; LabFrame = (LabFrame + 1) % (Count + 25); if(!bSetupPaused)LabClock += SetupSpeed / 60.f; if (LabNoteTimer > 0) { LabNoteTimer--; } }
 		else if (!bMenu && bPlaced && Screen==3) { StepOnce(); }
 		AnimClock++;
@@ -1117,13 +1197,31 @@ void AGkMatch::Tick(float DeltaSeconds)
 
 void AGkMatch::StepOnce(int32 Force0, int32 Force1)
 {
+ if(bSetupTesting && !bSetupFreePlay && bSetupTestFinished)return;
  if(StepEntrance())return;
 	const int32 Human = InputNow; int32 I0 = Human, I1 = 0;
-	if (Force0 >= 0) { I0 = Force0; I1 = FMath::Max(0, Force1); }
+	if (bSetupTesting && !bSetupFreePlay) { I0 = 0; I1 = SetupOutcome==1 ? (S.p[1].x >= S.p[0].x ? gk::IN_R : gk::IN_L) : 0; }
+	else if (Force0 >= 0) { I0 = Force0; I1 = FMath::Max(0, Force1); }
 	else if (Mode == 2 || Screen != 3) { I0 = gk::aiThink(Cpu[0], S, 0); I1 = gk::aiThink(Cpu[1], S, 1); }   // behind the menus the CPU fights itself
 	else if (Mode == 1) { I1 = DummyInput(); }
 	else { I1 = gk::aiThink(Cpu[1], S, 1); }
 	gk::step(S, I0, I1);
+	if(bSetupTesting && !bSetupFreePlay)
+	{
+		for(int32 E=0;E<S.nev;++E)
+		{
+			if(S.ev[E].type==gk::E_HIT)SetupResult=TEXT("Hit");
+			if(S.ev[E].type==gk::E_BLOCK)SetupResult=TEXT("Blocked");
+			if(S.ev[E].type==gk::E_SPLAT || S.ev[E].type==gk::E_WBOUNCE)SetupResult=TEXT("Wall splat");
+		}
+		if(++SetupTestFrames>=360 || (SetupTestFrames>=75 && !S.freeze && S.nshots==0
+			&& S.p[0].st==gk::IDLE && S.p[1].y==0 && S.p[1].st==gk::IDLE))
+		{
+			bSetupTestFinished=true;
+			if(SetupResult.IsEmpty())SetupResult=SetupOutcome==2?TEXT("Whiff"):TEXT("No contact");
+			UE_LOG(LogTemp,Display,TEXT("Animation Lab test result: %s"),*SetupResult);
+		}
+	}
 	for (int32 e = 0; e < S.nev; e++) { OnEvent(S.ev[e]); }
  for(int32 i=0;i<2;++i){const auto& P=S.p[i];if(P.st==gk::THROWING && P.tk==5 && P.hs==0 && (P.tf==24 || P.tf==50 || P.tf==78)){
   PlayVfx(TEXT("NS_Radial_Spiky_Hit_01"),At(P.x+P.face*20*gk::F,P.y+60*gk::F,-12),.35f+P.tf*.008f,0,nullptr);
@@ -1749,7 +1847,9 @@ void AGkMatch::LookFighter(int32 i)
 			BodyMid[i][k]->SetVectorParameterValue(TEXT("KeyTint"), Tint);
 			BodyMid[i][k]->SetVectorParameterValue(TEXT("Paint"), FMath::Lerp(Paint, Wash, Amt));
 			BodyMid[i][k]->SetVectorParameterValue(TEXT("Shadow"), FMath::Lerp(Shadow, Wash * 0.55f, Amt));
-			BodyMid[i][k]->SetVectorParameterValue(TEXT("Rim"), Rim * 0.95f);
+			const float Daylight = PaletteWeights[0];
+			const FLinearColor DayRim = FMath::Lerp(Rim, FLinearColor(1.0f,0.86f,0.67f) * Rim.R, Daylight * 0.68f);
+			BodyMid[i][k]->SetVectorParameterValue(TEXT("Rim"), DayRim * FMath::Lerp(0.95f,1.38f,Daylight));
    if((Screen!=3 && Screen!=4 && Screen!=2)||bMenu){
     const FVector L=Anchor.TransformVectorNoScale(FVector(-.65,-.35,.68)).GetSafeNormal();
     const int32 Outfit=Screen==0||Screen==5?0:Setup.Costume[i];
@@ -1996,6 +2096,7 @@ void AGkMatch::RunScript()
   else if (Op == TEXT("presentation")) { FlashGain=Num(1,100)/100.f;ShakeGain=Num(2,100)/100.f; }
   else if (Op == TEXT("cue")) { Director.Start(TCHAR_TO_UTF8(*A[1]),Num(2,0),1,true); DirectorContact=At(S.p[1].x,S.p[1].y+50*gk::F); }
   else if(Op==TEXT("setupaction")){SetupAction(Num(1));}
+  else if(Op==TEXT("setupoutcome")){SetupOutcome=FMath::Clamp(Num(1),0,3);}
   else if(Op==TEXT("setupfind") && A.IsValidIndex(1)){for(int Id=0;Id<LabList.Num();++Id)if(LabList[Id].Path.Contains(A[1])){SetupAction(10000+Id);break;}}
   else if(Op==TEXT("setupslot") && A.IsValidIndex(1)){for(int Id=0;Id<LabSlots.Num();++Id)if(LabSlots[Id].Slot==FName(*A[1])){SetupSelect(Id);break;}}
   else if(Op==TEXT("entranceassert")){const bool Pass=bEntrance==(Num(1)!=0) && S.phase==Num(2) && (!bEntrance || (S.time==99*60 && S.p[0].hp==1000 && S.p[1].hp==1000));UE_LOG(LogTemp,Display,TEXT("GkEntrance %s active%d phase%d hp%d/%d timer%d"),Pass?TEXT("PASS"):TEXT("FAIL"),int(bEntrance),S.phase,S.p[0].hp,S.p[1].hp,S.time);if(!Pass){UE_LOG(LogTemp,Error,TEXT("Entrance assertion failed"));FPlatformMisc::RequestExit(false);return;}}
@@ -2116,6 +2217,9 @@ void AGkMatch::LoadClips()
 		{ "mv_jLP", GK_S1 "Anim_SC_Punch", false, 0.00f, 1.00f }, { "mv_jMP", GK_S2 "Anim_SC_Punch", false, 0.00f, 1.00f }, { "mv_jHP", GK_S1 "Anim_SC_Punch_Down", false, 0.00f, 1.00f },
 		{ "mv_jLK", GK_S2 "Anim_SC_Kick_v2", false, 0.00f, 1.00f }, { "mv_jMK", GK_S1 "Anim_SC_Kick", false, 0.00f, 1.00f }, { "mv_jHK", GK_V4 "Jump_Kick_IP", false, 0.25f, 0.80f },
 		{ "mv_njHK", GK_V4 "Jump_Kick_IP", false, 0.25f, 0.80f }, { "mv_jUP", GK_S1 "Anim_SC_Kick_Up", false, 0.00f, 1.00f }, { "mv_AUP", GK_S2 "Anim_SC_Punch_up", false, 0.00f, 1.00f },
+		{ "mv_jUpAir", GK_S1 "Anim_SC_Kick_Up", false, 0.00f, 1.00f },
+		{ "mv_jKnee", GK_FA "Kick/A_KneeKick_Jump", false, 0.00f, 1.00f },
+		{ "mv_jStomp", GK_S2 "Anim_SC_Kick_down_v2", false, 0.00f, 1.00f },
 		{ "mv_ABK", GK_S2 "Anim_SC_Kick_v2", false, 0.00f, 1.00f }, { "mv_jDN", GK_S2 "Anim_SC_Kick_down_v2", false, 0.00f, 1.00f }, { "mv_jBK", GK_S1 "Anim_SC_Kick", false, 0.00f, 1.00f },
 		{ "mv_ASPK", GK_S2 "Anim_SC_Kick_down_v2", false, 0.00f, 1.00f }, { "mv_ATAT", GK_S2 "Anim_SC_Kick_Double", false, 0.00f, 1.00f }, { "mv_ATAT_OD", GK_S2 "Anim_SC_Kick_Double", false, 0.00f, 1.00f },
 		{ "mv_HOME", GK_S2 "Anim_SC_Move_Forward_V2", true, 0.00f, 1.00f }, { "mv_HOME_OD", GK_S2 "Anim_SC_Move_Forward_V2", true, 0.00f, 1.00f }, { "mv_AHOME", GK_S2 "Anim_SC_Move_Forward_V2", true, 0.00f, 1.00f },
@@ -2644,8 +2748,10 @@ void AGkMatch::Present(float Real)
    }
   }
   if(Screen==4 && (!bScript || bLabUi) && Cam){
-   const float SetupZ=bSetupAdvanced?30.f:65.f,SetupDistance=bSetupAdvanced?1300.f:1000.f;
-   const FVector SetupFocus=Wd(FVector(0,155,SetupZ));const FVector SetupEye=Wd(FVector(-SetupDistance,155,SetupZ));
+   const float SetupZ=SetupWidget?101.f:bSetupAdvanced?30.f:65.f;
+   const float SetupDistance=SetupWidget?690.f:bSetupAdvanced?1300.f:1000.f;
+   const float SetupY=SetupWidget?-25.f:155.f;
+   const FVector SetupFocus=Wd(FVector(0,SetupY,SetupZ));const FVector SetupEye=Wd(FVector(-SetupDistance,SetupY,SetupZ));
    Cam->SetActorLocationAndRotation(SetupEye,(SetupFocus-SetupEye).Rotation());Cam->GetCameraComponent()->SetFieldOfView(40);
   }
   EntranceCamera();

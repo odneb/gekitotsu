@@ -63,8 +63,9 @@ n=custom(m,i,'''
 float3 w=float3(.2126,.7152,.0722);
 float a=dot(max(Albedo.rgb,0),w), s=dot(max(Scene.rgb,0),w);
 float illum=s/max(a,.045);
-float light=smoothstep(.26,.29,illum), top=smoothstep(.65,.69,illum);
-float bands=.23+.34*light+.39*top;
+float aa=clamp(fwidth(illum)*.65,.008,.035);
+float light=smoothstep(.32-aa,.32+aa,illum), top=smoothstep(.72-aa,.72+aa,illum);
+float bands=.17+.38*light+.46*top;
 float3 tint=lerp(float3(.68,.82,1.08),float3(1.10,1.02,.84),light);
 float3 c=Scene.rgb*(bands/max(illum,.05))*tint;
 float mask=smoothstep(.03,.08,a)*(1-smoothstep(4200,12000,Depth.r));
@@ -76,7 +77,7 @@ float3 nx=SceneTextureLookup(uv+float2(px.x,0),8,false).rgb;
 float3 ny=SceneTextureLookup(uv+float2(0,px.y),8,false).rgb;
 float crease=smoothstep(.28,.48,max(length(n0-nx),length(n0-ny)));
 float nearMask=1-smoothstep(2800,6500,Depth.r);
-return max(lerp(Scene.rgb,c,mask*.58)*(1-crease*.12*nearMask*mask),0);
+return max(lerp(Scene.rgb,c,mask*.92)*(1-crease*.18*nearMask*mask),0);
 '''); E.connect_material_property(n,'',unreal.MaterialProperty.MP_EMISSIVE_COLOR); save(m)
 # Reuse the stage's cloud mask on its existing sky dome with six animated palettes.
 m=mat('M_GkFilmSky'); m.set_editor_property('is_sky',True); m.set_editor_property('two_sided',True)

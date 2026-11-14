@@ -76,6 +76,19 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 	const float W = Cv->SizeX, H = Cv->SizeY, U = H / 1080.f, Mid = W * 0.5f;
 	const FLinearColor Ink(0.008f, 0.006f, 0.009f, 1.f), Bone(0.98f, 0.88f, 0.68f, 1.f), Gold(1.f, 0.78f, 0.2f, 1.f), Red(0.9f, 0.16f, 0.12f, 1.f), Blue(0.35f, 0.65f, 1.f, 1.f), Ash(0.3f, 0.3f, 0.34f, 0.9f), Jade(0.25f, 0.9f, 0.5f, 1.f), Slate(0.55f, 0.55f, 0.6f, 1.f);
 	const FLinearColor Tint[2] = { bForestLook ? FLinearColor(.88f,.022f,.018f) : Red, Blue }; const FString Names[2] = { TEXT("PLAYER 1"), Mode == 1 ? TEXT("DUMMY") : TEXT("CPU") };
+	if (bQuitPrompt)
+	{
+		GkRect(Cv, 0, 0, W, H, FLinearColor(0, 0, 0, .72f));
+		const float Width = FMath::Min(W * .85f, 640.f * U);
+		GkHudPanel(Cv, Mid - Width / 2, H * .32f, Width, H * .36f, 28.f * U, Ink);
+		GkText(Cv, TEXT("QUIT GEKITOTSU?"), Mid, H * .35f, 56.f * U, Bone, true);
+		const float SelectedY = bQuitSelected ? .525f : .455f;
+		GkHudPanel(Cv, Mid - Width * .4f, H * SelectedY, Width * .8f, H * .06f, 12.f * U, Red);
+		GkText(Cv, TEXT("KEEP PLAYING"), Mid, H * .458f, 36.f * U, Bone, true);
+		GkText(Cv, TEXT("QUIT GAME"), Mid, H * .528f, 36.f * U, Bone, true);
+		GkText(Cv, TEXT("UP / DOWN  SELECT     ENTER  CONFIRM     ESC  CANCEL"), Mid, H * .625f, 18.f * U, Bone, true);
+		return;
+	}
 	if (Screen == 4 && (!bScript || bLabUi)) { DrawCharacterSetup(Cv); return; }
  if(bEntrance && Screen==3 && !bMenu && !bNoHud){
   const float Bars=H*.055f*(1-FMath::Clamp((EntranceFrame-EntranceDolly())/60.f,0.f,1.f));GkRect(Cv,0,0,W,Bars,Ink);GkRect(Cv,0,H-Bars,W,Bars,Ink);
@@ -276,6 +289,11 @@ void AGkMatch::DrawHud(UCanvas* Cv)
 		}
 		if (Adv > -900) { GkText(Cv, FString::Printf(TEXT("FRAME ADVANTAGE  %+d"), Adv), Mid, Top + 120.f * U, 22.f * U, Adv >= 0 ? Jade : FLinearColor(1.f, 0.55f, 0.5f, 1.f), true); }
 		GkText(Cv, FString::Printf(TEXT("DUMMY  %s"), DummyName[FMath::Clamp(Dummy, 0, 4)]), W - 300.f * U, 240.f * U, 17.f * U, Bone);
+	}
+	if (Mode == 1 || S.cfg.experimentalMovement)
+	{
+		GkText(Cv, S.cfg.experimentalMovement ? TEXT("F7  FALCON  |  AIR L UP-AIR   M KNEE   H STOMP") : TEXT("F7  ORIGINAL / FALCON"),
+			Mid, H - 55.f * U, 16.f * U, S.cfg.experimentalMovement ? Jade : Bone, true);
 	}
 	if (!bForestLook || Mode == 1) { GkText(Cv, FString::Printf(TEXT("%d fps"), FMath::RoundToInt(1000.f / FMath::Max(1.f, FrameMs))), W - 90.f * U, 8.f * U, 15.f * U, FrameMs < 18.f ? Jade : Gold); }
 	if (Mode == 1 || bMenu) { GkText(Cv, TEXT("TAB / START  menu      R / SELECT  restart      B  boxes"), Mid, H - 28.f * U, 13.f * U, GkFade(Bone, 0.7f), true); }
